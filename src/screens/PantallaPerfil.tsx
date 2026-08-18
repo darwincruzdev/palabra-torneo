@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { Avatar } from '../components/Avatar';
 import { SelectorAvatar } from '../components/SelectorAvatar';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
+import { JORNADAS_POR_CICLO } from '../game/reglas';
 import {
   MAX_INTENTOS,
   PALABRAS_PENALIZACION,
@@ -180,6 +181,25 @@ export function PantallaPerfil() {
           Las cinco repiten letras, así que gastan un intento dando muy poca información.
           Es el lastre por ir ganando. Si hay empate en lo alto de la tabla, nadie lleva
           penalización. Se cuenta por separado en cada torneo.
+        </Sutil>
+      </Tarjeta>
+
+      <Text style={estilos.seccion}>La blueshell</Text>
+      <Tarjeta>
+        <Sutil>
+          Cada {JORNADAS_POR_CICLO} jornadas tienes una bala y un escudo, y sólo uno de
+          cada. La bala se le tira a quien va primero: al día siguiente estará obligado a
+          usar de segundo intento la palabra que hayas elegido tú.
+        </Sutil>
+        <Sutil>
+          Se pueden juntar varias contra la misma persona. Entonces le ocupan un intento
+          cada una, en el segundo, el tercero y así: cuatro balas dejan casi la jornada
+          escrita de antemano.
+        </Sutil>
+        <Sutil>
+          El escudo se gasta desde el tablero el día que te caen, y las anula todas de
+          golpe, tantas como te hayan tirado. Se dispara desde la clasificación del
+          torneo, y cada torneo decide si juega con esta norma o sin ella.
         </Sutil>
       </Tarjeta>
 

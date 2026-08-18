@@ -10,6 +10,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ProveedorApp, useApp } from './src/estado/AppContext';
+import { useTipografia } from './src/tipografia';
 import { codigoDesdeUrl } from './src/game/invitacion';
 import { PantallaAcceso } from './src/screens/PantallaAcceso';
 import { PantallaBienvenida } from './src/screens/PantallaBienvenida';
@@ -209,6 +210,14 @@ function Columna({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Sin las fuentes cargadas la app se dibujaría un instante con la letra del
+  // sistema y saltaría de golpe a la buena, que se ve fatal.
+  const tipografiaLista = useTipografia();
+
+  if (!tipografiaLista) {
+    return <View style={estilos.fondo} />;
+  }
+
   return (
     <SafeAreaProvider>
       <ProveedorApp>

@@ -8,7 +8,7 @@ import { SelectorTorneo } from '../components/SelectorTorneo';
 import { Tablero } from '../components/Tablero';
 import { TECLA_BORRAR, TECLA_ENTER, Teclado } from '../components/Teclado';
 import { Boton } from '../components/ui';
-import { PALABRAS_PENALIZACION, PUNTOS_POR_INTENTO } from '../game/constantes';
+import { PUNTOS_POR_INTENTO } from '../game/constantes';
 import { fechaLarga } from '../game/fecha';
 import { numeroJornada } from '../game/palabras';
 import { patronCompartible } from '../game/evaluar';
@@ -130,15 +130,54 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
         </Pressable>
       )}
 
-      {juego.penalizado && juego.intentos.length === 0 && (
+      {/* La palabra impuesta del intento en curso, venga de ir primero o de que
+          te hayan disparado. El tablero no distingue: sólo obedece. */}
+      {juego.obligacion && juego.obligacion.motivo === 'lider' && (
         <View style={estilos.bandaPenalizacion}>
           <Text style={estilos.textoPenalizacion}>
             Lideras {activo.nombre} en solitario. Abre con una de estas:
           </Text>
           <Text style={estilos.palabrasPenalizacion}>
-            {PALABRAS_PENALIZACION.map((p) => p.toUpperCase()).join(' · ')}
+            {juego.obligacion.palabras.map((p) => p.toUpperCase()).join(' · ')}
           </Text>
         </View>
+      )}
+
+      {juego.obligacion && juego.obligacion.motivo === 'blueshell' && (
+        <View style={estilos.bandaBlueshell}>
+          <Text style={estilos.textoBlueshell}>
+            Blueshell de {juego.autorObligacion}. Tu palabra {juego.obligacion.indice + 1}.ª
+            tiene que ser:
+          </Text>
+          <Text style={estilos.palabrasPenalizacion}>
+            {juego.obligacion.palabras[0].toUpperCase()}
+          </Text>
+        </View>
+      )}
+
+      {/* Avisar de las que están por venir, para que nadie se lleve la sorpresa
+          al segundo intento con la protección ya sin usar. */}
+      {juego.balasPendientes > 0 && juego.obligacion?.motivo !== 'blueshell' && (
+        <View style={estilos.bandaBlueshell}>
+          <Text style={estilos.textoBlueshell}>
+            {juego.balasPendientes === 1
+              ? 'Te han lanzado una blueshell: te impondrá la palabra 2.ª.'
+              : `Te han lanzado ${juego.balasPendientes} blueshells: te impondrán las palabras siguientes.`}
+          </Text>
+        </View>
+      )}
+
+      {juego.puedeProtegerse && (
+        <Pressable
+          onPress={juego.protegerse}
+          accessibilityRole="button"
+          style={({ pressed }) => [estilos.escudo, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={estilos.textoEscudo}>
+            Gastar mi protección y anular{' '}
+            {juego.balasPendientes === 1 ? 'la blueshell' : 'las blueshells'} de hoy
+          </Text>
+        </Pressable>
       )}
 
       {/* El aviso vive en su propia franja, encima del tablero: antes se
@@ -307,12 +346,12 @@ const estilos = StyleSheet.create({
   bandaLibre: {
     backgroundColor: 'rgba(90, 169, 230, 0.12)',
     borderBottomWidth: 1,
-    borderBottomColor: colores.cursor,
+    borderBottomColor: colores.acento,
     paddingHorizontal: espaciado.md,
     paddingVertical: espaciado.sm,
   },
   textoLibre: {
-    color: colores.cursor,
+    color: colores.acento,
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
@@ -329,6 +368,32 @@ const estilos = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  bandaBlueshell: {
+    backgroundColor: 'rgba(40, 200, 224, 0.12)',
+    borderBottomWidth: 1,
+    borderBottomColor: colores.acento,
+    paddingHorizontal: espaciado.md,
+    paddingVertical: espaciado.sm,
+  },
+  textoBlueshell: {
+    color: colores.acento,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  escudo: {
+    marginHorizontal: espaciado.md,
+    marginTop: espaciado.sm,
+    paddingVertical: 10,
+    borderRadius: radio.sm,
+    borderWidth: 1,
+    borderColor: colores.acento,
+    alignItems: 'center',
+  },
+  textoEscudo: {
+    color: colores.acento,
+    fontSize: 13,
+    fontWeight: '700',
   },
   palabrasPenalizacion: {
     color: colores.texto,

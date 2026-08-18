@@ -269,7 +269,7 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
   },
   textoJugar: {
-    color: colores.cursor,
+    color: colores.acento,
     fontSize: 13,
     fontWeight: '700',
   },

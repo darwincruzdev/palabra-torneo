@@ -185,7 +185,7 @@ const estilos = StyleSheet.create({
     paddingTop: espaciado.sm,
   },
   textoEnlace: {
-    color: colores.cursor,
+    color: colores.acento,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',

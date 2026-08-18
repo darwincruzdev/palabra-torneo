@@ -1,5 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { Avatar } from '../components/Avatar';
@@ -12,6 +22,7 @@ import {
   hayEnlaces,
   mensajeDeInvitacion,
 } from '../game/invitacion';
+import { JORNADAS_POR_CICLO } from '../game/reglas';
 import { useApp } from '../estado/AppContext';
 import { colores, espaciado, radio } from '../tema';
 
@@ -30,9 +41,24 @@ export function PantallaClasificacion({
   irAJugar,
   irAHistorial,
 }: Props) {
-  const { torneos, jornadas, uid, salir, activo, elegirTorneo } = useApp();
+  const {
+    torneos,
+    jornadas,
+    uid,
+    salir,
+    activo,
+    elegirTorneo,
+    reglasDe,
+    blueshellsDe,
+    lanzarBlueshell,
+    cambiarReglas,
+  } = useApp();
   const [copiado, setCopiado] = useState<'codigo' | 'enlace' | null>(null);
   const [qrAbierto, setQrAbierto] = useState(false);
+  const [palabraBala, setPalabraBala] = useState('');
+  const [confirmando, setConfirmando] = useState(false);
+  const [lanzando, setLanzando] = useState(false);
+  const [errorBala, setErrorBala] = useState<string | null>(null);
 
   const torneo = torneos.find((t) => t.id === torneoId);
   const dias = jornadas[torneoId] ?? [];
@@ -46,6 +72,13 @@ export function PantallaClasificacion({
 
   const jornadaHoy = dias.find((d) => d.fecha === hoy);
   const yaJugueHoy = Boolean(uid && jornadaHoy?.resultados?.[uid]);
+
+  const reglas = reglasDe(torneoId);
+  const balas = blueshellsDe(torneoId);
+  const esFundador = Boolean(torneo && uid === torneo.propietario);
+  const nombreLider = balas.lider
+    ? (torneo?.perfiles?.[balas.lider]?.nombre ?? 'quien va primero')
+    : null;
 
   if (!torneo) {
     return (
@@ -72,6 +105,36 @@ export function PantallaClasificacion({
     } catch {
       // El usuario canceló el diálogo de compartir.
     }
+  }
+
+  /**
+   * Dispara la bala. Se pide confirmación tocando dos veces en vez de con un
+   * diálogo del sistema porque en la web esos diálogos no salen, y la bala es
+   * de un solo uso cada quince jornadas: no vale gastarla por un roce.
+   */
+  async function dispararBala() {
+    if (!torneo) return;
+    if (!confirmando) {
+      setConfirmando(true);
+      return;
+    }
+    setErrorBala(null);
+    setLanzando(true);
+    try {
+      await lanzarBlueshell(torneo.id, palabraBala);
+      setPalabraBala('');
+      setConfirmando(false);
+    } catch (e) {
+      setErrorBala(e instanceof Error ? e.message : 'No se ha podido lanzar la blueshell');
+      setConfirmando(false);
+    } finally {
+      setLanzando(false);
+    }
+  }
+
+  function alternarRegla(cual: 'penalizacionLider' | 'blueshells', valor: boolean) {
+    if (!torneo) return;
+    cambiarReglas(torneo.id, { ...reglas, [cual]: valor }).catch(() => {});
   }
 
   function confirmarSalida() {
@@ -106,6 +169,61 @@ export function PantallaClasificacion({
           irAJugar();
         }}
       />
+
+      {reglas.blueshells && (
+        <Tarjeta acento={colores.acento}>
+          <Sutil>Tu blueshell</Sutil>
+
+          {balas.recibidas.length > 0 && (
+            <Text style={estilos.recibidas}>
+              {balas.protegido
+                ? `Te lanzaron ${balas.recibidas.length} ${balas.recibidas.length === 1 ? 'bala' : 'balas'}, pero hoy vas protegido.`
+                : `Hoy te han caído ${balas.recibidas.length} ${balas.recibidas.length === 1 ? 'blueshell' : 'blueshells'}. La protección se gasta desde el tablero.`}
+            </Text>
+          )}
+
+          {balas.puedoLanzar ? (
+            <>
+              <Text style={estilos.explicacion}>
+                Tienes una bala por cada {JORNADAS_POR_CICLO} jornadas. Si la disparas,
+                mañana <Text style={estilos.destacado}>{nombreLider}</Text> estará obligado a
+                usar esta palabra en su segundo intento.
+              </Text>
+              <TextInput
+                value={palabraBala}
+                onChangeText={(texto) => {
+                  setPalabraBala(texto.toUpperCase().replace(/[^A-ZÑÁÉÍÓÚÜ]/g, ''));
+                  setConfirmando(false);
+                  setErrorBala(null);
+                }}
+                placeholder="SOSOS"
+                placeholderTextColor={colores.textoSuave}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={5}
+                style={estilos.campoBala}
+              />
+              {errorBala && <Text style={estilos.errorBala}>{errorBala}</Text>}
+              <Boton
+                titulo={
+                  confirmando ? `¿Seguro? Toca otra vez` : `Lanzar a ${nombreLider}`
+                }
+                variante={confirmando ? 'peligro' : 'secundario'}
+                cargando={lanzando}
+                deshabilitado={palabraBala.length < 5}
+                onPress={dispararBala}
+              />
+            </>
+          ) : (
+            <Text style={estilos.explicacion}>{balas.impedimento}</Text>
+          )}
+
+          <Text style={estilos.recarga}>
+            Bala y protección se recargan en {balas.paraRecargar}{' '}
+            {balas.paraRecargar === 1 ? 'jornada' : 'jornadas'}.
+          </Text>
+        </Tarjeta>
+      )}
 
       <Tarjeta>
         <Sutil>Invitar a alguien</Sutil>
@@ -190,7 +308,7 @@ export function PantallaClasificacion({
           </View>
         ))}
       </Tarjeta>
-      {liderHoy && (
+      {liderHoy && reglas.penalizacionLider && (
         <Sutil>
           🎯 marca a quien lidera en solitario: hoy está obligado a abrir con una de las
           cinco palabras de penalización.
@@ -223,6 +341,30 @@ export function PantallaClasificacion({
         })}
       </Tarjeta>
 
+      <Text style={estilos.encabezado}>Normas de la casa</Text>
+      <Tarjeta>
+        <Regla
+          titulo="Penalización al líder"
+          descripcion="Quien termina una jornada primero en solitario abre la siguiente con una de las cinco palabras repetidas."
+          valor={reglas.penalizacionLider}
+          editable={esFundador}
+          alCambiar={(v) => alternarRegla('penalizacionLider', v)}
+        />
+        <View style={estilos.separadorRegla} />
+        <Regla
+          titulo="Blueshells"
+          descripcion={`Cada ${JORNADAS_POR_CICLO} jornadas, una bala para obligar al líder a usar una palabra concreta, y una protección para anular las que te tiren.`}
+          valor={reglas.blueshells}
+          editable={esFundador}
+          alCambiar={(v) => alternarRegla('blueshells', v)}
+        />
+        {!esFundador && (
+          <Text style={estilos.soloFundador}>
+            Sólo quien fundó el torneo puede cambiarlas.
+          </Text>
+        )}
+      </Tarjeta>
+
       <View style={{ height: espaciado.md }} />
       <Boton
         titulo="Ver jornadas anteriores"
@@ -233,6 +375,37 @@ export function PantallaClasificacion({
       <View style={{ height: espaciado.lg }} />
       <Boton titulo="Salir del torneo" variante="peligro" onPress={confirmarSalida} />
     </ScrollView>
+  );
+}
+
+/** Una norma de la casa con su interruptor. Sin fundador, sólo se lee. */
+function Regla({
+  titulo,
+  descripcion,
+  valor,
+  editable,
+  alCambiar,
+}: {
+  titulo: string;
+  descripcion: string;
+  valor: boolean;
+  editable: boolean;
+  alCambiar: (valor: boolean) => void;
+}) {
+  return (
+    <View style={estilos.regla}>
+      <View style={{ flex: 1 }}>
+        <Text style={estilos.tituloRegla}>{titulo}</Text>
+        <Text style={estilos.descripcionRegla}>{descripcion}</Text>
+      </View>
+      <Switch
+        value={valor}
+        onValueChange={alCambiar}
+        disabled={!editable}
+        trackColor={{ true: colores.correcta, false: colores.borde }}
+        thumbColor={colores.texto}
+      />
+    </View>
   );
 }
 
@@ -253,14 +426,82 @@ const estilos = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: radio.sm,
     borderWidth: 1,
-    borderColor: colores.cursor,
+    borderColor: colores.acento,
     alignItems: 'center',
     marginBottom: espaciado.sm,
   },
   textoCambiar: {
-    color: colores.cursor,
+    color: colores.acento,
     fontWeight: '700',
     fontSize: 13,
+  },
+  explicacion: {
+    color: colores.textoSuave,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: espaciado.xs,
+    marginBottom: espaciado.sm,
+  },
+  destacado: {
+    color: colores.texto,
+    fontWeight: '800',
+  },
+  recibidas: {
+    color: colores.acento,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: espaciado.xs,
+  },
+  campoBala: {
+    backgroundColor: colores.fondo,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    borderRadius: radio.md,
+    paddingHorizontal: espaciado.md,
+    paddingVertical: 12,
+    color: colores.texto,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 6,
+    textAlign: 'center',
+    marginBottom: espaciado.sm,
+  },
+  errorBala: {
+    color: colores.peligro,
+    fontSize: 13,
+    marginBottom: espaciado.sm,
+  },
+  recarga: {
+    color: colores.textoTenue,
+    fontSize: 11,
+    marginTop: espaciado.sm,
+  },
+  regla: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaciado.md,
+    paddingVertical: espaciado.xs,
+  },
+  separadorRegla: {
+    height: 1,
+    backgroundColor: colores.borde,
+    marginVertical: espaciado.sm,
+  },
+  tituloRegla: {
+    color: colores.texto,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  descripcionRegla: {
+    color: colores.textoSuave,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  soloFundador: {
+    color: colores.textoTenue,
+    fontSize: 11,
+    marginTop: espaciado.sm,
   },
   codigo: {
     color: colores.texto,
@@ -291,7 +532,7 @@ const estilos = StyleSheet.create({
     borderRadius: radio.md,
   },
   enlace: {
-    color: colores.cursor,
+    color: colores.acento,
     fontSize: 12,
     textAlign: 'center',
     marginTop: espaciado.md,

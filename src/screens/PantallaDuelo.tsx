@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Aviso } from '../components/Aviso';
@@ -24,6 +32,7 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
   const duelo = useDuelo(dueloId, uid);
   const [hueco, setHueco] = useState({ ancho: 300, alto: 340 });
   const [espera, setEspera] = useState({ ancho: 260, alto: 320 });
+  const [repaso, setRepaso] = useState({ ancho: 140, alto: 300 });
 
   const enfocada = useIsFocused();
   const destello = useTecladoFisico({
@@ -78,18 +87,55 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
    * ronda sólo avanza cuando los dos han cerrado.
    */
   if (duelo.transicion) {
-    const { palabra, cuenta } = duelo.transicion;
+    const { palabra, mias, suyas } = duelo.transicion;
     return (
-      <View style={estilos.centrado}>
+      <View style={estilos.repaso}>
         <Text style={estilos.laPalabraEra}>La palabra era</Text>
         <Text style={estilos.palabraTransicion}>{palabra.toUpperCase()}</Text>
 
-        {cuenta !== null && (
-          <>
-            <Text style={estilos.cuentaAtras}>{cuenta}</Text>
-            <Sutil>Preparado para la siguiente…</Sutil>
-          </>
-        )}
+        {/* Los dos tableros al lado, con las letras de cada uno: aquí es donde
+            se ve quién tiró por dónde, que es media conversación después. */}
+        <View
+          style={estilos.dosTableros}
+          onLayout={({ nativeEvent }) =>
+            setRepaso({
+              ancho: Math.max(60, (nativeEvent.layout.width - espaciado.md) / 2),
+              alto: Math.max(80, nativeEvent.layout.height - 26),
+            })
+          }
+        >
+          <View style={estilos.columnaTablero}>
+            <Text style={estilos.nombreTablero}>Tú</Text>
+            <Tablero
+              intentos={mias}
+              borrador={[]}
+              cursor={-1}
+              solucion={palabra}
+              filaAnimada={null}
+              temblor={0}
+              onCasilla={() => {}}
+              ancho={repaso.ancho}
+              alto={repaso.alto}
+            />
+          </View>
+
+          <View style={estilos.columnaTablero}>
+            <Text style={estilos.nombreTablero} numberOfLines={1}>
+              {duelo.rival?.nombre ?? 'Rival'}
+            </Text>
+            <Tablero
+              intentos={suyas}
+              borrador={[]}
+              cursor={-1}
+              solucion={palabra}
+              filaAnimada={null}
+              temblor={0}
+              onCasilla={() => {}}
+              ancho={repaso.ancho}
+              alto={repaso.alto}
+            />
+          </View>
+        </View>
       </View>
     );
   }
@@ -147,7 +193,7 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
    * He cerrado mi palabra y espero al rival.
    *
    * Aquí se ve su rejilla en grande y en directo: es el momento de mirar cómo se
-   * las arregla mientras se le acaban los quince segundos.
+   * las arregla mientras se le acaban los treinta segundos.
    */
   if (duelo.esperando) {
     return (
@@ -193,6 +239,34 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
             ? 'Los dos habéis cerrado. Empieza la siguiente…'
             : `Tiene ${SEGUNDOS_FINAL} segundos desde que cerraste tú.`}
         </Text>
+
+        {/* Mientras el otro sufre, aquí no hay nada que hacer. Ahora sí: se le
+            puede picar. No cambia el resultado, sólo los nervios. */}
+        {!duelo.elCerroLaRonda && (
+          <View style={estilos.zonaPullas}>
+            <Text style={estilos.tituloPullas}>Pícale</Text>
+            <View style={estilos.rejillaPullas}>
+              {duelo.pullas.map((emoji) => (
+                <Pressable
+                  key={emoji}
+                  onPress={() => duelo.tirarPulla(emoji)}
+                  disabled={duelo.recargando}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Tirarle ${emoji}`}
+                  style={({ pressed }) => [
+                    estilos.botonPulla,
+                    (pressed || duelo.recargando) && { opacity: 0.45 },
+                  ]}
+                >
+                  <Text style={estilos.emojiPulla}>{emoji}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {duelo.errorPulla && (
+              <Text style={estilos.errorPulla}>{duelo.errorPulla}</Text>
+            )}
+          </View>
+        )}
 
         <Boton titulo="Salir del duelo" variante="peligro" onPress={volver} />
       </ScrollView>
@@ -258,11 +332,135 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
 
       <Teclado estado={duelo.teclado} onTecla={pulsar} destello={destello} />
       <View style={{ height: insets.bottom }} />
+
+      <PullaRecibida emoji={duelo.pulla} nombre={duelo.rival?.nombre} />
     </View>
   );
 }
 
+/**
+ * La carita que te tira el rival, encima de todo y sin tocar nada.
+ *
+ * Entra dando un bote y se va sola. Va con `pointerEvents="none"` para que no
+ * robe ni una pulsación del teclado: bastante fastidia ya.
+ */
+function PullaRecibida({ emoji, nombre }: { emoji: string | null; nombre?: string }) {
+  const animacion = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(animacion, {
+      toValue: emoji ? 1 : 0,
+      useNativeDriver: true,
+      friction: 5,
+      tension: 120,
+    }).start();
+  }, [emoji, animacion]);
+
+  if (!emoji) return null;
+
+  return (
+    <Animated.View
+      style={[
+        estilos.pullaRecibida,
+        {
+          opacity: animacion,
+          transform: [
+            { scale: animacion.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
+          ],
+        },
+      ]}
+      pointerEvents="none"
+    >
+      <Text style={estilos.emojiRecibido}>{emoji}</Text>
+      <Text style={estilos.deQuien}>de {nombre ?? 'tu rival'}</Text>
+    </Animated.View>
+  );
+}
+
 const estilos = StyleSheet.create({
+  repaso: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: espaciado.xs,
+    // Márgenes cortos a los lados a propósito: con dos tableros repartiéndose
+    // el ancho, cada píxel que se le quite al borde se le da a las letras.
+    paddingHorizontal: espaciado.md,
+    paddingVertical: espaciado.lg,
+  },
+  dosTableros: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: espaciado.md,
+    width: '100%',
+    marginTop: espaciado.md,
+  },
+  columnaTablero: {
+    flex: 1,
+    alignItems: 'center',
+    gap: espaciado.xs,
+  },
+  nombreTablero: {
+    color: colores.textoSuave,
+    fontSize: 12,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  errorPulla: {
+    color: colores.peligro,
+    fontSize: 12,
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  zonaPullas: {
+    alignItems: 'center',
+    gap: espaciado.sm,
+    marginVertical: espaciado.md,
+  },
+  tituloPullas: {
+    color: colores.textoSuave,
+    fontSize: 12,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
+  rejillaPullas: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: espaciado.sm,
+  },
+  botonPulla: {
+    width: 54,
+    height: 54,
+    borderRadius: radio.md,
+    backgroundColor: colores.elevado,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emojiPulla: {
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  pullaRecibida: {
+    position: 'absolute',
+    top: '32%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  emojiRecibido: {
+    fontSize: 96,
+    lineHeight: 112,
+  },
+  deQuien: {
+    color: colores.textoSuave,
+    fontSize: 13,
+    marginTop: espaciado.xs,
+  },
   pantalla: {
     flex: 1,
     backgroundColor: colores.fondo,
@@ -318,13 +516,6 @@ const estilos = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 8,
     textAlign: 'center',
-  },
-  cuentaAtras: {
-    color: colores.presente,
-    fontSize: 76,
-    fontWeight: '900',
-    lineHeight: 84,
-    marginTop: espaciado.lg,
   },
   puntosRival: {
     color: colores.oro,

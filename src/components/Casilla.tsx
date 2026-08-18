@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
 import type { Marca } from '../tipos';
-import { colores, radio } from '../tema';
+import { colores, fuentes, radio } from '../tema';
 
 type Props = {
   letra: string;
@@ -87,7 +87,7 @@ export function Casilla({ letra, marca, indice, animar, activa, lado }: Props) {
           borderColor: pintada
             ? FONDO[colorVisible]
             : activa
-              ? colores.cursor
+              ? colores.acento
               : letra
                 ? colores.textoSuave
                 : colores.bordeCasilla,
@@ -112,7 +112,9 @@ const estilos = StyleSheet.create({
   },
   letra: {
     color: colores.texto,
-    fontWeight: '800',
+    fontFamily: fuentes.ficha,
     includeFontPadding: false,
+    // La condensada sube mucho: sin esto las letras bailan dentro de la casilla.
+    textAlignVertical: 'center',
   },
 });

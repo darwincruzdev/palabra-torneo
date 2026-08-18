@@ -6,9 +6,30 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import type { Avatar, DiaTorneo, ResultadoDia, Torneo, TorneoActivo } from '../tipos';
+import type {
+  Avatar,
+  DiaTorneo,
+  Obligacion,
+  ReglasTorneo,
+  ResultadoDia,
+  Torneo,
+  TorneoActivo,
+} from '../tipos';
 import { clasificacion, liderDestacado } from '../game/clasificacion';
-import { fechaJuego } from '../game/fecha';
+import { fechaJuego, sumarDias } from '../game/fecha';
+import { esAceptada } from '../game/palabras';
+import { normalizar } from '../game/normalizar';
+import {
+  blueshellGastada,
+  blueshellsContra,
+  blueshellsEfectivas,
+  estaProtegido,
+  jornadasParaRecargar,
+  normalizarReglas,
+  obligacionesDe,
+  proteccionGastada,
+  type BlueshellLanzada,
+} from '../game/reglas';
 import { avatarInicial, normalizarAvatar } from '../game/avatares';
 import {
   cargarPerfilLocal,
@@ -41,6 +62,17 @@ type Estado = {
   elegirTorneo: (torneoId: string) => void;
   /** ¿Lidero en solitario este torneo? Entonces hoy juego con palabra impuesta. */
   penalizadoEn: (torneoId: string) => boolean;
+  /** Las normas de la casa de un torneo, con las de siempre por defecto. */
+  reglasDe: (torneoId: string) => ReglasTorneo;
+  /** Qué palabras tengo impuestas hoy en ese torneo, y en qué intento. */
+  obligacionesHoy: (torneoId: string) => Obligacion[];
+  /** Todo lo que hace falta para pintar y usar las blueshells. */
+  blueshellsDe: (torneoId: string) => EstadoBlueshell;
+  cambiarReglas: (torneoId: string, reglas: ReglasTorneo) => Promise<void>;
+  /** Dispara contra quien va primero. La palabra golpea mañana. */
+  lanzarBlueshell: (torneoId: string, palabra: string) => Promise<void>;
+  /** Gasta la protección de hoy: anula todas las balas recibidas. */
+  usarProteccion: (torneoId: string) => Promise<void>;
   cambiarPerfil: (nombre: string, avatar: Avatar) => Promise<void>;
   crearTorneo: (nombre: string) => Promise<Torneo>;
   unirsePorCodigo: (codigo: string) => Promise<Torneo | null>;
@@ -50,6 +82,24 @@ type Estado = {
     fecha: string,
     resultado: Omit<ResultadoDia, 'uid' | 'nombre' | 'avatar'>
   ) => Promise<void>;
+};
+
+/** La foto de las blueshells de un torneo para la persona que mira. */
+export type EstadoBlueshell = {
+  /** La norma está encendida en este torneo. */
+  activas: boolean;
+  /** A quién se puede disparar ahora mismo, o null si no hay líder destacado. */
+  lider: string | null;
+  puedoLanzar: boolean;
+  /** Por qué no puedo, en una frase, o null si sí puedo. */
+  impedimento: string | null;
+  /** Las que me caen hoy a mí, protección aparte. */
+  recibidas: BlueshellLanzada[];
+  /** Ya gasté hoy la protección. */
+  protegido: boolean;
+  puedoProteger: boolean;
+  /** Jornadas que faltan para recargar bala y protección, contando la de hoy. */
+  paraRecargar: number;
 };
 
 const Contexto = createContext<Estado | null>(null);
@@ -144,15 +194,135 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
    * las cinco palabras obligatorias. Es por torneo, porque cada uno lleva su
    * propia clasificación.
    */
+  const reglasDe = useCallback(
+    (torneoId: string) =>
+      normalizarReglas(torneos.find((t) => t.id === torneoId)?.reglas),
+    [torneos]
+  );
+
   const penalizadoEn = useCallback(
     (torneoId: string) => {
       if (!uid) return false;
       const torneo = torneos.find((t) => t.id === torneoId);
       if (!torneo) return false;
+      if (!normalizarReglas(torneo.reglas).penalizacionLider) return false;
       const filas = clasificacion(torneo, jornadas[torneoId] ?? [], hoy);
       return liderDestacado(filas) === uid;
     },
     [torneos, jornadas, uid, hoy]
+  );
+
+  const obligacionesHoy = useCallback(
+    (torneoId: string): Obligacion[] => {
+      if (!uid) return [];
+      const torneo = torneos.find((t) => t.id === torneoId);
+      if (!torneo) return [];
+      const dias = jornadas[torneoId] ?? [];
+      return obligacionesDe({
+        reglas: normalizarReglas(torneo.reglas),
+        liderando: liderDestacado(clasificacion(torneo, dias, hoy)) === uid,
+        blueshells: blueshellsEfectivas(
+          dias.find((d) => d.fecha === hoy),
+          uid
+        ),
+      });
+    },
+    [torneos, jornadas, uid, hoy]
+  );
+
+  /**
+   * El líder al que se le puede disparar es el que va primero *ahora*, con la
+   * jornada de hoy incluida, que es el que se ve arriba en la tabla. No es el
+   * mismo cálculo que la penalización, que mira la clasificación cerrada a
+   * ayer: ahí se trata de castigar a quien terminó primero la jornada anterior.
+   */
+  const blueshellsDe = useCallback(
+    (torneoId: string): EstadoBlueshell => {
+      const torneo = torneos.find((t) => t.id === torneoId);
+      const vacio: EstadoBlueshell = {
+        activas: false,
+        lider: null,
+        puedoLanzar: false,
+        impedimento: null,
+        recibidas: [],
+        protegido: false,
+        puedoProteger: false,
+        paraRecargar: 0,
+      };
+      if (!torneo || !uid) return vacio;
+
+      const activas = normalizarReglas(torneo.reglas).blueshells;
+      const dias = jornadas[torneoId] ?? [];
+      const diaHoy = dias.find((d) => d.fecha === hoy);
+      const lider = liderDestacado(clasificacion(torneo, dias));
+      const recibidas = blueshellsContra(diaHoy, uid);
+      const protegido = estaProtegido(diaHoy, uid);
+      const balaGastada = blueshellGastada(dias, torneo.fechaInicio, hoy, uid);
+
+      const impedimento = !activas
+        ? 'Este torneo juega sin blueshells.'
+        : balaGastada
+          ? 'Ya has gastado tu bala en este ciclo.'
+          : !lider
+            ? 'Ahora mismo no hay un líder en solitario al que disparar.'
+            : lider === uid
+              ? 'Vas primero: no puedes dispararte a ti mismo.'
+              : null;
+
+      return {
+        activas,
+        lider,
+        puedoLanzar: activas && impedimento === null,
+        impedimento,
+        recibidas,
+        protegido,
+        puedoProteger:
+          activas &&
+          recibidas.length > 0 &&
+          !protegido &&
+          !proteccionGastada(dias, torneo.fechaInicio, hoy, uid),
+        paraRecargar: jornadasParaRecargar(torneo.fechaInicio, hoy),
+      };
+    },
+    [torneos, jornadas, uid, hoy]
+  );
+
+  const cambiarReglas = useCallback(
+    async (torneoId: string, reglas: ReglasTorneo) => {
+      if (!uid || !datos.hayFirebase) return;
+      await datos.guardarReglas(torneoId, reglas);
+    },
+    [uid]
+  );
+
+  const lanzarBlueshell = useCallback(
+    async (torneoId: string, palabra: string) => {
+      if (!uid) throw new Error('Hay que entrar con Google para disparar');
+      const estado = blueshellsDe(torneoId);
+      if (!estado.puedoLanzar || !estado.lider) {
+        throw new Error(estado.impedimento ?? 'Ahora no puedes disparar');
+      }
+      const limpia = normalizar(palabra);
+      if (!esAceptada(limpia)) {
+        throw new Error('Esa palabra no está en la lista, elige otra');
+      }
+      // Golpea mañana: la bala es para la jornada siguiente, no para ésta.
+      await datos.lanzarBlueshell(torneoId, sumarDias(hoy, 1), uid, {
+        objetivo: estado.lider,
+        palabra: limpia,
+        lanzada: hoy,
+      });
+    },
+    [uid, hoy, blueshellsDe]
+  );
+
+  const usarProteccion = useCallback(
+    async (torneoId: string) => {
+      if (!uid) return;
+      if (!blueshellsDe(torneoId).puedoProteger) return;
+      await datos.activarProteccion(torneoId, hoy, uid);
+    },
+    [uid, hoy, blueshellsDe]
   );
 
   const elegirTorneo = useCallback((torneoId: string) => {
@@ -244,6 +414,12 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     activo,
     elegirTorneo,
     penalizadoEn,
+    reglasDe,
+    obligacionesHoy,
+    blueshellsDe,
+    cambiarReglas,
+    lanzarBlueshell,
+    usarProteccion,
     cambiarPerfil,
     crearTorneo,
     unirsePorCodigo,

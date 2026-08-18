@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo-google-fonts/barlow": "^0.4.1",
+    "@expo-google-fonts/barlow-condensed": "^0.4.1",
     "@expo/metro-runtime": "~57.0.9",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-google-signin/google-signin": "^16.1.4",
@@ -13,6 +15,7 @@
     "expo-clipboard": "~57.0.1",
     "expo-crypto": "~57.0.1",
     "expo-dev-client": "~57.0.12",
+    "expo-font": "~57.0.1",
     "expo-haptics": "~57.0.1",
     "expo-linking": "~57.0.6",
     "expo-status-bar": "~57.0.1",
@@ -46,7 +49,6 @@
     "build:play": "node scripts/build-play-assets.mjs",
     "build:web": "expo export --platform web && node scripts/patch-html.mjs",
     "preview:web": "npx --yes serve dist -l 8099",
-    "deploy": "npm run build:web && npx --yes wrangler pages deploy dist --project-name=palabra-torneo --branch=main",
     "deploy:firebase": "npm run build:web && npx --yes firebase-tools deploy --only hosting"
   },
   "private": true

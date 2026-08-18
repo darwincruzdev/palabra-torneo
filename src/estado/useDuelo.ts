@@ -24,6 +24,7 @@ import {
   guardarDueloActivo,
   guardarEscritasDuelo,
 } from '../almacen/local';
+import { PULLAS, PULLA_MS, RECARGA_PULLA_MS } from '../game/pullas';
 import * as datos from '../firebase/duelos';
 
 const AVISO_MS = 2200;
@@ -36,15 +37,20 @@ const AVISO_MS = 2200;
  */
 const REVELADO_MS = 2000;
 
-/** Lo que se enseña "la palabra era TAL" antes de la cuenta de 3, 2, 1. */
-const MOSTRAR_PALABRA_MS = 1500;
+/**
+ * Lo que dura el repaso entre palabra y palabra.
+ *
+ * Cinco segundos: hay que leer cuál era la palabra y comparar los dos tableros
+ * a la vez, que es donde se ve quién ha ido por dónde.
+ */
+const MOSTRAR_PALABRA_MS = 5000;
 
 /**
  * El duelo, que va palabra a palabra y los dos a la vez.
  *
  * Nadie se adelanta: hasta que los dos no cierran la palabra de la ronda, no
  * empieza la siguiente. Quien la cierra primero se queda esperando y viendo la
- * rejilla del rival en grande, y al rival le entran quince segundos.
+ * rejilla del rival en grande, y al rival le entran treinta segundos.
  */
 export function useDuelo(dueloId: string, uid: string | null) {
   const [duelo, setDuelo] = useState<Duelo | null>(null);
@@ -136,20 +142,25 @@ export function useDuelo(dueloId: string, uid: string | null) {
   );
 
   /**
-   * El paso de una palabra a la siguiente, que ven los dos a la vez.
+   * El repaso entre una palabra y la siguiente, que ven los dos a la vez.
    *
-   * Primero se enseña cuál era la palabra —aunque nadie la haya sacado— y luego
-   * una cuenta de 3, 2, 1 para empezar la siguiente sincronizados. Arranca
-   * cuando la ronda avanza, y la ronda sólo avanza cuando los dos han cerrado,
-   * así que a los dos les salta casi en el mismo instante.
+   * Se enseña cuál era la palabra —aunque no la haya sacado nadie— con los dos
+   * tableros al lado, para comparar por dónde tiró cada uno. Arranca cuando la
+   * ronda avanza, y la ronda sólo avanza cuando los dos han cerrado, así que a
+   * los dos les salta casi en el mismo instante.
+   *
+   * Guarda el índice de la palabra que acaba de cerrarse, no la palabra suelta:
+   * hace falta para sacar las letras de cada uno en esa ronda.
    */
   const [transicion, setTransicion] = useState<{
     palabra: string;
-    cuenta: number | null;
+    indice: number;
   } | null>(null);
 
   const rondaPrevia = useRef<number | null>(null);
-  const [pendiente, setPendiente] = useState<string | null>(null);
+  const [pendiente, setPendiente] = useState<{ palabra: string; indice: number } | null>(
+    null
+  );
 
   useEffect(() => {
     const antes = rondaPrevia.current;
@@ -157,44 +168,27 @@ export function useDuelo(dueloId: string, uid: string | null) {
     if (antes === null || ronda <= antes) return;
 
     const palabra = palabras[antes];
-    if (palabra) setPendiente(palabra);
+    if (palabra) setPendiente({ palabra, indice: antes });
   }, [ronda, palabras]);
 
   /**
-   * La transición espera a que termine el revelado propio.
+   * El repaso espera a que termine el revelado propio.
    *
    * Al segundo en cerrar, la ronda avanza en el mismo momento de enviar su
-   * palabra: sin esta espera, la transición le cortaría la animación de su
-   * propia fila y no llegaría a ver si la había acertado.
+   * palabra: sin esta espera, el repaso le cortaría la animación de su propia
+   * fila y no llegaría a ver si la había acertado.
    */
   useEffect(() => {
     if (!pendiente || revelando) return;
-    setTransicion({ palabra: pendiente, cuenta: null });
+    setTransicion(pendiente);
     setPendiente(null);
   }, [pendiente, revelando]);
 
   useEffect(() => {
     if (!transicion) return;
-
-    // Fase 1: se lee cuál era la palabra.
-    if (transicion.cuenta === null) {
-      const reloj = setTimeout(() => {
-        // Al acabar el duelo no hay siguiente ronda que contar.
-        if (terminado) setTransicion(null);
-        else setTransicion((actual) => (actual ? { ...actual, cuenta: 3 } : null));
-      }, MOSTRAR_PALABRA_MS);
-      return () => clearTimeout(reloj);
-    }
-
-    // Fase 2: 3, 2, 1 y a la siguiente.
-    const reloj = setTimeout(() => {
-      setTransicion((actual) => {
-        if (!actual || actual.cuenta === null) return null;
-        return actual.cuenta > 1 ? { ...actual, cuenta: actual.cuenta - 1 } : null;
-      });
-    }, 1000);
+    const reloj = setTimeout(() => setTransicion(null), MOSTRAR_PALABRA_MS);
     return () => clearTimeout(reloj);
-  }, [transicion, terminado]);
+  }, [transicion]);
 
   /** Estoy esperando a que el rival cierre esta palabra. */
   const esperando =
@@ -214,7 +208,7 @@ export function useDuelo(dueloId: string, uid: string | null) {
   );
 
   /**
-   * Los quince segundos.
+   * Los treinta segundos.
    *
    * Se deducen de que el rival haya cerrado esta palabra y yo no. Antes hacía
    * falta un campo extra en la base de datos que alguien tenía que escribir, y
@@ -375,9 +369,80 @@ export function useDuelo(dueloId: string, uid: string | null) {
     enviarProgreso,
   ]);
 
+  /* ------------------------------------------------------------- pullas */
+
+  const [pulla, setPulla] = useState<string | null>(null);
+  const [recargando, setRecargando] = useState(false);
+  const [errorPulla, setErrorPulla] = useState<string | null>(null);
+  /** El sello de la última pulla ya enseñada, para no repetirla en cada dibujado. */
+  const ultimaPulla = useRef<number | null>(null);
+  /**
+   * El reloj que quita la carita de la pantalla.
+   *
+   * Va en una referencia y no en la limpieza del efecto porque el efecto
+   * depende del duelo, y el duelo cambia con cada instantánea de la red —que
+   * llegan a montones mientras el rival escribe—. Colgado de la limpieza, la
+   * primera instantánea cancelaba el reloj y la carita se quedaba pegada.
+   */
+  const relojPulla = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (relojPulla.current) clearTimeout(relojPulla.current);
+    },
+    []
+  );
+
+  /**
+   * Enseña la pulla del rival cuando llega una nueva.
+   *
+   * Se detecta por cambio de sello, no por lo reciente que sea: comparar la
+   * hora del que envía con la del que recibe fallaría en cuanto un móvil
+   * llevara el reloj descuadrado. En la primera instantánea sólo se anota el
+   * sello, para que al volver a un duelo no salte una carita de hace media hora.
+   */
+  useEffect(() => {
+    if (!duelo || !rival) return;
+    const recibida = duelo.pullas?.[rival.uid];
+    if (ultimaPulla.current === null) {
+      ultimaPulla.current = recibida?.en ?? 0;
+      return;
+    }
+    if (!recibida || recibida.en === ultimaPulla.current) return;
+    ultimaPulla.current = recibida.en;
+    setPulla(recibida.emoji);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    if (relojPulla.current) clearTimeout(relojPulla.current);
+    relojPulla.current = setTimeout(() => setPulla(null), PULLA_MS);
+  }, [duelo, rival]);
+
+  const tirarPulla = useCallback(
+    (emoji: string) => {
+      if (!uid || recargando) return;
+      setRecargando(true);
+      setErrorPulla(null);
+      setTimeout(() => setRecargando(false), RECARGA_PULLA_MS);
+      datos.enviarPulla(dueloId, uid, emoji).catch((e) => {
+        // El detalle va a la consola; en pantalla, algo que se pueda leer.
+        console.warn('No se ha podido enviar la pulla:', e);
+        setErrorPulla('No ha salido. Puede que falten las reglas nuevas del servidor.');
+      });
+    },
+    [dueloId, uid, recargando]
+  );
+
   return {
     duelo,
     cargando,
+    /** Las caritas que se le pueden tirar a quien sigue jugando. */
+    pullas: PULLAS,
+    /** La que acaba de tirarme el rival, mientras dura en pantalla. */
+    pulla,
+    /** Recién tirada una, se espera un momento antes de dejar tirar otra. */
+    recargando,
+    /** Por qué no salió la última, si es que no salió. */
+    errorPulla,
+    tirarPulla,
     palabras,
     mio,
     suyo,
@@ -388,7 +453,15 @@ export function useDuelo(dueloId: string, uid: string | null) {
     terminado,
     esperando,
     revelando,
-    transicion,
+    /**
+     * El repaso de la palabra que acaba de cerrarse, con los dos tableros ya
+     * resueltos. La pantalla no tiene que descodificar nada.
+     */
+    transicion: transicion && {
+      palabra: transicion.palabra,
+      mias: escritas[transicion.indice] ?? [],
+      suyas: descodificarLetras(suyo.letras?.[transicion.indice] ?? ''),
+    },
     yaCerreLaRonda,
     elCerroLaRonda,
     /** Mis intentos de la palabra en curso, con letras. */

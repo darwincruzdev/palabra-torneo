@@ -147,6 +147,24 @@ export async function publicarProgreso(
 }
 
 
+/**
+ * Tira una pulla al rival.
+ *
+ * Va con la hora del móvil para que dos caritas iguales seguidas se distingan;
+ * quien la recibe sólo mira si el número ha cambiado, nunca cuánto vale.
+ */
+export async function enviarPulla(
+  dueloId: string,
+  uid: string,
+  emoji: string
+): Promise<void> {
+  // Sin `catch`: si esto falla hay que enterarse. Se tragó una vez y el
+  // síntoma fue que las caritas no llegaban y nadie sabía por qué.
+  await updateDoc(doc(baseDatos(), 'duelos', dueloId), {
+    [`pullas.${uid}`]: { emoji, en: Date.now() },
+  });
+}
+
 /** Cierra el duelo cuando los dos han terminado. */
 export async function cerrarDuelo(dueloId: string): Promise<void> {
   await updateDoc(doc(baseDatos(), 'duelos', dueloId), { estado: 'terminado' }).catch(

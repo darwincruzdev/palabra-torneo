@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Avatar, PartidaLocal, ResultadoDia } from '../tipos';
+import { PALABRAS_PENALIZACION } from '../game/constantes';
 
 const CLAVE_PARTIDA = 'pt:partida'; // se le añade :{torneoId}
 const CLAVE_PERFIL = 'pt:perfil';
@@ -34,6 +35,13 @@ export async function cargarPartida(
 ): Promise<PartidaLocal | null> {
   const partida = await leerJson<PartidaLocal>(`${CLAVE_PARTIDA}:${torneoId}`);
   if (!partida || partida.fecha !== fecha || partida.torneoId !== torneoId) return null;
+  // Partida empezada con una versión anterior, cuando la única palabra impuesta
+  // era la del líder y se guardaba como un simple sí/no.
+  if (!partida.obligaciones) {
+    partida.obligaciones = partida.penalizado
+      ? [{ indice: 0, palabras: [...PALABRAS_PENALIZACION], motivo: 'lider' }]
+      : [];
+  }
   return partida;
 }
 

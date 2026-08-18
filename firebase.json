@@ -1,11 +1,16 @@
 {
+  "firestore": {
+    "_comentario": "Sin este bloque, `firebase deploy --only firestore:rules` responde que no encuentra el objetivo: la CLI sólo sabe de lo que esté declarado aquí.",
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": "dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "_comentarioIgnore": "Aqui NO puede ir node_modules: las fuentes se exportan a dist/assets/node_modules/@expo-google-fonts y se quedarian sin subir. dist es solo salida de compilacion, no hay dependencias que excluir.",
+    "ignore": ["firebase.json", "**/.*"],
     "headers": [
       {
         "_comentario": "Los ficheros llevan el contenido en el nombre, así que cambian de nombre al cambiar de contenido y se pueden guardar para siempre.",
-        "source": "**/*.@(js|css|png|jpg|ico|svg|woff2)",
+        "source": "**/*.@(js|css|png|jpg|ico|svg|woff2|ttf|otf)",
         "headers": [
           { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
         ]

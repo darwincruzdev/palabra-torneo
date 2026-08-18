@@ -164,7 +164,7 @@ describe('quién gana', () => {
     assert.equal(resultado.uid, null);
   });
 
-  it('quien se queda a medias por los 15 segundos pierde lo que no jugó', () => {
+  it('quien se queda a medias por el corte de tiempo pierde lo que no jugó', () => {
     // Ana completó dos palabras; a Bea la cortaron con una sola.
     const ana = rejillaVacia();
     ana[0] = acertarEn(2);

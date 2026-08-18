@@ -23,10 +23,58 @@ export type ResultadoDia = {
   patron: string;
 };
 
+/**
+ * Una blueshell lanzada. Quién la tira va en la clave del mapa que la contiene.
+ *
+ * Vive en el documento de la jornada a la que golpea, no en la del día en que
+ * se lanzó: así quien la recibe la encuentra donde va a jugar, sin tener que
+ * rebuscar en la jornada anterior.
+ */
+export type Blueshell = {
+  /** A quién se le tira. Sólo puede ser quien vaya primero. */
+  objetivo: string;
+  /** La palabra que se le obliga a poner, ya normalizada. */
+  palabra: string;
+  /** Día en que se disparó, que es el que decide de qué ciclo se descuenta. */
+  lanzada: string;
+};
+
 /** Documento torneos/{id}/dias/{fecha} */
 export type DiaTorneo = {
   fecha: string;
   resultados: Record<string, ResultadoDia>;
+  /** uid del que dispara -> lo que disparó. Una por persona y jornada. */
+  blueshells?: Record<string, Blueshell>;
+  /** uid -> gastó aquí su protección, que anula todas las de esa jornada. */
+  protecciones?: Record<string, true>;
+};
+
+/**
+ * Las normas de la casa. Cada torneo enciende las que quiera: no todos los
+ * grupos juegan con penalización al líder ni con blueshells.
+ */
+export type ReglasTorneo = {
+  /** El líder en solitario abre la jornada con una de las cinco palabras. */
+  penalizacionLider: boolean;
+  /** Se puede disparar al primero para imponerle una palabra. */
+  blueshells: boolean;
+};
+
+/**
+ * Una palabra impuesta en un intento concreto de la jornada.
+ *
+ * Es el único lenguaje que entiende el tablero: no sabe si viene de ir primero
+ * o de que le hayan disparado, sólo que en el intento N sólo valen estas
+ * palabras.
+ */
+export type Obligacion = {
+  /** Intento al que se aplica. 0 es el primero. */
+  indice: number;
+  /** Palabras admitidas. La penalización acepta cinco; una blueshell, una. */
+  palabras: string[];
+  motivo: 'lider' | 'blueshell';
+  /** Quién la impuso, para poder decir de quién es la bala. */
+  autor?: string;
 };
 
 /**
@@ -44,6 +92,11 @@ export type Torneo = {
   miembros: string[];
   /** uid -> cómo se ve ese jugador dentro de este torneo. */
   perfiles: Record<string, { nombre: string; avatar: Avatar }>;
+  /**
+   * Las normas de la casa. Opcional: los torneos creados antes de que
+   * existieran no lo traen y se quedan con las de siempre.
+   */
+  reglas?: ReglasTorneo;
   /** Las jornadas anteriores a esta fecha no puntúan. */
   fechaInicio: string;
   creado: number;
@@ -82,6 +135,14 @@ export type PartidaLocal = {
   estado: 'jugando' | 'ganada' | 'perdida';
   /** Si estaba obligado a abrir con una de las palabras de penalización. */
   penalizado: boolean;
+  /**
+   * Las palabras impuestas de la jornada, congeladas al empezar.
+   *
+   * Se guardan en la partida y no se recalculan en cada dibujado a propósito:
+   * si alguien dispara con la partida ya empezada, la obligación no puede
+   * aparecer de golpe a mitad de camino.
+   */
+  obligaciones?: Obligacion[];
   /** Si ya se envió el resultado al torneo. */
   enviado: boolean;
 };
@@ -104,7 +165,7 @@ export type ProgresoDuelo = {
   rejilla: string[];
   /**
    * Qué palabras ha cerrado, por acierto, por agotar los seis intentos o por
-   * quedarse sin los quince segundos. Se guarda aparte de la rejilla porque una
+   * quedarse sin los treinta segundos. Se guarda aparte de la rejilla porque una
    * palabra cortada por tiempo no se distingue de una a medias.
    */
   cerradas: boolean[];
@@ -141,6 +202,20 @@ export type Duelo = {
   /** Para las reglas de seguridad: quién puede leer y escribir. */
   jugadores: string[];
   progreso: Record<string, ProgresoDuelo>;
+  /** uid -> la última carita que ha tirado. No afecta al resultado. */
+  pullas?: Record<string, Pullazo>;
+};
+
+/**
+ * La última pulla que ha tirado un jugador.
+ *
+ * `en` es la hora del móvil de quien la envía, y sólo sirve para distinguir una
+ * pulla de la siguiente: mandar dos veces la misma carita tiene que notarse. No
+ * se compara con el reloj de quien la recibe, que puede ir descuadrado.
+ */
+export type Pullazo = {
+  emoji: string;
+  en: number;
 };
 
 /** Documento codigosDuelo/{codigo}: resuelve una invitación sin dar la semilla. */

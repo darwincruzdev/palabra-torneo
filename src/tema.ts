@@ -1,26 +1,73 @@
+/**
+ * El sistema visual de Palabra Torneo.
+ *
+ * La referencia es un marcador de estadio: tinta profunda, tipografía
+ * condensada en los titulares y las cifras, reglas horizontales marcadas y un
+ * cian de LED como acento. La app es competición —jornadas, clasificación,
+ * puntos, duelos— y el aspecto lo dice.
+ *
+ * El verde y el ámbar no son decorativos: son el idioma del juego (la letra
+ * está y va en su sitio / está pero no ahí). Por eso el acento de interfaz es
+ * cian, que no se confunde con ninguno de los dos.
+ */
+
 export const colores = {
-  fondo: '#0f1115',
-  superficie: '#171a20',
-  borde: '#2b3038',
-  bordeCasilla: '#3a4049',
-  cursor: '#5aa9e6',
+  /** Tinta con un punto de azul, no negro plano. */
+  fondo: '#0A0D12',
+  /** Lo que se levanta del fondo: tarjetas, teclas apagadas. */
+  superficie: '#141922',
+  /** Un escalón más arriba, para lo que va encima de una superficie. */
+  elevado: '#1D2430',
+  borde: '#28313F',
+  bordeCasilla: '#3A4557',
 
-  texto: '#ffffff',
-  textoSuave: '#9aa3ad',
+  texto: '#F2F5F8',
+  textoSuave: '#8D9AAC',
+  textoTenue: '#5C6879',
 
-  correcta: '#3aa757',
-  presente: '#e2a303',
-  ausente: '#7b8085',
+  /* El idioma del juego. */
+  correcta: '#3DA35D',
+  presente: '#E0A215',
+  ausente: '#525E6E',
 
-  tecla: '#4e5a6b',
-  teclaUsada: '#22262b',
-  teclaTexto: '#ffffff',
+  /* Acento de interfaz: el azul de los marcadores. */
+  acento: '#28C8E0',
+  acentoApagado: '#12414C',
 
-  acento: '#e2a303',
-  peligro: '#e05252',
-  oro: '#f2c14e',
-  plata: '#c9ced6',
-  bronce: '#cd8c52',
+  tecla: '#3E4A5C',
+  teclaUsada: '#1A212B',
+  teclaTexto: '#F2F5F8',
+
+  peligro: '#E4523F',
+  oro: '#F3C64B',
+  plata: '#C6CEDA',
+  bronce: '#C98A4B',
+} as const;
+
+/**
+ * Dos familias con trabajos distintos: la condensada para titulares, cifras y
+ * cualquier cosa que deba leerse como un marcador; la normal para el texto
+ * corrido, donde la condensada cansaría.
+ */
+export const fuentes = {
+  titular: 'BarlowCondensed_700Bold',
+  titularNegro: 'BarlowCondensed_800ExtraBold',
+  cuerpo: 'Barlow_400Regular',
+  cuerpoFuerte: 'Barlow_600SemiBold',
+  /** Las letras del tablero y del teclado, que piden peso. */
+  ficha: 'Barlow_800ExtraBold',
+} as const;
+
+/** Escala de tamaños. Saltos grandes: un marcador no susurra. */
+export const texto = {
+  micro: 11,
+  pequeno: 13,
+  normal: 15,
+  medio: 17,
+  grande: 22,
+  titulo: 30,
+  cifra: 44,
+  cifraGrande: 68,
 } as const;
 
 export const espaciado = {
@@ -31,8 +78,22 @@ export const espaciado = {
   xl: 32,
 } as const;
 
+/** Radios con jerarquía: lo pequeño casi recto, lo grande redondeado. */
 export const radio = {
-  sm: 6,
+  sm: 4,
   md: 10,
-  lg: 16,
+  lg: 18,
+  pastilla: 999,
+} as const;
+
+/**
+ * Titulares de sección: condensados, en mayúsculas y espaciados. Es el gesto
+ * que más marca el estilo de marcador, y sale en todas las pantallas.
+ */
+export const rotulo = {
+  fontFamily: fuentes.titular,
+  fontSize: texto.pequeno,
+  letterSpacing: 1.6,
+  textTransform: 'uppercase',
+  color: colores.textoSuave,
 } as const;

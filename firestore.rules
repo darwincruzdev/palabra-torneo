@@ -87,12 +87,17 @@ service cloud.firestore {
           && request.resource.data.jugadores.size() == 2
         )
         || (
-          // Ya dentro: sólo mi propio progreso y el cierre del duelo.
+          // Ya dentro: mi propio progreso, mis pullas y el cierre del duelo.
           request.auth.uid in resource.data.jugadores
-          && camposTocados().hasOnly(['progreso', 'estado'])
+          && camposTocados().hasOnly(['progreso', 'estado', 'pullas'])
           && (
             !camposTocados().hasAny(['progreso'])
             || request.resource.data.progreso.diff(resource.data.progreso)
+                 .affectedKeys().hasOnly([request.auth.uid])
+          )
+          && (
+            !camposTocados().hasAny(['pullas'])
+            || request.resource.data.pullas.diff(resource.data.get('pullas', {}))
                  .affectedKeys().hasOnly([request.auth.uid])
           )
         )
@@ -129,26 +134,49 @@ service cloud.firestore {
                .affectedKeys().hasOnly([request.auth.uid])
         )
         || (
-          // El fundador puede renombrar su torneo. La semilla no se toca nunca.
+          // El fundador pone el nombre y decide las normas de la casa. La
+          // semilla no se toca nunca.
           resource.data.propietario == request.auth.uid
-          && camposTocados().hasOnly(['nombre'])
+          && camposTocados().hasOnly(['nombre', 'reglas'])
         )
       );
 
       allow delete: if conSesion() && resource.data.propietario == request.auth.uid;
 
-      // Una jornada = un documento con los resultados de todos los jugadores.
+      // Una jornada = un documento con tres mapas: los resultados, las
+      // blueshells que caen ese día y quién gastó su protección. Los tres van
+      // indexados por uid, y de cada uno sólo se puede tocar la casilla propia.
       match /dias/{fecha} {
         allow read: if esMiembro(torneoId);
 
-        // Cada jugador sólo puede escribir su propia casilla del mapa, así que
-        // nadie puede inflarse los puntos ni tocar los de otro.
+        // El `get` con valor por defecto es necesario porque un documento puede
+        // no traer todavía un mapa: una blueshell disparada contra mañana crea
+        // la jornada cuando aún no hay resultados de nadie.
+        function soloMio(campo) {
+          return request.resource.data.get(campo, {}).keys().hasOnly([request.auth.uid]);
+        }
+
+        function soloCambioMio(campo) {
+          return request.resource.data.get(campo, {})
+                   .diff(resource.data.get(campo, {}))
+                   .affectedKeys().hasOnly([request.auth.uid]);
+        }
+
+        // Cada jugador sólo puede escribir su propia casilla de cada mapa, así
+        // que nadie puede inflarse los puntos, disparar en nombre de otro ni
+        // quitarle la protección a nadie.
         allow create: if esMiembro(torneoId)
-          && request.resource.data.resultados.keys().hasOnly([request.auth.uid]);
+          && request.resource.data.keys()
+               .hasOnly(['fecha', 'resultados', 'blueshells', 'protecciones'])
+          && soloMio('resultados')
+          && soloMio('blueshells')
+          && soloMio('protecciones');
 
         allow update: if esMiembro(torneoId)
-          && request.resource.data.resultados.diff(resource.data.resultados)
-               .affectedKeys().hasOnly([request.auth.uid]);
+          && camposTocados().hasOnly(['resultados', 'blueshells', 'protecciones'])
+          && soloCambioMio('resultados')
+          && soloCambioMio('blueshells')
+          && soloCambioMio('protecciones');
 
         allow delete: if false;
       }

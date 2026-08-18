@@ -15,10 +15,20 @@ import {
   where,
   type Unsubscribe,
 } from 'firebase/firestore';
-import type { Avatar, DiaTorneo, Invitacion, Perfil, ResultadoDia, Torneo } from '../tipos';
+import type {
+  Avatar,
+  Blueshell,
+  DiaTorneo,
+  Invitacion,
+  Perfil,
+  ReglasTorneo,
+  ResultadoDia,
+  Torneo,
+} from '../tipos';
 import { fechaJuego } from '../game/fecha';
 import { generarSemilla } from '../game/semilla';
 import { normalizarAvatar } from '../game/avatares';
+import { REGLAS_POR_DEFECTO } from '../game/reglas';
 import { baseDatos, hayFirebase } from './cliente';
 
 export { hayFirebase };
@@ -102,6 +112,7 @@ export async function crearTorneo(
     propietario: uid,
     miembros: [uid],
     perfiles: { [uid]: { nombre, avatar } },
+    reglas: { ...REGLAS_POR_DEFECTO },
     fechaInicio: fechaJuego(),
     creado: Date.now(),
   };
@@ -177,6 +188,46 @@ export function observarMisTorneos(
       callback(torneos);
     },
     () => callback([])
+  );
+}
+
+/** Cambiar las normas de la casa. Sólo lo deja hacer el fundador. */
+export async function guardarReglas(torneoId: string, reglas: ReglasTorneo): Promise<void> {
+  await updateDoc(doc(baseDatos(), 'torneos', torneoId), { reglas });
+}
+
+/* ------------------------------------------------------------ blueshells */
+
+/**
+ * Dispara una blueshell contra el líder.
+ *
+ * Se escribe en el documento de la jornada a la que golpea, que normalmente
+ * todavía no existe: por eso va con merge, que lo crea si hace falta y si no
+ * añade sólo esta casilla sin tocar los resultados de nadie.
+ */
+export async function lanzarBlueshell(
+  torneoId: string,
+  fechaObjetivo: string,
+  autor: string,
+  blueshell: Blueshell
+): Promise<void> {
+  await setDoc(
+    doc(baseDatos(), 'torneos', torneoId, 'dias', fechaObjetivo),
+    { fecha: fechaObjetivo, blueshells: { [autor]: blueshell } },
+    { merge: true }
+  );
+}
+
+/** Gasta la protección de la jornada, que anula todas las balas recibidas. */
+export async function activarProteccion(
+  torneoId: string,
+  fecha: string,
+  uid: string
+): Promise<void> {
+  await setDoc(
+    doc(baseDatos(), 'torneos', torneoId, 'dias', fecha),
+    { fecha, protecciones: { [uid]: true } },
+    { merge: true }
   );
 }
 

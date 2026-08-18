@@ -1,19 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Haptics from 'expo-haptics';
-import { LONGITUD, MAX_INTENTOS, PALABRAS_PENALIZACION } from '../game/constantes';
+import { LONGITUD, MAX_INTENTOS } from '../game/constantes';
+import { cumple, obligacionEn, sinBlueshells } from '../game/reglas';
 import { estadoTeclado, patronCompartible, puntosDe } from '../game/evaluar';
 import { fechaJuego, msHastaProximaJornada } from '../game/fecha';
 import { esAceptada, solucionDe } from '../game/palabras';
 import { borrarEn, escribirEn, filaVacia, texto } from '../game/fila';
 import { normalizar } from '../game/normalizar';
 import { anotarEnHistorial, cargarPartida, guardarPartida } from '../almacen/local';
-import type { PartidaLocal } from '../tipos';
+import type { Obligacion, PartidaLocal } from '../tipos';
 import { useApp } from './AppContext';
 
 const AVISO_MS = 1800;
 
-function partidaNueva(torneoId: string, fecha: string, penalizado: boolean): PartidaLocal {
-  return { torneoId, fecha, intentos: [], estado: 'jugando', penalizado, enviado: false };
+function partidaNueva(
+  torneoId: string,
+  fecha: string,
+  obligaciones: Obligacion[]
+): PartidaLocal {
+  return {
+    torneoId,
+    fecha,
+    intentos: [],
+    estado: 'jugando',
+    penalizado: obligaciones.some((o) => o.motivo === 'lider'),
+    obligaciones,
+    enviado: false,
+  };
+}
+
+/** El mensaje que se enseña al intentar saltarse una palabra impuesta. */
+function avisoDe(obligacion: Obligacion, autor: string): string {
+  if (obligacion.motivo === 'lider') {
+    return 'Vas primero: empieza con una de las cinco palabras';
+  }
+  const orden = obligacion.indice + 1;
+  return `Blueshell de ${autor}: la palabra ${orden}.ª tiene que ser ${obligacion.palabras[0].toUpperCase()}`;
 }
 
 
@@ -24,7 +46,7 @@ function partidaNueva(torneoId: string, fecha: string, penalizado: boolean): Par
  * así que quien esté en tres torneos tiene tres palabras que adivinar.
  */
 export function useJuego() {
-  const { activo, penalizadoEn, publicar } = useApp();
+  const { activo, obligacionesHoy, blueshellsDe, usarProteccion, publicar } = useApp();
 
   const torneoId = activo.id;
   const [fecha, setFecha] = useState(fechaJuego);
@@ -49,8 +71,15 @@ export function useJuego() {
   const [filaAnimada, setFilaAnimada] = useState<number | null>(null);
 
   const solucion = solucionDe(fecha, activo.semilla);
-  const penalizado = penalizadoEn(torneoId);
+  const impuestas = obligacionesHoy(torneoId);
   const relojAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** El nombre con el que se conoce a alguien dentro de este torneo. */
+  const nombreDe = useCallback(
+    (uid: string | undefined) =>
+      (uid && activo.tipo === 'torneo' && activo.torneo.perfiles?.[uid]?.nombre) || 'alguien',
+    [activo]
+  );
 
   const mostrarAviso = useCallback((mensaje: string) => {
     setAviso(mensaje);
@@ -66,25 +95,36 @@ export function useJuego() {
     setFilaAnimada(null);
     cargarPartida(torneoId, fecha).then((guardada) => {
       if (!vigente) return;
-      setPartida(guardada ?? partidaNueva(torneoId, fecha, penalizado));
+      setPartida(guardada ?? partidaNueva(torneoId, fecha, impuestas));
     });
     return () => {
       vigente = false;
     };
-    // `penalizado` a propósito fuera: puede llegar más tarde y lo ajusta el
-    // efecto siguiente, sin reiniciar la partida en curso.
+    // `impuestas` a propósito fuera: llega más tarde, cuando cargan los torneos
+    // y sus jornadas, y lo ajusta el efecto siguiente sin reiniciar la partida.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [torneoId, fecha]);
 
-  // La penalización se confirma al cargar los torneos, pero sólo se aplica si
-  // todavía no se ha enviado ningún intento.
+  /**
+   * Las palabras impuestas se confirman al cargar los torneos, que tarda un
+   * momento más que abrir la pantalla. Se comparan en texto porque el cálculo
+   * devuelve una lista nueva en cada dibujado aunque el contenido sea el mismo.
+   */
+  const claveImpuestas = JSON.stringify(impuestas);
   useEffect(() => {
-    setPartida((previa) =>
-      previa && previa.intentos.length === 0 && previa.penalizado !== penalizado
-        ? { ...previa, penalizado }
-        : previa
-    );
-  }, [penalizado]);
+    setPartida((previa) => {
+      // Sólo antes del primer intento: una obligación no puede aparecer con la
+      // partida ya empezada, ni desaparecer a mitad de camino.
+      if (!previa || previa.intentos.length > 0) return previa;
+      if (JSON.stringify(previa.obligaciones ?? []) === claveImpuestas) return previa;
+      const obligaciones: Obligacion[] = JSON.parse(claveImpuestas);
+      return {
+        ...previa,
+        obligaciones,
+        penalizado: obligaciones.some((o) => o.motivo === 'lider'),
+      };
+    });
+  }, [claveImpuestas]);
 
   // Cambio de jornada con la app abierta: a medianoche entra palabra nueva.
   useEffect(() => {
@@ -161,14 +201,11 @@ export function useJuego() {
       return;
     }
 
-    // Penalización del líder: la primera palabra de la jornada está impuesta.
-    const esPrimerIntento = partida.intentos.length === 0;
-    if (
-      partida.penalizado &&
-      esPrimerIntento &&
-      !PALABRAS_PENALIZACION.includes(intento as (typeof PALABRAS_PENALIZACION)[number])
-    ) {
-      mostrarAviso('Vas primero: empieza con una de las cinco palabras');
+    // Palabras impuestas: la penalización del líder ocupa el primer intento y
+    // cada blueshell recibida ocupa uno de los siguientes.
+    const obligacion = obligacionEn(partida.obligaciones ?? [], partida.intentos.length);
+    if (obligacion && !cumple(obligacion, intento)) {
+      mostrarAviso(avisoDe(obligacion, nombreDe(obligacion.autor)));
       setTemblor((n) => n + 1);
       return;
     }
@@ -216,11 +253,48 @@ export function useJuego() {
         LONGITUD * 240
       );
     }
-  }, [partida, borrador, solucion, mostrarAviso]);
+  }, [partida, borrador, solucion, mostrarAviso, nombreDe]);
 
   const intentos = partida?.intentos ?? [];
+  const obligaciones = partida?.obligaciones ?? [];
+  const obligacion = obligacionEn(obligaciones, intentos.length);
+
+  // Sólo tiene sentido protegerse si queda alguna bala por delante: gastar la
+  // protección después de haber escrito la palabra impuesta no sirve de nada.
+  const balasPendientes = obligaciones.filter(
+    (o) => o.motivo === 'blueshell' && o.indice >= intentos.length
+  ).length;
+
+  /**
+   * Gasta la protección con la partida en marcha.
+   *
+   * Además de avisar al servidor, quita las obligaciones de blueshell de la
+   * partida guardada: si sólo se avisara, el tablero seguiría exigiendo la
+   * palabra hasta que llegara la actualización de la jornada.
+   */
+  const protegerse = useCallback(async () => {
+    await usarProteccion(torneoId);
+    setPartida((previa) => {
+      if (!previa) return previa;
+      const actualizada = { ...previa, obligaciones: sinBlueshells(previa.obligaciones ?? []) };
+      guardarPartida(actualizada);
+      return actualizada;
+    });
+    mostrarAviso('Protección gastada: hoy no te obliga ninguna blueshell');
+  }, [torneoId, usarProteccion, mostrarAviso]);
 
   return {
+    obligaciones,
+    /** La que toca en el intento en curso, para poder anunciarla. */
+    obligacion,
+    autorObligacion: nombreDe(obligacion?.autor),
+    /** Balas que todavía me van a obligar en esta partida. */
+    balasPendientes,
+    puedeProtegerse:
+      balasPendientes > 0 &&
+      partida?.estado === 'jugando' &&
+      blueshellsDe(torneoId).puedoProteger,
+    protegerse,
     fecha,
     solucion,
     partida,

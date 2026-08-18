@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Marca } from '../tipos';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 export const TECLA_ENTER = 'ENTER';
 export const TECLA_BORRAR = 'BORRAR';
@@ -100,12 +100,12 @@ const estilos = StyleSheet.create({
   },
   iluminada: {
     borderWidth: 2,
-    borderColor: colores.texto,
+    borderColor: colores.acento,
   },
   textoTecla: {
     color: colores.teclaTexto,
-    fontWeight: '700',
-    fontSize: 18,
+    fontFamily: fuentes.ficha,
+    fontSize: escala.medio,
     includeFontPadding: false,
   },
 });

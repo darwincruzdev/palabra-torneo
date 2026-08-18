@@ -181,7 +181,7 @@ describe('lo que se guarda en Firestore', () => {
   });
 });
 
-describe('cerrar la palabra al agotarse los 15 segundos', () => {
+describe('cerrar la palabra al agotarse el tiempo', () => {
   it('cierra la palabra que estaba contando', () => {
     assert.equal(debeCerrarPorTiempo({ ronda: 0, quedan: 0 }, 0, false), true);
   });

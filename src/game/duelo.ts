@@ -19,7 +19,7 @@ export const PALABRAS_POR_DUELO = 3;
  * Es lo que mete la prisa: puedes ir con calma acertando a la primera, pero si
  * te descuidas el otro acaba y te corta donde estés.
  */
-export const SEGUNDOS_FINAL = 15;
+export const SEGUNDOS_FINAL = 30;
 
 /**
  * Las diez palabras de un duelo, iguales para los dos jugadores.
@@ -171,7 +171,7 @@ export function rejillaVacia(): string[] {
  * El duelo va palabra a palabra, los dos a la vez.
  *
  * Una palabra se "cierra" al acertarla, al agotar los seis intentos o al
- * quedarse sin los quince segundos. Hace falta guardarlo aparte de la rejilla:
+ * quedarse sin los treinta segundos. Hace falta guardarlo aparte de la rejilla:
  * si se dedujera de los intentos, una palabra cortada por tiempo sería
  * indistinguible de una a medias.
  */
