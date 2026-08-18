@@ -6,6 +6,7 @@ node_modules/
 # Expo
 .expo/
 dist/
+.wrangler/
 web-build/
 expo-env.d.ts
 
@@ -31,7 +32,11 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# ficheros fuente del diccionario (se descargan con npm run build:words)
+scripts/tmp/
 
 # typescript
 *.tsbuildinfo
@@ -39,3 +44,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# gráficos generados de la ficha de Play
+play/
+
+# ajustes locales de Claude Code, personales de cada máquina
+.claude/settings.local.json
+
+# caché de la CLI de Firebase
+.firebase/

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invitación a un torneo · Palabra Torneo</title>
+    <meta name="theme-color" content="#0f1115" />
+    <meta property="og:title" content="Te han invitado a un torneo" />
+    <meta
+      property="og:description"
+      content="Palabra Torneo: adivina la palabra del día y compite con los tuyos."
+    />
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      :root {
+        --fondo: #0f1115;
+        --superficie: #171a20;
+        --borde: #2b3038;
+        --texto: #ffffff;
+        --suave: #9aa3ad;
+        --verde: #3aa757;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--fondo);
+        color: var(--texto);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+      main {
+        width: 100%;
+        max-width: 26rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.6rem;
+        margin: 0;
+        text-wrap: balance;
+      }
+      p {
+        margin: 0;
+        color: var(--suave);
+        line-height: 1.6;
+      }
+      .codigo {
+        background: var(--superficie);
+        border: 1px solid var(--borde);
+        border-radius: 12px;
+        padding: 1.1rem;
+        font-size: 2.4rem;
+        font-weight: 800;
+        letter-spacing: 0.5rem;
+        text-indent: 0.5rem;
+      }
+      .boton {
+        display: block;
+        background: var(--verde);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 1.05rem;
+        padding: 0.95rem 1.25rem;
+        border-radius: 12px;
+      }
+      .boton.secundario {
+        background: transparent;
+        border: 1px solid var(--borde);
+      }
+      .boton:focus-visible {
+        outline: 2px solid var(--texto);
+        outline-offset: 3px;
+      }
+      .fichas {
+        display: flex;
+        gap: 0.4rem;
+        justify-content: center;
+      }
+      .fichas span {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.4rem;
+        background: var(--borde);
+      }
+      .fichas span:nth-child(2) {
+        background: var(--verde);
+      }
+      .fichas span:nth-child(4) {
+        background: #e2a303;
+      }
+      .aviso {
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="fichas" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <h1>Te han invitado a un torneo</h1>
+      <p>Palabra Torneo: una palabra de cinco letras al día y a ver quién la saca antes.</p>
+
+      <div class="codigo" id="codigo">------</div>
+
+      <a class="boton" id="abrir" href="#">Abrir en la aplicación</a>
+      <a
+        class="boton secundario"
+        id="tienda"
+        href="https://play.google.com/store/apps/details?id=com.darwincruz.palabratorneo"
+        >No la tengo instalada</a
+      >
+
+      <p class="aviso">
+        Si la aplicación no se abre sola, ábrela a mano y escribe el código de arriba en
+        «Entrar con un código».
+      </p>
+    </main>
+
+    <script>
+      (function () {
+        var codigo = (new URLSearchParams(location.search).get("t") || "")
+          .trim()
+          .toUpperCase();
+
+        if (/^[A-Z0-9]{6}$/.test(codigo)) {
+          document.getElementById("codigo").textContent = codigo;
+          document.getElementById("abrir").href = "palabratorneo://unirse?t=" + codigo;
+        } else {
+          document.getElementById("codigo").textContent = "Enlace no válido";
+          document.getElementById("abrir").hidden = true;
+        }
+      })();
+    </script>
+  </body>
+</html>

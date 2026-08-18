@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "palabra-torneo-web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web", "--port", "8081"],
+      "port": 8081
+    },
+    {
+      "name": "palabra-torneo-web-alt",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web", "--port", "8090"],
+      "port": 8090
+    },
+    {
+      "name": "palabra-torneo-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "serve", "dist", "-l", "8099"],
+      "port": 8099
+    }
+  ]
+}

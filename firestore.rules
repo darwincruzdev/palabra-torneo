@@ -1,0 +1,157 @@
+rules_version = '2';
+
+// Reglas de seguridad de Palabra Torneo.
+// Súbelas desde la consola de Firebase (Firestore > Reglas) o con la CLI:
+//   firebase deploy --only firestore:rules
+//
+// Lo que más importa aquí: el documento de un torneo lleva su semilla, y con
+// la semilla se puede calcular la palabra de cualquier día. Por eso el torneo
+// sólo lo pueden leer sus miembros, y la invitación vive en otra colección.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function conSesion() {
+      return request.auth != null;
+    }
+
+    function datosTorneo(torneoId) {
+      return get(/databases/$(database)/documents/torneos/$(torneoId)).data;
+    }
+
+    function esMiembro(torneoId) {
+      return conSesion() && request.auth.uid in datosTorneo(torneoId).miembros;
+    }
+
+    function camposTocados() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // Perfil público: nombre y avatar que se ven en las clasificaciones.
+    match /usuarios/{uid} {
+      allow read: if conSesion();
+      allow write: if conSesion() && request.auth.uid == uid;
+    }
+
+    // Invitaciones. Cualquiera con sesión puede resolver un código, que es lo
+    // que hace falta para unirse. Aquí NO va la semilla: sólo el id y el
+    // nombre del torneo.
+    match /codigos/{codigo} {
+      allow read: if conSesion();
+      allow create: if conSesion()
+        && request.resource.data.keys().hasOnly(['codigo', 'torneoId', 'nombre'])
+        && request.resource.data.codigo == codigo;
+      // Un código no se reescribe: si hiciera falta cambiarlo, se borra y se
+      // crea otro. Así nadie puede secuestrar el código de un torneo ajeno.
+      allow update: if false;
+      allow delete: if conSesion()
+        && request.auth.uid == datosTorneo(request.resource.data.torneoId).propietario;
+    }
+
+    // Invitaciones a duelos. Como las de los torneos: se pueden resolver sin ser
+    // participante, y no llevan la semilla.
+    match /codigosDuelo/{codigo} {
+      allow read: if conSesion();
+      allow create: if conSesion()
+        && request.resource.data.keys().hasOnly(['codigo', 'dueloId', 'retador'])
+        && request.resource.data.codigo == codigo
+        && request.resource.data.retador == request.auth.uid;
+      allow update: if false;
+      allow delete: if conSesion() && resource.data.retador == request.auth.uid;
+    }
+
+    match /duelos/{dueloId} {
+      // Los participantes, y además quien llega con una invitación a un duelo
+      // que todavía busca rival: para poder entrar hay que leer antes el
+      // documento, y en ese momento aún no figuras entre los jugadores.
+      //
+      // Un duelo a la espera no tiene nada que proteger: no hay puntuaciones, y
+      // la semilla se la va a quedar de todas formas al entrar.
+      allow get: if conSesion() && (
+        request.auth.uid in resource.data.jugadores
+        || resource.data.rival == null
+      );
+      // Listar sigue restringido: nadie puede enumerar los duelos de los demás.
+      allow list: if conSesion() && request.auth.uid in resource.data.jugadores;
+
+      allow create: if conSesion()
+        && request.resource.data.retador.uid == request.auth.uid
+        && request.resource.data.jugadores == [request.auth.uid]
+        && request.resource.data.estado == 'esperando';
+
+      allow update: if conSesion() && (
+        (
+          // Entrar como rival: sólo si el sitio está libre y me apunto a mí.
+          resource.data.rival == null
+          && request.resource.data.rival.uid == request.auth.uid
+          && request.resource.data.jugadores.hasAll(resource.data.jugadores)
+          && request.resource.data.jugadores.size() == 2
+        )
+        || (
+          // Ya dentro: sólo mi propio progreso y el cierre del duelo.
+          request.auth.uid in resource.data.jugadores
+          && camposTocados().hasOnly(['progreso', 'estado'])
+          && (
+            !camposTocados().hasAny(['progreso'])
+            || request.resource.data.progreso.diff(resource.data.progreso)
+                 .affectedKeys().hasOnly([request.auth.uid])
+          )
+        )
+      );
+
+      allow delete: if conSesion() && resource.data.retador.uid == request.auth.uid;
+    }
+
+    match /torneos/{torneoId} {
+      // Sólo los miembros. Quien no lo sea no puede leer la semilla, y por
+      // tanto no puede calcular la palabra del día de este torneo.
+      allow get: if esMiembro(torneoId);
+      allow list: if conSesion() && request.auth.uid in resource.data.miembros;
+
+      // Al crear, el fundador es el único miembro.
+      allow create: if conSesion()
+        && request.resource.data.propietario == request.auth.uid
+        && request.resource.data.miembros == [request.auth.uid];
+
+      allow update: if conSesion() && (
+        (
+          // Entrar o salir: el único cambio permitido en la lista de miembros
+          // es el propio uid, y de paso se deja el perfil con el que se entra.
+          camposTocados().hasOnly(['miembros', 'perfiles'])
+          && request.resource.data.miembros.toSet()
+               .difference(resource.data.miembros.toSet()).hasOnly([request.auth.uid])
+          && resource.data.miembros.toSet()
+               .difference(request.resource.data.miembros.toSet()).hasOnly([request.auth.uid])
+        )
+        || (
+          // Cambiar mi nombre o mi avatar dentro del torneo.
+          camposTocados().hasOnly(['perfiles'])
+          && request.resource.data.perfiles.diff(resource.data.perfiles)
+               .affectedKeys().hasOnly([request.auth.uid])
+        )
+        || (
+          // El fundador puede renombrar su torneo. La semilla no se toca nunca.
+          resource.data.propietario == request.auth.uid
+          && camposTocados().hasOnly(['nombre'])
+        )
+      );
+
+      allow delete: if conSesion() && resource.data.propietario == request.auth.uid;
+
+      // Una jornada = un documento con los resultados de todos los jugadores.
+      match /dias/{fecha} {
+        allow read: if esMiembro(torneoId);
+
+        // Cada jugador sólo puede escribir su propia casilla del mapa, así que
+        // nadie puede inflarse los puntos ni tocar los de otro.
+        allow create: if esMiembro(torneoId)
+          && request.resource.data.resultados.keys().hasOnly([request.auth.uid]);
+
+        allow update: if esMiembro(torneoId)
+          && request.resource.data.resultados.diff(resource.data.resultados)
+               .affectedKeys().hasOnly([request.auth.uid]);
+
+        allow delete: if false;
+      }
+    }
+  }
+}

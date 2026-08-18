@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Política de privacidad · Palabra Torneo</title>
+    <meta name="theme-color" content="#0f1115" />
+    <meta
+      name="description"
+      content="Qué datos maneja la aplicación Palabra Torneo y qué se hace con ellos."
+    />
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      :root {
+        --fondo: #0f1115;
+        --superficie: #171a20;
+        --borde: #2b3038;
+        --texto: #ffffff;
+        --texto-suave: #9aa3ad;
+        --acento: #3aa757;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--fondo);
+        color: var(--texto);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-size: 17px;
+        line-height: 1.65;
+      }
+      main {
+        max-width: 65ch;
+        margin: 0 auto;
+        padding: 3rem 1.25rem 5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--borde);
+      }
+      h1 {
+        font-size: 1.9rem;
+        line-height: 1.2;
+        text-wrap: balance;
+        margin: 0;
+      }
+      h2 {
+        font-size: 1.15rem;
+        margin: 1.75rem 0 0;
+        text-wrap: balance;
+      }
+      p,
+      ul {
+        margin: 0;
+      }
+      ul {
+        padding-left: 1.2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .eyebrow {
+        color: var(--acento);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      .fecha,
+      footer {
+        color: var(--texto-suave);
+        font-size: 0.9rem;
+      }
+      .destacado {
+        background: var(--superficie);
+        border: 1px solid var(--borde);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+      }
+      a {
+        color: var(--acento);
+      }
+      a:focus-visible {
+        outline: 2px solid var(--acento);
+        outline-offset: 3px;
+      }
+      footer {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--borde);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="eyebrow">Palabra Torneo</span>
+        <h1>Política de privacidad</h1>
+        <p class="fecha">Última actualización: 15 de agosto de 2026</p>
+      </header>
+
+      <p class="destacado">
+        Palabra Torneo es un juego de palabras para jugar con familia y amigos. No
+        muestra publicidad, no usa herramientas de analítica y no vende datos a
+        nadie.
+      </p>
+
+      <h2>Cómo se entra</h2>
+      <p>
+        Con tu cuenta de Google. La aplicación no crea ni guarda ninguna contraseña:
+        de Google sólo recibe un identificador de usuario y tu correo electrónico,
+        que sirven para reconocerte cuando vuelves o cambias de móvil. No se publica
+        nada en tu cuenta, no se lee tu correo y no se accede a tus contactos.
+      </p>
+
+      <h2>Qué datos se guardan</h2>
+      <p>Sólo lo imprescindible para que funcionen los torneos:</p>
+      <ul>
+        <li>
+          <strong>Tu identificador de usuario y tu correo</strong>, tal como los
+          facilita Google al iniciar sesión. El correo no se enseña a los demás
+          jugadores: sólo lo ves tú, en tu pantalla de perfil.
+        </li>
+        <li>
+          <strong>El nombre y el avatar que eliges.</strong> Los pones en la
+          pantalla de perfil y son lo que ve el resto del torneo en la
+          clasificación. Puedes cambiarlos cuando quieras.
+        </li>
+        <li>
+          <strong>El resultado de cada jornada.</strong> La fecha, cuántos intentos
+          usaste, si acertaste y los puntos conseguidos.
+        </li>
+        <li>
+          <strong>Los torneos a los que perteneces</strong>, con su nombre y su
+          código de invitación.
+        </li>
+      </ul>
+
+      <h2>Qué no se guarda</h2>
+      <ul>
+        <li>Ni contraseñas, ni teléfono, ni fecha de nacimiento.</li>
+        <li>Ni ubicación, ni contactos, ni fotos, ni micrófono, ni cámara.</li>
+        <li>Ni identificadores de publicidad, ni perfiles de comportamiento.</li>
+      </ul>
+
+      <h2>Quién puede ver tus datos</h2>
+      <p>
+        Tu nombre y tus resultados diarios los ven las personas que están en los
+        mismos torneos que tú, y nadie más. Los torneos son privados: sólo se entra
+        con su código de invitación. Si no estás en ningún torneo, tus partidas no
+        salen del móvil.
+      </p>
+
+      <h2>Dónde se guardan</h2>
+      <p>
+        En Firebase (Firestore y Authentication), un servicio de Google Ireland
+        Limited que actúa como encargado del tratamiento. Puedes consultar su
+        <a
+          href="https://firebase.google.com/support/privacy"
+          rel="noopener noreferrer"
+          >política de privacidad</a
+        >. La partida en curso y tus estadísticas personales se guardan además en el
+        propio móvil, y se borran al desinstalar la aplicación.
+      </p>
+
+      <h2>Cuánto tiempo</h2>
+      <p>
+        Mientras uses la aplicación. Si sales de un torneo, dejas de aparecer en su
+        clasificación. Para que se borre todo lo demás, escribe a la dirección de
+        contacto y se elimina.
+      </p>
+
+      <h2>Tus derechos</h2>
+      <p>
+        Puedes pedir acceso, rectificación o supresión de tus datos, así como
+        oponerte a su tratamiento, escribiendo a la dirección de contacto. Si crees
+        que no se han respetado tus derechos, puedes reclamar ante la Agencia
+        Española de Protección de Datos.
+      </p>
+
+      <h2>Menores</h2>
+      <p>
+        El juego es apto para todas las edades y no pide ningún dato personal. Si
+        eres madre, padre o tutor y quieres que se borre la información asociada a
+        un menor, escribe a la dirección de contacto.
+      </p>
+
+      <h2>Cambios</h2>
+      <p>
+        Si esta política cambia, se actualizará esta página con una fecha nueva
+        arriba.
+      </p>
+
+      <h2>Contacto</h2>
+      <p>
+        <!-- Sustituye por la dirección que quieras hacer pública; será la misma que
+             figure como contacto en la ficha de Google Play. -->
+        [TU CORREO DE CONTACTO]
+      </p>
+
+      <footer>Palabra Torneo · Aplicación sin ánimo de lucro para jugar en familia.</footer>
+    </main>
+  </body>
+</html>
