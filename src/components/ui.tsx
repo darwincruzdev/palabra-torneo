@@ -3,12 +3,12 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { Texto } from './Texto';
 import { colores, espaciado, fuentes, radio, rotulo, texto } from '../tema';
 
 type BotonProps = {
@@ -69,14 +69,14 @@ export function Boton({
       {cargando ? (
         <ActivityIndicator color={colores.texto} />
       ) : (
-        <Text
+        <Texto
           style={[
             estilos.textoBoton,
             variante === 'peligro' && { color: colores.peligro },
           ]}
         >
           {titulo}
-        </Text>
+        </Texto>
       )}
     </Pressable>
   );
@@ -110,7 +110,7 @@ export function Tarjeta({
 export function Titulo({ children }: { children: React.ReactNode }) {
   return (
     <View style={estilos.filaTitulo}>
-      <Text style={estilos.titulo}>{children}</Text>
+      <Texto style={estilos.titulo}>{children}</Texto>
       <View style={estilos.lineaTitulo} />
     </View>
   );
@@ -118,11 +118,11 @@ export function Titulo({ children }: { children: React.ReactNode }) {
 
 /** Rótulo pequeño, del tipo que etiqueta una cifra en un marcador. */
 export function Rotulo({ children }: { children: React.ReactNode }) {
-  return <Text style={estilos.rotulo}>{children}</Text>;
+  return <Texto style={estilos.rotulo}>{children}</Texto>;
 }
 
 export function Sutil({ children }: { children: React.ReactNode }) {
-  return <Text style={estilos.sutil}>{children}</Text>;
+  return <Texto style={estilos.sutil}>{children}</Texto>;
 }
 
 /**
@@ -142,10 +142,10 @@ export function Cifra({
 }) {
   return (
     <View style={estilos.cifra}>
-      <Text style={[estilos.cifraValor, { color, fontSize: tamano, lineHeight: tamano * 1.05 }]}>
+      <Texto style={[estilos.cifraValor, { color, fontSize: tamano, lineHeight: tamano * 1.05 }]}>
         {valor}
-      </Text>
-      {etiqueta && <Text style={estilos.cifraEtiqueta}>{etiqueta}</Text>}
+      </Texto>
+      {etiqueta && <Texto style={estilos.cifraEtiqueta}>{etiqueta}</Texto>}
     </View>
   );
 }

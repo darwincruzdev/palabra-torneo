@@ -1,5 +1,31 @@
 import type { DiaTorneo, FilaClasificacion, Torneo } from '../tipos';
 import { normalizarAvatar } from './avatares';
+import { PUNTOS_POR_FALTA } from './constantes';
+import { fechaJuego, sumarDias } from './fecha';
+import { normalizarReglas } from './reglas';
+
+/**
+ * Jornadas cerradas que alguien se saltó.
+ *
+ * Se cuentan desde la primera que jugó, no desde que se fundó el torneo. No
+ * guardamos cuándo entró cada uno, y cobrarle a alguien las cincuenta jornadas
+ * anteriores a que llegara sería absurdo; su primera partida es lo más cercano
+ * que tenemos a su fecha de alta. Y se recorren fechas, no documentos: un día
+ * que no jugó nadie no deja documento y es justo el que hay que cobrar.
+ */
+function faltasDe(dias: DiaTorneo[], uid: string, limite: string): number {
+  const jugadas = new Set(
+    dias.filter((d) => d.resultados?.[uid]).map((d) => d.fecha)
+  );
+  if (jugadas.size === 0) return 0;
+
+  const primera = [...jugadas].sort()[0];
+  let faltas = 0;
+  for (let fecha = primera; fecha < limite; fecha = sumarDias(fecha, 1)) {
+    if (!jugadas.has(fecha)) faltas += 1;
+  }
+  return faltas;
+}
 
 /**
  * Construye la clasificación de un torneo sumando las jornadas indicadas.
@@ -11,7 +37,8 @@ import { normalizarAvatar } from './avatares';
 export function clasificacion(
   torneo: Torneo,
   dias: DiaTorneo[],
-  hasta?: string
+  hasta?: string,
+  hoy: string = fechaJuego()
 ): FilaClasificacion[] {
   const filas = new Map<string, FilaClasificacion>();
 
@@ -23,6 +50,7 @@ export function clasificacion(
       avatar: normalizarAvatar(perfil?.avatar),
       puntos: 0,
       jugadas: 0,
+      faltas: 0,
       aciertos: 0,
       intentosTotales: 0,
       mediaIntentos: null,
@@ -47,10 +75,27 @@ export function clasificacion(
     }
   }
 
-  const orden = [...filas.values()].map((f) => ({
-    ...f,
-    mediaIntentos: f.aciertos > 0 ? f.intentosTotales / f.aciertos : null,
-  }));
+  /**
+   * Las faltas sólo cuentan sobre jornadas cerradas.
+   *
+   * La de hoy sigue abierta hasta medianoche, así que no penaliza a nadie: si
+   * contara, todo el mundo amanecería con un menos uno hasta ponerse a jugar.
+   */
+  const reglas = normalizarReglas(torneo.reglas);
+  const limiteFaltas = hasta && hasta < hoy ? hasta : hoy;
+  const contables = dias.filter((d) => d.fecha >= torneo.fechaInicio);
+
+  const orden = [...filas.values()].map((f) => {
+    const faltas = reglas.faltaPorNoJugar
+      ? faltasDe(contables, f.uid, limiteFaltas)
+      : 0;
+    return {
+      ...f,
+      faltas,
+      puntos: f.puntos + faltas * PUNTOS_POR_FALTA,
+      mediaIntentos: f.aciertos > 0 ? f.intentosTotales / f.aciertos : null,
+    };
+  });
 
   orden.sort((a, b) => {
     if (b.puntos !== a.puntos) return b.puntos - a.puntos;

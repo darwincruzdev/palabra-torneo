@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from './Texto';
 import { dibujarBotonGoogle } from '../firebase/googleWeb';
-import { colores, espaciado } from '../tema';
+import { colores, espaciado, fuentes, texto } from '../tema';
 
 type Props = {
   clientId: string;
@@ -31,7 +35,7 @@ export function BotonGoogleWeb({ clientId, onIdToken }: Props) {
   return (
     <View style={estilos.zona}>
       <View ref={hueco} style={estilos.hueco} />
-      {error && <Text style={estilos.error}>{error}</Text>}
+      {error && <Texto style={estilos.error}>{error}</Texto>}
     </View>
   );
 }
@@ -48,7 +52,8 @@ const estilos = StyleSheet.create({
   },
   error: {
     color: colores.peligro,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: texto.pequeno,
     textAlign: 'center',
   },
 });

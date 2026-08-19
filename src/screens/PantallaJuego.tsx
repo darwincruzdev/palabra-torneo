@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from '../components/Texto';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Aviso } from '../components/Aviso';
@@ -16,7 +23,7 @@ import { TORNEO_LIBRE, useApp } from '../estado/AppContext';
 import { useJuego } from '../estado/useJuego';
 import { useTecladoFisico } from '../estado/useTecladoFisico';
 import { useCuentaAtras } from '../estado/useCuentaAtras';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 type Props = {
   volver: () => void;
@@ -36,6 +43,14 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
   const [hueco, setHueco] = useState({ ancho: 300, alto: 380 });
 
   const terminada = juego.estado !== 'jugando';
+  /**
+   * La jornada ya consta puntuada en el torneo y esta partida no la tiene.
+   *
+   * Si la partida local sí está terminada se enseña el final de siempre, que
+   * además tiene el tablero con las letras de verdad; esto es sólo para cuando
+   * se entra desde otro sitio con la jornada ya hecha.
+   */
+  const yaHecha = juego.publicada && !terminada ? juego.publicada : null;
   const esLibre = activo.id === TORNEO_LIBRE.id;
   const cuentaAtras = useCuentaAtras();
 
@@ -61,7 +76,7 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
     escribir: juego.escribir,
     borrar: juego.borrar,
     enviar: juego.enviar,
-    activo: !terminada && enfocada,
+    activo: !terminada && !yaHecha && enfocada,
   });
   const jornada =
     activo.tipo === 'torneo'
@@ -95,7 +110,7 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
           accessibilityLabel="Volver"
           accessibilityRole="button"
         >
-          <Text style={estilos.icono}>←</Text>
+          <Texto style={estilos.icono}>←</Texto>
         </Pressable>
 
         <Pressable
@@ -104,12 +119,12 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
           accessibilityRole="button"
           accessibilityLabel={`Torneo activo: ${activo.nombre}. Tocar para cambiar`}
         >
-          <Text style={estilos.nombreTorneo} numberOfLines={1}>
-            {activo.nombre} <Text style={estilos.flecha}>▾</Text>
-          </Text>
-          <Text style={estilos.subtitulo}>
+          <Texto style={estilos.nombreTorneo} numberOfLines={1}>
+            {activo.nombre} <Texto style={estilos.flecha}>▾</Texto>
+          </Texto>
+          <Texto style={estilos.subtitulo}>
             Jornada {jornada} · {fechaLarga(juego.fecha)}
-          </Text>
+          </Texto>
         </Pressable>
 
         <Pressable
@@ -124,9 +139,9 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
 
       {esLibre && (
         <Pressable onPress={() => setSelectorAbierto(true)} style={estilos.bandaLibre}>
-          <Text style={estilos.textoLibre}>
+          <Texto style={estilos.textoLibre}>
             Estás en modo libre: esta partida no puntúa. Toca para elegir un torneo.
-          </Text>
+          </Texto>
         </Pressable>
       )}
 
@@ -134,24 +149,24 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
           te hayan disparado. El tablero no distingue: sólo obedece. */}
       {juego.obligacion && juego.obligacion.motivo === 'lider' && (
         <View style={estilos.bandaPenalizacion}>
-          <Text style={estilos.textoPenalizacion}>
+          <Texto style={estilos.textoPenalizacion}>
             Lideras {activo.nombre} en solitario. Abre con una de estas:
-          </Text>
-          <Text style={estilos.palabrasPenalizacion}>
+          </Texto>
+          <Texto style={estilos.palabrasPenalizacion}>
             {juego.obligacion.palabras.map((p) => p.toUpperCase()).join(' · ')}
-          </Text>
+          </Texto>
         </View>
       )}
 
       {juego.obligacion && juego.obligacion.motivo === 'blueshell' && (
         <View style={estilos.bandaBlueshell}>
-          <Text style={estilos.textoBlueshell}>
+          <Texto style={estilos.textoBlueshell}>
             Blueshell de {juego.autorObligacion}. Tu palabra {juego.obligacion.indice + 1}.ª
             tiene que ser:
-          </Text>
-          <Text style={estilos.palabrasPenalizacion}>
+          </Texto>
+          <Texto style={estilos.palabrasPenalizacion}>
             {juego.obligacion.palabras[0].toUpperCase()}
-          </Text>
+          </Texto>
         </View>
       )}
 
@@ -159,11 +174,11 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
           al segundo intento con la protección ya sin usar. */}
       {juego.balasPendientes > 0 && juego.obligacion?.motivo !== 'blueshell' && (
         <View style={estilos.bandaBlueshell}>
-          <Text style={estilos.textoBlueshell}>
+          <Texto style={estilos.textoBlueshell}>
             {juego.balasPendientes === 1
               ? 'Te han lanzado una blueshell: te impondrá la palabra 2.ª.'
               : `Te han lanzado ${juego.balasPendientes} blueshells: te impondrán las palabras siguientes.`}
-          </Text>
+          </Texto>
         </View>
       )}
 
@@ -173,19 +188,60 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
           accessibilityRole="button"
           style={({ pressed }) => [estilos.escudo, pressed && { opacity: 0.7 }]}
         >
-          <Text style={estilos.textoEscudo}>
+          <Texto style={estilos.textoEscudo}>
             Gastar mi protección y anular{' '}
             {juego.balasPendientes === 1 ? 'la blueshell' : 'las blueshells'} de hoy
-          </Text>
+          </Texto>
         </Pressable>
+      )}
+
+      {/* Jornada ya publicada desde otro navegador. La partida se guarda en cada
+          móvil por separado, así que aquí el tablero saldría en blanco y
+          tentaría a repetirla; el servidor la rechazaría igual. */}
+      {yaHecha && (
+        <ScrollView contentContainerStyle={estilos.contenidoHecha}>
+          <Texto style={estilos.tituloHecha}>Jornada hecha</Texto>
+          <Texto style={estilos.textoHecha}>
+            Ya jugaste esta palabra en {activo.nombre}, desde este u otro navegador. Se
+            juega una vez y cuenta la primera.
+          </Texto>
+
+          <View style={estilos.marcadorHecha}>
+            <View style={estilos.datoHecha}>
+              <Texto style={estilos.cifraHecha}>
+                {yaHecha.acertada ? `${yaHecha.intentos}/6` : 'X/6'}
+              </Texto>
+              <Texto style={estilos.etiquetaHecha}>intentos</Texto>
+            </View>
+            <View style={estilos.datoHecha}>
+              <Texto style={[estilos.cifraHecha, { color: colores.oro }]}>
+                {yaHecha.puntos}
+              </Texto>
+              <Texto style={estilos.etiquetaHecha}>
+                {yaHecha.puntos === 1 ? 'punto' : 'puntos'}
+              </Texto>
+            </View>
+          </View>
+
+          {!!yaHecha.patron && <Texto style={estilos.patronHecha}>{yaHecha.patron}</Texto>}
+
+          <Boton
+            titulo="Ver la clasificación"
+            onPress={() => irAClasificacion(activo.id)}
+          />
+          <Boton titulo="Volver" variante="secundario" onPress={volver} />
+        </ScrollView>
       )}
 
       {/* El aviso vive en su propia franja, encima del tablero: antes se
           superponía y tapaba la primera fila al terminar la partida. */}
+      {!yaHecha && (
       <View style={estilos.franjaAviso}>
         <Aviso mensaje={juego.aviso} />
       </View>
+      )}
 
+      {!yaHecha && (
       <View
         style={estilos.zonaTablero}
         onLayout={({ nativeEvent }) =>
@@ -207,8 +263,9 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
           alto={hueco.alto}
         />
       </View>
+      )}
 
-      {terminada ? (
+      {yaHecha ? null : terminada ? (
         <ScrollView
           style={estilos.panelFinal}
           contentContainerStyle={[
@@ -216,29 +273,29 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
             { paddingBottom: insets.bottom + espaciado.md },
           ]}
         >
-          <Text style={estilos.tituloFinal}>
+          <Texto style={estilos.tituloFinal}>
             {juego.estado === 'ganada'
               ? `¡Acertada en ${juego.intentos.length}!`
               : 'Hoy no ha podido ser'}
-          </Text>
-          <Text style={estilos.palabraFinal}>{juego.solucion.toUpperCase()}</Text>
+          </Texto>
+          <Texto style={estilos.palabraFinal}>{juego.solucion.toUpperCase()}</Texto>
 
           {!esLibre && (
             <View style={estilos.marcadorFinal}>
-              <Text style={estilos.puntosFinal}>{juego.puntos}</Text>
-              <Text style={estilos.etiquetaPuntos}>
+              <Texto style={estilos.puntosFinal}>{juego.puntos}</Texto>
+              <Texto style={estilos.etiquetaPuntos}>
                 {juego.puntos === 1 ? 'punto' : 'puntos'} en {activo.nombre}
-              </Text>
+              </Texto>
             </View>
           )}
 
           {esLibre && (
-            <Text style={estilos.avisoLibre}>
+            <Texto style={estilos.avisoLibre}>
               En modo libre no hay puntos. Entra en un torneo para competir.
-            </Text>
+            </Texto>
           )}
 
-          <Text style={estilos.cuentaAtras}>Palabra nueva {cuentaAtras}</Text>
+          <Texto style={estilos.cuentaAtras}>Palabra nueva {cuentaAtras}</Texto>
 
           {/* Quién ha jugado ya hoy en este torneo, para no tener que ir a
               mirarlo a la clasificación. */}
@@ -249,14 +306,14 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
                 const perfil = activo.torneo.perfiles?.[miembro];
                 return (
                   <View key={miembro} style={estilos.filaHoy}>
-                    <Text style={estilos.nombreHoy} numberOfLines={1}>
+                    <Texto style={estilos.nombreHoy} numberOfLines={1}>
                       {perfil?.nombre ?? 'Jugador'}
-                    </Text>
-                    <Text style={jugado ? estilos.jugado : estilos.pendiente}>
+                    </Texto>
+                    <Texto style={jugado ? estilos.jugado : estilos.pendiente}>
                       {jugado
                         ? `${jugado.acertada ? `${jugado.intentos}/6` : 'X/6'} · ${jugado.puntos} pts`
                         : 'sin jugar'}
-                    </Text>
+                    </Texto>
                   </View>
                 );
               })}
@@ -281,9 +338,9 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
             />
           )}
 
-          <Text style={estilos.leyenda}>
+          <Texto style={estilos.leyenda}>
             {PUNTOS_POR_INTENTO.map((p, i) => `${i + 1}º = ${p}`).join('  ·  ')}  ·  fallo = 0
-          </Text>
+          </Texto>
         </ScrollView>
       ) : (
         <Teclado estado={juego.teclado} onTecla={pulsar} destello={destello} />
@@ -301,6 +358,52 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
 }
 
 const estilos = StyleSheet.create({
+  contenidoHecha: {
+    padding: espaciado.lg,
+    gap: espaciado.md,
+    alignItems: 'center',
+  },
+  tituloHecha: {
+    color: colores.texto,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.titulo,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  textoHecha: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
+    lineHeight: 20,
+    textAlign: 'center',
+    maxWidth: 340,
+  },
+  marcadorHecha: {
+    flexDirection: 'row',
+    gap: espaciado.xl,
+    marginVertical: espaciado.md,
+  },
+  datoHecha: {
+    alignItems: 'center',
+  },
+  cifraHecha: {
+    color: colores.texto,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.cifra,
+  },
+  etiquetaHecha: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.titular,
+    fontSize: escala.micro,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
+  patronHecha: {
+    fontSize: escala.medio,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: espaciado.sm,
+  },
   pantalla: {
     flex: 1,
     backgroundColor: colores.fondo,
@@ -316,7 +419,8 @@ const estilos = StyleSheet.create({
     gap: espaciado.sm,
   },
   icono: {
-    fontSize: 26,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.grande,
     color: colores.texto,
   },
   centro: {
@@ -325,16 +429,20 @@ const estilos = StyleSheet.create({
   },
   nombreTorneo: {
     color: colores.texto,
-    fontSize: 20,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   flecha: {
     color: colores.textoSuave,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
   },
   subtitulo: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     marginTop: 3,
   },
   franjaAviso: {
@@ -352,7 +460,8 @@ const estilos = StyleSheet.create({
   },
   textoLibre: {
     color: colores.acento,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     lineHeight: 20,
     textAlign: 'center',
   },
@@ -365,7 +474,8 @@ const estilos = StyleSheet.create({
   },
   textoPenalizacion: {
     color: colores.presente,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     lineHeight: 20,
     textAlign: 'center',
   },
@@ -378,7 +488,8 @@ const estilos = StyleSheet.create({
   },
   textoBlueshell: {
     color: colores.acento,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     textAlign: 'center',
   },
   escudo: {
@@ -392,13 +503,13 @@ const estilos = StyleSheet.create({
   },
   textoEscudo: {
     color: colores.acento,
-    fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.pequeno,
   },
   palabrasPenalizacion: {
     color: colores.texto,
-    fontSize: 15,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.normal,
     letterSpacing: 0.8,
     textAlign: 'center',
     marginTop: 5,
@@ -423,14 +534,14 @@ const estilos = StyleSheet.create({
   },
   tituloFinal: {
     color: colores.texto,
-    fontSize: 22,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
     textAlign: 'center',
   },
   palabraFinal: {
     color: colores.correcta,
-    fontSize: 30,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.titulo,
     letterSpacing: 6,
     textAlign: 'center',
   },
@@ -439,24 +550,27 @@ const estilos = StyleSheet.create({
   },
   puntosFinal: {
     color: colores.oro,
-    fontSize: 44,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.cifra,
     lineHeight: 48,
   },
   etiquetaPuntos: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     textAlign: 'center',
   },
   avisoLibre: {
     color: colores.textoSuave,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     lineHeight: 20,
     textAlign: 'center',
   },
   cuentaAtras: {
     color: colores.textoSuave,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     textAlign: 'center',
   },
   listaHoy: {
@@ -476,17 +590,19 @@ const estilos = StyleSheet.create({
   },
   nombreHoy: {
     color: colores.texto,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     flex: 1,
   },
   jugado: {
     color: colores.correcta,
-    fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.pequeno,
   },
   pendiente: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     fontStyle: 'italic',
   },
   botonesFinal: {
@@ -495,7 +611,8 @@ const estilos = StyleSheet.create({
   },
   leyenda: {
     color: colores.textoSuave,
-    fontSize: 11,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     textAlign: 'center',
   },
 });

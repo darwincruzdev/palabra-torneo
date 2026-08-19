@@ -43,9 +43,22 @@ export async function guardarPerfil(uid: string, nombre: string, avatar: Avatar)
   );
 }
 
+/**
+ * La preferencia de letra grande, que viaja con la cuenta.
+ *
+ * Podría quedarse sólo en el móvil, pero entonces habría que volver a ponerla
+ * en cada aparato, y quien la necesita es justo a quien menos gracia le hace
+ * ir buscando el ajuste otra vez.
+ */
+export async function guardarLetraGrande(uid: string, letraGrande: boolean) {
+  await setDoc(doc(baseDatos(), 'usuarios', uid), { letraGrande }, { merge: true });
+}
+
 export async function leerPerfil(
   uid: string
-): Promise<(Omit<Perfil, 'uid'> & { configurado: boolean }) | null> {
+): Promise<
+  (Omit<Perfil, 'uid'> & { configurado: boolean; letraGrande: boolean }) | null
+> {
   const documento = await getDoc(doc(baseDatos(), 'usuarios', uid));
   if (!documento.exists()) return null;
   const datos = documento.data();
@@ -53,6 +66,7 @@ export async function leerPerfil(
     nombre: String(datos.nombre ?? ''),
     avatar: normalizarAvatar(datos.avatar),
     configurado: datos.configurado === true,
+    letraGrande: datos.letraGrande === true,
   };
 }
 
@@ -167,6 +181,19 @@ export async function salirDeTorneo(torneoId: string, uid: string): Promise<void
   await updateDoc(doc(baseDatos(), 'torneos', torneoId), {
     miembros: arrayRemove(uid),
   });
+}
+
+/**
+ * Empieza la competición de cero desde hoy.
+ *
+ * No se borra nada: se mueve la fecha de fundación, y la clasificación ya
+ * ignora todo lo anterior a ella. Los resultados viejos siguen guardados —el
+ * historial no miente— y de paso reinicia los ciclos de blueshells y el conteo
+ * de faltas, que también cuelgan de esa fecha. Borrar jornadas exigiría
+ * permiso de borrado en la base de datos y no habría marcha atrás.
+ */
+export async function reiniciarTorneo(torneoId: string, fecha: string): Promise<void> {
+  await updateDoc(doc(baseDatos(), 'torneos', torneoId), { fechaInicio: fecha });
 }
 
 /** Sólo el fundador, y se lleva por delante el código de invitación. */

@@ -1,11 +1,17 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from '../components/Texto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BotonGoogleWeb } from '../components/BotonGoogleWeb';
 import { Sutil, Tarjeta } from '../components/ui';
 import { esWeb } from '../firebase/sesion';
 import { useApp } from '../estado/AppContext';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 /** Las fichas del icono, en grande, como reclamo de la pantalla de entrada. */
 function Marca() {
@@ -36,15 +42,15 @@ export function PantallaAcceso() {
       <Marca />
 
       <View style={estilos.textos}>
-        <Text style={estilos.titulo}>Palabra Torneo</Text>
-        <Text style={estilos.lema}>
+        <Texto style={estilos.titulo}>Palabra Torneo</Texto>
+        <Texto style={estilos.lema}>
           Una palabra de cinco letras al día y a ver quién la saca antes.
-        </Text>
+        </Texto>
       </View>
 
       {!sesion.disponible ? (
         <Tarjeta>
-          <Text style={estilos.tituloTarjeta}>Falta configurar el acceso</Text>
+          <Texto style={estilos.tituloTarjeta}>Falta configurar el acceso</Texto>
           <Sutil>
             Para entrar con Google hacen falta las credenciales de Firebase y los
             identificadores de OAuth en el fichero .env. Está explicado paso a paso en el
@@ -78,14 +84,14 @@ export function PantallaAcceso() {
                 <ActivityIndicator color="#1f1f1f" />
               ) : (
                 <>
-                  <Text style={estilos.logoGoogle}>G</Text>
-                  <Text style={estilos.textoGoogle}>Continuar con Google</Text>
+                  <Texto style={estilos.logoGoogle}>G</Texto>
+                  <Texto style={estilos.textoGoogle}>Continuar con Google</Texto>
                 </>
               )}
             </Pressable>
           )}
 
-          {sesion.error && <Text style={estilos.error}>{sesion.error}</Text>}
+          {sesion.error && <Texto style={estilos.error}>{sesion.error}</Texto>}
 
           <Sutil>
             Sólo se usa para saber quién eres en la clasificación. No se publica nada en
@@ -125,13 +131,15 @@ const estilos = StyleSheet.create({
   },
   titulo: {
     color: colores.texto,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.titulo,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   lema: {
     color: colores.textoSuave,
-    fontSize: 15,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
     textAlign: 'center',
     lineHeight: 22,
     maxWidth: 300,
@@ -165,13 +173,16 @@ const estilos = StyleSheet.create({
   },
   tituloTarjeta: {
     color: colores.texto,
-    fontSize: 17,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     marginBottom: espaciado.sm,
   },
   error: {
     color: colores.peligro,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     textAlign: 'center',
   },
 });

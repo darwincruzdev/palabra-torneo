@@ -28,6 +28,7 @@ import {
   normalizarReglas,
   obligacionesDe,
   proteccionGastada,
+  todasLasBlueshells,
   type BlueshellLanzada,
 } from '../game/reglas';
 import { avatarInicial, normalizarAvatar } from '../game/avatares';
@@ -38,6 +39,7 @@ import {
   guardarTorneoActivo,
 } from '../almacen/local';
 import { useSesionGoogle, type EstadoSesion } from '../firebase/sesion';
+import { FACTOR_LETRA_GRANDE, ProveedorEscala } from './escala';
 import * as datos from '../firebase/datos';
 
 export const TORNEO_LIBRE: TorneoActivo = {
@@ -62,6 +64,14 @@ type Estado = {
   elegirTorneo: (torneoId: string) => void;
   /** ¿Lidero en solitario este torneo? Entonces hoy juego con palabra impuesta. */
   penalizadoEn: (torneoId: string) => boolean;
+  /**
+   * Mi resultado ya publicado en una jornada, si lo hay.
+   *
+   * Manda sobre lo que haya guardado el móvil: la partida local vive en cada
+   * navegador, así que sólo el servidor sabe de verdad si esa jornada está
+   * hecha. Es lo que impide repetirla desde otro sitio.
+   */
+  miResultado: (torneoId: string, fecha: string) => ResultadoDia | null;
   /** Las normas de la casa de un torneo, con las de siempre por defecto. */
   reglasDe: (torneoId: string) => ReglasTorneo;
   /** Qué palabras tengo impuestas hoy en ese torneo, y en qué intento. */
@@ -69,14 +79,25 @@ type Estado = {
   /** Todo lo que hace falta para pintar y usar las blueshells. */
   blueshellsDe: (torneoId: string) => EstadoBlueshell;
   cambiarReglas: (torneoId: string, reglas: ReglasTorneo) => Promise<void>;
-  /** Dispara contra quien va primero. La palabra golpea mañana. */
-  lanzarBlueshell: (torneoId: string, palabra: string) => Promise<void>;
+  /**
+   * Dispara contra quien va primero. La palabra golpea mañana. Devuelve a quién
+   * le ha caído y con qué, para poder contarlo al grupo.
+   */
+  lanzarBlueshell: (
+    torneoId: string,
+    palabra: string
+  ) => Promise<{ objetivo: string; palabra: string }>;
   /** Gasta la protección de hoy: anula todas las balas recibidas. */
   usarProteccion: (torneoId: string) => Promise<void>;
   cambiarPerfil: (nombre: string, avatar: Avatar) => Promise<void>;
+  /** Modo de letra grande: agranda todo el texto de la app. */
+  letraGrande: boolean;
+  cambiarLetraGrande: (valor: boolean) => Promise<void>;
   crearTorneo: (nombre: string) => Promise<Torneo>;
   unirsePorCodigo: (codigo: string) => Promise<Torneo | null>;
   salir: (torneoId: string) => Promise<void>;
+  /** El fundador reinicia la competición: la clasificación cuenta desde hoy. */
+  reiniciarTorneo: (torneoId: string) => Promise<void>;
   publicar: (
     torneoId: string,
     fecha: string,
@@ -100,6 +121,11 @@ export type EstadoBlueshell = {
   puedoProteger: boolean;
   /** Jornadas que faltan para recargar bala y protección, contando la de hoy. */
   paraRecargar: number;
+  /**
+   * Las balas de todo el mundo, para que el grupo se entere. Las de mañana
+   * están en el aire; las de hoy ya han caído.
+   */
+  enJuego: { hoy: BlueshellLanzada[]; manana: BlueshellLanzada[] };
 };
 
 const Contexto = createContext<Estado | null>(null);
@@ -114,6 +140,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const [jornadas, setJornadas] = useState<Record<string, DiaTorneo[]>>({});
   const [activoId, setActivoId] = useState<string>(TORNEO_LIBRE.id);
   const [configurado, setConfigurado] = useState<boolean | null>(null);
+  const [letraGrande, setLetraGrande] = useState(false);
 
   // Perfil: primero lo que haya en el móvil, para no parpadear, y luego lo que
   // diga el servidor, que es lo que ven los demás.
@@ -122,6 +149,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       if (!guardado) return;
       setNombre(guardado.nombre);
       setAvatar(normalizarAvatar(guardado.avatar));
+      setLetraGrande(guardado.letraGrande === true);
       if (guardado.configurado) setConfigurado(true);
     });
     cargarTorneoActivo().then((id) => {
@@ -137,6 +165,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         if (perfil?.configurado) {
           setNombre(perfil.nombre);
           setAvatar(perfil.avatar);
+          setLetraGrande(perfil.letraGrande);
           setConfigurado(true);
           guardarPerfilLocal({ ...perfil, configurado: true });
           return;
@@ -212,6 +241,15 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     [torneos, jornadas, uid, hoy]
   );
 
+  const miResultado = useCallback(
+    (torneoId: string, fecha: string): ResultadoDia | null => {
+      if (!uid) return null;
+      const dia = (jornadas[torneoId] ?? []).find((d) => d.fecha === fecha);
+      return dia?.resultados?.[uid] ?? null;
+    },
+    [jornadas, uid]
+  );
+
   const obligacionesHoy = useCallback(
     (torneoId: string): Obligacion[] => {
       if (!uid) return [];
@@ -248,6 +286,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         protegido: false,
         puedoProteger: false,
         paraRecargar: 0,
+        enJuego: { hoy: [], manana: [] },
       };
       if (!torneo || !uid) return vacio;
 
@@ -282,6 +321,10 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
           !protegido &&
           !proteccionGastada(dias, torneo.fechaInicio, hoy, uid),
         paraRecargar: jornadasParaRecargar(torneo.fechaInicio, hoy),
+        enJuego: {
+          hoy: todasLasBlueshells(diaHoy),
+          manana: todasLasBlueshells(dias.find((d) => d.fecha === sumarDias(hoy, 1))),
+        },
       };
     },
     [torneos, jornadas, uid, hoy]
@@ -312,6 +355,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         palabra: limpia,
         lanzada: hoy,
       });
+      return { objetivo: estado.lider, palabra: limpia };
     },
     [uid, hoy, blueshellsDe]
   );
@@ -351,6 +395,22 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     [uid, torneos]
   );
 
+  const cambiarLetraGrande = useCallback(
+    async (valor: boolean) => {
+      setLetraGrande(valor);
+      const perfilLocal = await cargarPerfilLocal();
+      await guardarPerfilLocal({
+        nombre: perfilLocal?.nombre ?? nombre,
+        avatar: perfilLocal?.avatar ?? avatar,
+        configurado: perfilLocal?.configurado,
+        letraGrande: valor,
+      });
+      if (!uid || !datos.hayFirebase) return;
+      await datos.guardarLetraGrande(uid, valor).catch(() => {});
+    },
+    [uid, nombre, avatar]
+  );
+
   const crearTorneo = useCallback(
     async (nombreTorneo: string) => {
       if (!uid) throw new Error('Hay que entrar con Google para crear un torneo');
@@ -385,6 +445,14 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     [uid, activoId, elegirTorneo]
   );
 
+  const reiniciarTorneo = useCallback(
+    async (torneoId: string) => {
+      if (!uid || !datos.hayFirebase) return;
+      await datos.reiniciarTorneo(torneoId, hoy);
+    },
+    [uid, hoy]
+  );
+
   const publicar = useCallback(
     async (
       torneoId: string,
@@ -414,6 +482,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     activo,
     elegirTorneo,
     penalizadoEn,
+    miResultado,
     reglasDe,
     obligacionesHoy,
     blueshellsDe,
@@ -421,13 +490,22 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     lanzarBlueshell,
     usarProteccion,
     cambiarPerfil,
+    letraGrande,
+    cambiarLetraGrande,
     crearTorneo,
     unirsePorCodigo,
     salir,
+    reiniciarTorneo,
     publicar,
   };
 
-  return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
+  return (
+    <Contexto.Provider value={valor}>
+      <ProveedorEscala factor={letraGrande ? FACTOR_LETRA_GRANDE : 1}>
+        {children}
+      </ProveedorEscala>
+    </Contexto.Provider>
+  );
 }
 
 export function useApp(): Estado {

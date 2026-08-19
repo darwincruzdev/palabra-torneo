@@ -46,7 +46,8 @@ function avisoDe(obligacion: Obligacion, autor: string): string {
  * así que quien esté en tres torneos tiene tres palabras que adivinar.
  */
 export function useJuego() {
-  const { activo, obligacionesHoy, blueshellsDe, usarProteccion, publicar } = useApp();
+  const { activo, obligacionesHoy, blueshellsDe, usarProteccion, publicar, miResultado } =
+    useApp();
 
   const torneoId = activo.id;
   const [fecha, setFecha] = useState(fechaJuego);
@@ -72,6 +73,16 @@ export function useJuego() {
 
   const solucion = solucionDe(fecha, activo.semilla);
   const impuestas = obligacionesHoy(torneoId);
+
+  /**
+   * Lo que ya consta publicado de esta jornada, que manda sobre el móvil.
+   *
+   * La partida se guarda en cada navegador por separado, así que entrando con
+   * la misma cuenta desde otro sitio el tablero salía en blanco y se podía
+   * repetir la jornada y pisar la puntuación. El servidor es el único que sabe
+   * si está hecha, y si lo está no hay nada que jugar.
+   */
+  const publicada = miResultado(torneoId, fecha);
   const relojAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** El nombre con el que se conoce a alguien dentro de este torneo. */
@@ -137,6 +148,8 @@ export function useJuego() {
   useEffect(() => {
     if (!partida || partida.estado === 'jugando' || partida.enviado) return;
     if (partida.torneoId === 'libre') return;
+    // Ya hay resultado publicado: el servidor lo rechazaría, y con razón.
+    if (publicada) return;
 
     const acertada = partida.estado === 'ganada';
     const intentos = partida.intentos.length;
@@ -156,7 +169,7 @@ export function useJuego() {
         });
       })
       .catch(() => {});
-  }, [partida, publicar, solucion]);
+  }, [partida, publicar, solucion, publicada]);
 
   const jugando = partida?.estado === 'jugando';
 
@@ -190,6 +203,10 @@ export function useJuego() {
 
   const enviar = useCallback(async () => {
     if (!partida || partida.estado !== 'jugando') return;
+    if (publicada) {
+      mostrarAviso('Esta jornada ya la tienes jugada');
+      return;
+    }
 
     // Los huecos sin letra desaparecen al unir, así que una fila incompleta se
     // queda corta y no pasa la comprobación de longitud.
@@ -253,7 +270,7 @@ export function useJuego() {
         LONGITUD * 240
       );
     }
-  }, [partida, borrador, solucion, mostrarAviso, nombreDe]);
+  }, [partida, borrador, solucion, mostrarAviso, nombreDe, publicada]);
 
   const intentos = partida?.intentos ?? [];
   const obligaciones = partida?.obligaciones ?? [];
@@ -284,6 +301,11 @@ export function useJuego() {
   }, [torneoId, usarProteccion, mostrarAviso]);
 
   return {
+    /**
+     * El resultado que ya consta en el torneo, si la jornada está hecha. La
+     * pantalla enseña el resumen en vez del tablero.
+     */
+    publicada,
     obligaciones,
     /** La que toca en el intento en curso, para poder anunciarla. */
     obligacion,

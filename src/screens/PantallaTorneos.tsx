@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
+import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
 import { clasificacion, liderDestacado } from '../game/clasificacion';
 import { fechaJuego } from '../game/fecha';
 import { useApp } from '../estado/AppContext';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 type Props = {
   verClasificacion: (torneoId: string) => void;
@@ -116,16 +123,16 @@ export function PantallaTorneos({
             <Pressable onPress={() => verClasificacion(torneo.id)}>
               <View style={estilos.filaTorneo}>
                 <View style={{ flex: 1 }}>
-                  <Text style={estilos.nombreTorneo}>{torneo.nombre}</Text>
-                  <Text style={estilos.datosTorneo}>
+                  <Texto style={estilos.nombreTorneo}>{torneo.nombre}</Texto>
+                  <Texto style={estilos.datosTorneo}>
                     {torneo.miembros.length}{' '}
                     {torneo.miembros.length === 1 ? 'jugador' : 'jugadores'} · código{' '}
                     {torneo.codigo}
-                  </Text>
+                  </Texto>
                 </View>
                 <View style={estilos.marcador}>
-                  <Text style={estilos.puntosTorneo}>{miFila?.puntos ?? 0}</Text>
-                  <Text style={estilos.datosTorneo}>{puesto > 0 ? `${puesto}º` : '—'}</Text>
+                  <Texto style={estilos.puntosTorneo}>{miFila?.puntos ?? 0}</Texto>
+                  <Texto style={estilos.datosTorneo}>{puesto > 0 ? `${puesto}º` : '—'}</Texto>
                 </View>
               </View>
 
@@ -134,23 +141,23 @@ export function PantallaTorneos({
                   <Avatar key={fila.uid} avatar={fila.avatar} lado={26} />
                 ))}
                 {filas.length > 6 && (
-                  <Text style={estilos.masJugadores}>+{filas.length - 6}</Text>
+                  <Texto style={estilos.masJugadores}>+{filas.length - 6}</Texto>
                 )}
               </View>
 
               {lidero && (
-                <Text style={estilos.avisoLider}>
+                <Texto style={estilos.avisoLider}>
                   Lideras en solitario: aquí juegas con palabra impuesta.
-                </Text>
+                </Texto>
               )}
             </Pressable>
 
             {!esActivo && (
               <Pressable onPress={() => elegirTorneo(torneo.id)} style={estilos.botonJugar}>
-                <Text style={estilos.textoJugar}>Jugar la palabra de este torneo</Text>
+                <Texto style={estilos.textoJugar}>Jugar la palabra de este torneo</Texto>
               </Pressable>
             )}
-            {esActivo && <Text style={estilos.marcaActivo}>Es el torneo que estás jugando</Text>}
+            {esActivo && <Texto style={estilos.marcaActivo}>Es el torneo que estás jugando</Texto>}
           </Tarjeta>
         );
       })}
@@ -195,8 +202,8 @@ export function PantallaTorneos({
         deshabilitado={ocupado !== null}
       />
 
-      {error && <Text style={estilos.error}>{error}</Text>}
-      {exito && <Text style={estilos.exito}>{exito}</Text>}
+      {error && <Texto style={estilos.error}>{error}</Texto>}
+      {exito && <Texto style={estilos.exito}>{exito}</Texto>}
     </ScrollView>
   );
 }
@@ -228,12 +235,13 @@ const estilos = StyleSheet.create({
   },
   nombreTorneo: {
     color: colores.texto,
-    fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.medio,
   },
   datosTorneo: {
     color: colores.textoSuave,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     marginTop: 2,
   },
   marcador: {
@@ -241,8 +249,8 @@ const estilos = StyleSheet.create({
   },
   puntosTorneo: {
     color: colores.oro,
-    fontSize: 24,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
   },
   caras: {
     flexDirection: 'row',
@@ -252,13 +260,15 @@ const estilos = StyleSheet.create({
   },
   masJugadores: {
     color: colores.textoSuave,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     marginLeft: 2,
   },
   avisoLider: {
     marginTop: espaciado.sm,
     color: colores.presente,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
   },
   botonJugar: {
     marginTop: espaciado.md,
@@ -270,14 +280,14 @@ const estilos = StyleSheet.create({
   },
   textoJugar: {
     color: colores.acento,
-    fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.pequeno,
   },
   marcaActivo: {
     marginTop: espaciado.md,
     color: colores.correcta,
-    fontSize: 12,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.micro,
     textAlign: 'center',
   },
   separador: {
@@ -293,22 +303,25 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaciado.md,
     paddingVertical: 12,
     color: colores.texto,
-    fontSize: 16,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
     marginBottom: espaciado.sm,
   },
   campoCodigo: {
+    fontFamily: fuentes.titularNegro,
     letterSpacing: 6,
-    fontWeight: '800',
     textAlign: 'center',
   },
   error: {
     color: colores.peligro,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     marginTop: espaciado.sm,
   },
   exito: {
     color: colores.correcta,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     marginTop: espaciado.sm,
   },
 });

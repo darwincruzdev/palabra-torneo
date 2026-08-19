@@ -1,5 +1,10 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { Boton, Sutil, Tarjeta } from '../components/ui';
 import { PUNTOS_POR_INTENTO } from '../game/constantes';
@@ -7,7 +12,7 @@ import { fechaJuego, fechaLarga } from '../game/fecha';
 import { numeroJornada, solucionDe } from '../game/palabras';
 import { normalizarAvatar } from '../game/avatares';
 import { useApp } from '../estado/AppContext';
-import { colores, espaciado } from '../tema';
+import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
 type Props = {
   torneoId: string;
@@ -47,7 +52,7 @@ export function PantallaHistorial({ torneoId, volver }: Props) {
   if (dias.length === 0) {
     return (
       <View style={estilos.vacio}>
-        <Text style={estilos.tituloVacio}>Todavía no hay jornadas cerradas</Text>
+        <Texto style={estilos.tituloVacio}>Todavía no hay jornadas cerradas</Texto>
         <Sutil>
           Mañana, cuando entre la palabra nueva, aparecerá aquí la de hoy con los
           resultados de todos.
@@ -74,11 +79,11 @@ export function PantallaHistorial({ torneoId, volver }: Props) {
           <Tarjeta key={dia.fecha} estilo={estilos.tarjeta}>
             <View style={estilos.cabecera}>
               <View style={{ flex: 1 }}>
-                <Text style={estilos.palabra}>{palabra.toUpperCase()}</Text>
-                <Text style={estilos.fecha}>
+                <Texto style={estilos.palabra}>{palabra.toUpperCase()}</Texto>
+                <Texto style={estilos.fecha}>
                   Jornada {numeroJornada(dia.fecha, torneo.fechaInicio)} ·{' '}
                   {fechaLarga(dia.fecha)}
-                </Text>
+                </Texto>
               </View>
             </View>
 
@@ -86,29 +91,29 @@ export function PantallaHistorial({ torneoId, volver }: Props) {
               {resultados.map((fila) => (
                 <View key={fila.uid} style={estilos.fila}>
                   <Avatar avatar={fila.avatar} lado={28} />
-                  <Text
+                  <Texto
                     style={[estilos.nombre, fila.uid === uid && estilos.nombrePropio]}
                     numberOfLines={1}
                   >
                     {fila.nombre}
                     {fila.uid === uid ? ' (tú)' : ''}
-                  </Text>
+                  </Texto>
                   {fila.resultado ? (
                     <>
-                      <Text style={estilos.intentos}>
+                      <Texto style={estilos.intentos}>
                         {fila.resultado.acertada ? `${fila.resultado.intentos}/6` : 'X/6'}
-                      </Text>
-                      <Text
+                      </Texto>
+                      <Texto
                         style={[
                           estilos.puntos,
                           fila.resultado.puntos === PUNTOS_POR_INTENTO[0] && estilos.pleno,
                         ]}
                       >
                         {fila.resultado.puntos}
-                      </Text>
+                      </Texto>
                     </>
                   ) : (
-                    <Text style={estilos.sinJugar}>no jugó</Text>
+                    <Texto style={estilos.sinJugar}>no jugó</Texto>
                   )}
                 </View>
               ))}
@@ -135,8 +140,10 @@ const estilos = StyleSheet.create({
   },
   tituloVacio: {
     color: colores.texto,
-    fontSize: 19,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     textAlign: 'center',
   },
   tarjeta: {
@@ -148,13 +155,14 @@ const estilos = StyleSheet.create({
   },
   palabra: {
     color: colores.correcta,
-    fontSize: 22,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
     letterSpacing: 4,
   },
   fecha: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     marginTop: 3,
   },
   lista: {
@@ -171,21 +179,23 @@ const estilos = StyleSheet.create({
   nombre: {
     flex: 1,
     color: colores.texto,
-    fontSize: 15,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
   },
   nombrePropio: {
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
   },
   intentos: {
     color: colores.textoSuave,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     minWidth: 34,
     textAlign: 'right',
   },
   puntos: {
     color: colores.texto,
-    fontSize: 17,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
     minWidth: 26,
     textAlign: 'right',
   },
@@ -194,7 +204,8 @@ const estilos = StyleSheet.create({
   },
   sinJugar: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     fontStyle: 'italic',
   },
 });

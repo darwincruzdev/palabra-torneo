@@ -11,6 +11,14 @@ export const MAX_INTENTOS = 6;
 export const PUNTOS_POR_INTENTO = [7, 5, 4, 3, 2, 1] as const;
 
 /**
+ * Lo que cuesta saltarse una jornada.
+ *
+ * Sólo cuentan las jornadas ya cerradas: la de hoy no penaliza a nadie hasta
+ * que pasa la medianoche, que si no todo el mundo amanecería con un menos uno.
+ */
+export const PUNTOS_POR_FALTA = -1;
+
+/**
  * Zona horaria que decide cuándo cambia la palabra del día.
  * Fija para todos los jugadores: así nadie ve la palabra antes que los demás.
  */

@@ -14,6 +14,7 @@ export const JORNADAS_POR_CICLO = 15;
 export const REGLAS_POR_DEFECTO: ReglasTorneo = {
   penalizacionLider: true,
   blueshells: true,
+  faltaPorNoJugar: true,
 };
 
 /**
@@ -24,6 +25,7 @@ export function normalizarReglas(reglas: Partial<ReglasTorneo> | undefined | nul
   return {
     penalizacionLider: reglas?.penalizacionLider ?? REGLAS_POR_DEFECTO.penalizacionLider,
     blueshells: reglas?.blueshells ?? REGLAS_POR_DEFECTO.blueshells,
+    faltaPorNoJugar: reglas?.faltaPorNoJugar ?? REGLAS_POR_DEFECTO.faltaPorNoJugar,
   };
 }
 
@@ -60,6 +62,24 @@ export function blueshellsContra(dia: DiaTorneo | undefined, uid: string): Blues
     .map(([autor, blueshell]) => ({ ...blueshell, autor }))
     .filter((b) => b.objetivo === uid);
 
+  lanzadas.sort((a, b) =>
+    a.lanzada !== b.lanzada ? a.lanzada.localeCompare(b.lanzada) : a.autor.localeCompare(b.autor)
+  );
+  return lanzadas;
+}
+
+/**
+ * Todas las balas de una jornada, tirara quien las tirara.
+ *
+ * Es lo que hace falta para que el grupo se entere: una blueshell lanzada a
+ * escondidas no tiene ninguna gracia, y hasta ahora sólo la descubría quien la
+ * recibía, y encima al llegar al segundo intento.
+ */
+export function todasLasBlueshells(dia: DiaTorneo | undefined): BlueshellLanzada[] {
+  const lanzadas = Object.entries(dia?.blueshells ?? {}).map(([autor, b]) => ({
+    ...b,
+    autor,
+  }));
   lanzadas.sort((a, b) =>
     a.lanzada !== b.lanzada ? a.lanzada.localeCompare(b.lanzada) : a.autor.localeCompare(b.autor)
   );
@@ -169,6 +189,29 @@ export function obligacionEn(
 /** ¿Vale esta palabra para la obligación? */
 export function cumple(obligacion: Obligacion, intento: string): boolean {
   return obligacion.palabras.includes(intento);
+}
+
+/** El texto con el que se le cuenta al grupo que ha volado una bala. */
+export function mensajeDeBlueshell(datos: {
+  torneo: string;
+  autor: string;
+  objetivo: string;
+  palabra: string;
+  enlace?: string;
+}): string {
+  const cuerpo =
+    `🔵 BLUESHELL en "${datos.torneo}"
+
+` +
+    `${datos.autor} le ha tirado una bala a ${datos.objetivo}.
+` +
+    `Mañana está obligado a usar ${datos.palabra.toUpperCase()} como segunda palabra.
+
+` +
+    'Le queda el escudo, si se atreve a gastarlo.';
+  return datos.enlace ? `${cuerpo}
+
+${datos.enlace}` : cuerpo;
 }
 
 /** Sin las blueshells: lo que queda tras usar la protección a media partida. */

@@ -1,5 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from '../components/Texto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { AvisoInstalar } from '../components/AvisoInstalar';
@@ -76,11 +82,11 @@ export function PantallaModo({ irAJugar, irATorneos, irADuelos, irAPerfil }: Pro
         <Avatar avatar={avatar} lado={48} />
         <View style={{ flex: 1 }}>
           <Rotulo>Jugador</Rotulo>
-          <Text style={estilos.hola} numberOfLines={1}>
+          <Texto style={estilos.hola} numberOfLines={1}>
             {nombre || 'Sin nombre'}
-          </Text>
+          </Texto>
         </View>
-        <Text style={estilos.editar}>Editar</Text>
+        <Texto style={estilos.editar}>Editar</Texto>
       </Pressable>
 
       <AvisoInstalar />
@@ -97,16 +103,16 @@ export function PantallaModo({ irAJugar, irATorneos, irADuelos, irAPerfil }: Pro
         <View style={estilos.filaPrincipal}>
           <View style={estilos.textoPrincipal}>
             <Rotulo>Modo torneo</Rotulo>
-            <Text style={estilos.tituloPrincipal}>
+            <Texto style={estilos.tituloPrincipal}>
               {torneos.length === 0 ? 'Monta el tuyo' : 'A por la jornada'}
-            </Text>
-            <Text style={estilos.descripcionPrincipal}>
+            </Texto>
+            <Texto style={estilos.descripcionPrincipal}>
               {torneos.length === 0
                 ? 'Compite con los tuyos. Crea un torneo y reparte la invitación.'
                 : pendientes > 0
                   ? `Te queda por jugar en ${pendientes} ${pendientes === 1 ? 'torneo' : 'torneos'}.`
                   : 'Hoy ya has jugado en todos. Mira cómo va la tabla.'}
-            </Text>
+            </Texto>
           </View>
 
           <View style={estilos.marcador}>
@@ -114,7 +120,7 @@ export function PantallaModo({ irAJugar, irATorneos, irADuelos, irAPerfil }: Pro
               <>
                 <Cifra valor={mejor.puntos} etiqueta="puntos" />
                 <View style={estilos.puestoCaja}>
-                  <Text style={estilos.puesto}>{mejor.puesto}.º</Text>
+                  <Texto style={estilos.puesto}>{mejor.puesto}.º</Texto>
                 </View>
               </>
             ) : (
@@ -144,7 +150,7 @@ export function PantallaModo({ irAJugar, irATorneos, irADuelos, irAPerfil }: Pro
 
       {torneos.length > 0 && (
         <Pressable onPress={irATorneos} style={estilos.enlace} accessibilityRole="button">
-          <Text style={estilos.textoEnlace}>Mis torneos y clasificaciones</Text>
+          <Texto style={estilos.textoEnlace}>Mis torneos y clasificaciones</Texto>
         </Pressable>
       )}
 
@@ -180,9 +186,9 @@ function Secundaria({
       style={({ pressed }) => [estilos.secundaria, { opacity: pressed ? 0.8 : 1 }]}
     >
       <View style={[estilos.reglaSuperior, { backgroundColor: color }]} />
-      <Text style={[estilos.rotuloSecundaria, { color }]}>{rotulo.toUpperCase()}</Text>
-      <Text style={estilos.tituloSecundaria}>{titulo}</Text>
-      <Text style={estilos.descripcionSecundaria}>{descripcion}</Text>
+      <Texto style={[estilos.rotuloSecundaria, { color }]}>{rotulo.toUpperCase()}</Texto>
+      <Texto style={estilos.tituloSecundaria}>{titulo}</Texto>
+      <Texto style={estilos.descripcionSecundaria}>{descripcion}</Texto>
     </Pressable>
   );
 }

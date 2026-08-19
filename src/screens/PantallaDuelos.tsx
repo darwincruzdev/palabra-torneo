@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ScrollView,
+  Share,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
+import { Texto } from '../components/Texto';
 import * as Clipboard from 'expo-clipboard';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
 import { PALABRAS_POR_DUELO, SEGUNDOS_FINAL } from '../game/duelo';
@@ -8,7 +15,7 @@ import { enlaceDeInvitacion, hayEnlaces } from '../game/invitacion';
 import { useApp } from '../estado/AppContext';
 import { cargarDueloActivo, guardarDueloActivo } from '../almacen/local';
 import * as duelos from '../firebase/duelos';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 type Props = {
   irAlDuelo: (dueloId: string) => void;
@@ -105,7 +112,7 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
         <View style={estilos.separador} />
         <Sutil>
           Se va palabra a palabra, sin adelantarse. El primero que cierra la suya le deja
-          al otro <Text style={estilos.negrita}>{SEGUNDOS_FINAL} segundos</Text> para
+          al otro <Texto style={estilos.negrita}>{SEGUNDOS_FINAL} segundos</Texto> para
           cerrar la suya, y mientras espera ve su tablero en grande y en directo, con
           letras y todo. Cuando los dos la cierran, empieza la siguiente.
         </Sutil>
@@ -139,7 +146,7 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
         <Tarjeta estilo={{ borderColor: colores.correcta }}>
           <Titulo>Duelo creado</Titulo>
           <Sutil>Pásale el código a tu rival. Empieza en cuanto él entre.</Sutil>
-          <Text
+          <Texto
             style={estilos.codigo}
             onPress={async () => {
               await Clipboard.setStringAsync(creado.codigo);
@@ -148,10 +155,10 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
             }}
           >
             {creado.codigo}
-          </Text>
-          <Text style={estilos.pista}>
+          </Texto>
+          <Texto style={estilos.pista}>
             {copiado ? '¡Copiado!' : 'Toca el código para copiarlo'}
-          </Text>
+          </Texto>
           <View style={estilos.botones}>
             <Boton titulo="Compartir" onPress={compartir} estilo={{ flex: 1 }} />
             <Boton
@@ -195,7 +202,7 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
         deshabilitado={ocupado !== null}
       />
 
-      {error && <Text style={estilos.error}>{error}</Text>}
+      {error && <Texto style={estilos.error}>{error}</Texto>}
     </ScrollView>
   );
 }
@@ -222,8 +229,8 @@ const estilos = StyleSheet.create({
     paddingBottom: espaciado.xl * 2,
   },
   negrita: {
+    fontFamily: fuentes.titularNegro,
     color: colores.texto,
-    fontWeight: '800',
   },
   separador: {
     height: 1,
@@ -232,15 +239,16 @@ const estilos = StyleSheet.create({
   },
   codigo: {
     color: colores.texto,
-    fontSize: 34,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.titulo,
     letterSpacing: 8,
     textAlign: 'center',
     marginVertical: espaciado.sm,
   },
   pista: {
     color: colores.textoSuave,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     textAlign: 'center',
     marginBottom: espaciado.md,
   },
@@ -256,17 +264,19 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaciado.md,
     paddingVertical: 12,
     color: colores.texto,
-    fontSize: 16,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
     marginBottom: espaciado.sm,
   },
   campoCodigo: {
+    fontFamily: fuentes.titularNegro,
     letterSpacing: 6,
-    fontWeight: '800',
     textAlign: 'center',
   },
   error: {
     color: colores.peligro,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     marginTop: espaciado.sm,
   },
 });

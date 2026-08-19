@@ -5,9 +5,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import { Texto } from '../components/Texto';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Aviso } from '../components/Aviso';
@@ -19,7 +19,7 @@ import { PALABRAS_POR_DUELO, SEGUNDOS_FINAL, ganador, resumir } from '../game/du
 import { useApp } from '../estado/AppContext';
 import { useDuelo } from '../estado/useDuelo';
 import { useTecladoFisico } from '../estado/useTecladoFisico';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 type Props = {
   dueloId: string;
@@ -59,7 +59,7 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
   if (!duelo.duelo) {
     return (
       <View style={estilos.centrado}>
-        <Text style={estilos.tituloGrande}>Ese duelo no existe</Text>
+        <Texto style={estilos.tituloGrande}>Ese duelo no existe</Texto>
         <Sutil>Puede que lo haya borrado quien lo creó.</Sutil>
         <Boton titulo="Volver" variante="secundario" onPress={volver} />
       </View>
@@ -71,7 +71,7 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
     return (
       <View style={estilos.centrado}>
         <ActivityIndicator color={colores.presente} />
-        <Text style={estilos.tituloGrande}>Esperando al rival</Text>
+        <Texto style={estilos.tituloGrande}>Esperando al rival</Texto>
         <Sutil>
           En cuanto entre con el código {duelo.duelo.codigo} empezáis los dos a la vez.
         </Sutil>
@@ -90,8 +90,8 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
     const { palabra, mias, suyas } = duelo.transicion;
     return (
       <View style={estilos.repaso}>
-        <Text style={estilos.laPalabraEra}>La palabra era</Text>
-        <Text style={estilos.palabraTransicion}>{palabra.toUpperCase()}</Text>
+        <Texto style={estilos.laPalabraEra}>La palabra era</Texto>
+        <Texto style={estilos.palabraTransicion}>{palabra.toUpperCase()}</Texto>
 
         {/* Los dos tableros al lado, con las letras de cada uno: aquí es donde
             se ve quién tiró por dónde, que es media conversación después. */}
@@ -105,7 +105,7 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
           }
         >
           <View style={estilos.columnaTablero}>
-            <Text style={estilos.nombreTablero}>Tú</Text>
+            <Texto style={estilos.nombreTablero}>Tú</Texto>
             <Tablero
               intentos={mias}
               borrador={[]}
@@ -120,9 +120,9 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
           </View>
 
           <View style={estilos.columnaTablero}>
-            <Text style={estilos.nombreTablero} numberOfLines={1}>
+            <Texto style={estilos.nombreTablero} numberOfLines={1}>
               {duelo.rival?.nombre ?? 'Rival'}
-            </Text>
+            </Texto>
             <Tablero
               intentos={suyas}
               borrador={[]}
@@ -152,18 +152,18 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
 
     return (
       <ScrollView contentContainerStyle={estilos.contenidoFinal}>
-        <Text style={estilos.tituloGrande}>
+        <Texto style={estilos.tituloGrande}>
           {veredicto.empate
             ? '¡Empate!'
             : veredicto.uid === uid
               ? '¡Has ganado!'
               : 'Has perdido'}
-        </Text>
+        </Texto>
 
         <Tarjeta>
           <View style={estilos.filaResultado}>
-            <Text style={estilos.etiquetaResultado}>Tú</Text>
-            <Text style={estilos.puntosResultado}>{mio.puntos}</Text>
+            <Texto style={estilos.etiquetaResultado}>Tú</Texto>
+            <Texto style={estilos.puntosResultado}>{mio.puntos}</Texto>
           </View>
           <Sutil>
             {mio.acertadas} de {PALABRAS_POR_DUELO} acertadas · {mio.intentosTotales}{' '}
@@ -171,8 +171,8 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
           </Sutil>
           <View style={estilos.separador} />
           <View style={estilos.filaResultado}>
-            <Text style={estilos.etiquetaResultado}>{duelo.rival?.nombre ?? 'Rival'}</Text>
-            <Text style={estilos.puntosResultado}>{suyo.puntos}</Text>
+            <Texto style={estilos.etiquetaResultado}>{duelo.rival?.nombre ?? 'Rival'}</Texto>
+            <Texto style={estilos.puntosResultado}>{suyo.puntos}</Texto>
           </View>
           <Sutil>
             {suyo.acertadas} de {PALABRAS_POR_DUELO} acertadas · {suyo.intentosTotales}{' '}
@@ -198,19 +198,19 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
   if (duelo.esperando) {
     return (
       <ScrollView contentContainerStyle={estilos.contenidoEspera}>
-        <Text style={estilos.tituloGrande}>
+        <Texto style={estilos.tituloGrande}>
           {duelo.elCerroLaRonda ? 'Palabra cerrada' : 'Le toca correr'}
-        </Text>
-        <Text style={estilos.laPalabraEra}>
-          La palabra era <Text style={estilos.palabraEra}>{duelo.solucion.toUpperCase()}</Text>
-        </Text>
+        </Texto>
+        <Texto style={estilos.laPalabraEra}>
+          La palabra era <Texto style={estilos.palabraEra}>{duelo.solucion.toUpperCase()}</Texto>
+        </Texto>
         <Sutil>
           Palabra {duelo.indice + 1} de {PALABRAS_POR_DUELO} · llevas {mio.puntos} puntos
         </Sutil>
 
         {/* Aquí sí se ven sus letras: yo ya cerré esta palabra, así que no me
             destripa nada, y ver cómo se pelea es media gracia del duelo. */}
-        <Text style={estilos.nombreRival}>{duelo.rival?.nombre ?? 'Rival'}</Text>
+        <Texto style={estilos.nombreRival}>{duelo.rival?.nombre ?? 'Rival'}</Texto>
         <View
           style={estilos.grandeRival}
           onLayout={({ nativeEvent }) =>
@@ -232,19 +232,19 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
             alto={espera.alto}
           />
         </View>
-        <Text style={estilos.puntosRival}>{duelo.suyo.puntos} pts</Text>
+        <Texto style={estilos.puntosRival}>{duelo.suyo.puntos} pts</Texto>
 
-        <Text style={estilos.avisoEspera}>
+        <Texto style={estilos.avisoEspera}>
           {duelo.elCerroLaRonda
             ? 'Los dos habéis cerrado. Empieza la siguiente…'
             : `Tiene ${SEGUNDOS_FINAL} segundos desde que cerraste tú.`}
-        </Text>
+        </Texto>
 
         {/* Mientras el otro sufre, aquí no hay nada que hacer. Ahora sí: se le
             puede picar. No cambia el resultado, sólo los nervios. */}
         {!duelo.elCerroLaRonda && (
           <View style={estilos.zonaPullas}>
-            <Text style={estilos.tituloPullas}>Pícale</Text>
+            <Texto style={estilos.tituloPullas}>Pícale</Texto>
             <View style={estilos.rejillaPullas}>
               {duelo.pullas.map((emoji) => (
                 <Pressable
@@ -258,12 +258,12 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
                     (pressed || duelo.recargando) && { opacity: 0.45 },
                   ]}
                 >
-                  <Text style={estilos.emojiPulla}>{emoji}</Text>
+                  <Texto style={estilos.emojiPulla}>{emoji}</Texto>
                 </Pressable>
               ))}
             </View>
             {duelo.errorPulla && (
-              <Text style={estilos.errorPulla}>{duelo.errorPulla}</Text>
+              <Texto style={estilos.errorPulla}>{duelo.errorPulla}</Texto>
             )}
           </View>
         )}
@@ -277,16 +277,16 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
     <View style={[estilos.pantalla, { paddingTop: insets.top }]}>
       <View style={estilos.cabecera}>
         <View>
-          <Text style={estilos.palabraActual}>
+          <Texto style={estilos.palabraActual}>
             Palabra {duelo.indice + 1} de {PALABRAS_POR_DUELO}
-          </Text>
-          <Text style={estilos.misPuntos}>{mio.puntos} puntos</Text>
+          </Texto>
+          <Texto style={estilos.misPuntos}>{mio.puntos} puntos</Texto>
         </View>
 
         {duelo.segundos !== null && (
           <View style={estilos.reloj}>
-            <Text style={estilos.segundos}>{duelo.segundos}</Text>
-            <Text style={estilos.etiquetaReloj}>segundos</Text>
+            <Texto style={estilos.segundos}>{duelo.segundos}</Texto>
+            <Texto style={estilos.etiquetaReloj}>segundos</Texto>
           </View>
         )}
       </View>
@@ -371,8 +371,8 @@ function PullaRecibida({ emoji, nombre }: { emoji: string | null; nombre?: strin
       ]}
       pointerEvents="none"
     >
-      <Text style={estilos.emojiRecibido}>{emoji}</Text>
-      <Text style={estilos.deQuien}>de {nombre ?? 'tu rival'}</Text>
+      <Texto style={estilos.emojiRecibido}>{emoji}</Texto>
+      <Texto style={estilos.deQuien}>de {nombre ?? 'tu rival'}</Texto>
     </Animated.View>
   );
 }
@@ -404,13 +404,15 @@ const estilos = StyleSheet.create({
   },
   nombreTablero: {
     color: colores.textoSuave,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   errorPulla: {
     color: colores.peligro,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     textAlign: 'center',
     maxWidth: 260,
   },
@@ -421,7 +423,8 @@ const estilos = StyleSheet.create({
   },
   tituloPullas: {
     color: colores.textoSuave,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
@@ -442,7 +445,8 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
   },
   emojiPulla: {
-    fontSize: 28,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.titulo,
     lineHeight: 34,
   },
   pullaRecibida: {
@@ -453,12 +457,14 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
   },
   emojiRecibido: {
-    fontSize: 96,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.cifraGrande,
     lineHeight: 112,
   },
   deQuien: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     marginTop: espaciado.xs,
   },
   pantalla: {
@@ -495,49 +501,55 @@ const estilos = StyleSheet.create({
   },
   nombreRival: {
     color: colores.texto,
-    fontSize: 17,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     marginTop: espaciado.sm,
   },
   laPalabraEra: {
     color: colores.textoSuave,
-    fontSize: 15,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
     textAlign: 'center',
   },
   palabraEra: {
     color: colores.correcta,
-    fontSize: 19,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
     letterSpacing: 3,
   },
   palabraTransicion: {
     color: colores.correcta,
-    fontSize: 40,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.cifra,
     letterSpacing: 8,
     textAlign: 'center',
   },
   puntosRival: {
     color: colores.oro,
-    fontSize: 18,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
   },
   avisoEspera: {
     color: colores.presente,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     textAlign: 'center',
     lineHeight: 20,
   },
   tituloGrande: {
     color: colores.texto,
-    fontSize: 26,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     textAlign: 'center',
   },
   puntosGrandes: {
     color: colores.oro,
-    fontSize: 52,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.cifra,
   },
   cabecera: {
     flexDirection: 'row',
@@ -550,13 +562,15 @@ const estilos = StyleSheet.create({
   },
   palabraActual: {
     color: colores.texto,
-    fontSize: 17,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   misPuntos: {
     color: colores.oro,
-    fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.pequeno,
     marginTop: 2,
   },
   reloj: {
@@ -570,12 +584,15 @@ const estilos = StyleSheet.create({
   },
   segundos: {
     color: colores.peligro,
-    fontSize: 24,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
   },
   etiquetaReloj: {
     color: colores.peligro,
-    fontSize: 10,
+    fontFamily: fuentes.titular,
+    fontSize: escala.micro,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
   },
   zonaJuego: {
     flex: 1,
@@ -603,13 +620,15 @@ const estilos = StyleSheet.create({
   },
   etiquetaResultado: {
     color: colores.texto,
-    fontSize: 17,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   puntosResultado: {
     color: colores.oro,
-    fontSize: 26,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
   },
   separador: {
     height: 1,

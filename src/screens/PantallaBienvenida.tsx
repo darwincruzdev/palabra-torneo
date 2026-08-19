@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
+import { Texto } from '../components/Texto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { SelectorAvatar } from '../components/SelectorAvatar';
 import { Boton, Sutil } from '../components/ui';
 import { useApp } from '../estado/AppContext';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 /**
  * Lo primero que ve alguien nuevo, antes de jugar nada.
@@ -44,11 +50,11 @@ export function PantallaBienvenida() {
     >
       <View style={estilos.cabecera}>
         <Avatar avatar={borradorAvatar} lado={84} />
-        <Text style={estilos.titulo}>¿Cómo te llamamos?</Text>
-        <Text style={estilos.lema}>
+        <Texto style={estilos.titulo}>¿Cómo te llamamos?</Texto>
+        <Texto style={estilos.lema}>
           Es el nombre y la cara con los que aparecerás en la clasificación de tus
           torneos. Puedes cambiarlos cuando quieras.
-        </Text>
+        </Texto>
       </View>
 
       <TextInput
@@ -61,7 +67,7 @@ export function PantallaBienvenida() {
         style={estilos.campo}
       />
 
-      <Text style={estilos.etiqueta}>Elige tu avatar</Text>
+      <Texto style={estilos.etiqueta}>Elige tu avatar</Texto>
       <SelectorAvatar elegido={borradorAvatar} onElegir={setBorradorAvatar} />
 
       <View style={estilos.pie}>
@@ -93,13 +99,16 @@ const estilos = StyleSheet.create({
   },
   titulo: {
     color: colores.texto,
-    fontSize: 26,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.titulo,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
     textAlign: 'center',
   },
   lema: {
     color: colores.textoSuave,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
     lineHeight: 21,
     textAlign: 'center',
     maxWidth: 320,
@@ -112,14 +121,16 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaciado.md,
     paddingVertical: 14,
     color: colores.texto,
-    fontSize: 18,
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.medio,
     textAlign: 'center',
-    fontWeight: '700',
   },
   etiqueta: {
-    color: colores.texto,
-    fontSize: 15,
-    fontWeight: '800',
+    color: colores.textoSuave,
+    fontFamily: fuentes.titular,
+    fontSize: escala.pequeno,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
     textAlign: 'center',
     marginTop: espaciado.sm,
   },

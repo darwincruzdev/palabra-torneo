@@ -38,6 +38,22 @@ export function mensajeDeInvitacion(nombreTorneo: string, codigo: string): strin
   return `Te invito al torneo "${nombreTorneo}" de Palabra Torneo.\n${cierre}`;
 }
 
+/** La dirección de la web, para meterla en lo que se comparta. */
+export function enlaceDeLaApp(): string {
+  return BASE;
+}
+
+/**
+ * Abre WhatsApp con el texto puesto y deja elegir a quién mandárselo.
+ *
+ * Se usa wa.me y no la API de compartir del navegador porque ésta no está en
+ * todos —en el escritorio falta en casi ninguno— y aquí el destino es siempre
+ * el mismo: el grupo.
+ */
+export function enlaceWhatsapp(texto: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(texto)}`;
+}
+
 /**
  * Saca el código de torneo de una URL de invitación, venga como enlace https o
  * como esquema propio. Devuelve null si la URL no es una invitación.

@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from './Texto';
 import { MAX_INTENTOS } from '../game/constantes';
 import { LONGITUD } from '../game/palabras';
 import { descodificarPalabra } from '../game/duelo';
 import type { Marca } from '../tipos';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 const FONDO: Record<Marca, string> = {
   correcta: colores.correcta,
@@ -80,9 +84,9 @@ export function MiniTablero({
 
   return (
     <View style={estilos.caja}>
-      <Text style={estilos.nombre} numberOfLines={1}>
+      <Texto style={estilos.nombre} numberOfLines={1}>
         {nombre}
-      </Text>
+      </Texto>
 
       <View style={[estilos.rejilla, { gap: hueco }]}>
         {Array.from({ length: MAX_INTENTOS }, (_, i) => (
@@ -107,12 +111,12 @@ export function MiniTablero({
         ))}
       </View>
 
-      <Text style={estilos.dato}>
+      <Texto style={estilos.dato}>
         {terminado
           ? 'Ha terminado'
           : `Palabra ${Math.min(visible.palabra + 1, total)}/${total}`}
-      </Text>
-      <Text style={estilos.puntos}>{puntos} pts</Text>
+      </Texto>
+      <Texto style={estilos.puntos}>{puntos} pts</Texto>
     </View>
   );
 }
@@ -131,8 +135,10 @@ const estilos = StyleSheet.create({
   },
   nombre: {
     color: colores.texto,
-    fontSize: 12,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.pequeno,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     maxWidth: 84,
   },
   rejilla: {
@@ -143,12 +149,13 @@ const estilos = StyleSheet.create({
   },
   dato: {
     color: colores.textoSuave,
-    fontSize: 11,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     textAlign: 'center',
   },
   puntos: {
     color: colores.oro,
-    fontSize: 14,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
   },
 });

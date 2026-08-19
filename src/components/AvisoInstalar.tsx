@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colores, espaciado, radio } from '../tema';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from './Texto';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 /**
  * ¿Estamos en Safari de iPhone, y todavía no como app de pantalla de inicio?
@@ -28,12 +34,12 @@ export function AvisoInstalar() {
   return (
     <View style={estilos.caja}>
       <View style={{ flex: 1 }}>
-        <Text style={estilos.titulo}>Ponlo como app</Text>
-        <Text style={estilos.texto}>
-          Dale a <Text style={estilos.negrita}>Compartir</Text> abajo y luego a{' '}
-          <Text style={estilos.negrita}>Añadir a pantalla de inicio</Text>. Se abre a
+        <Texto style={estilos.titulo}>Ponlo como app</Texto>
+        <Texto style={estilos.texto}>
+          Dale a <Texto style={estilos.negrita}>Compartir</Texto> abajo y luego a{' '}
+          <Texto style={estilos.negrita}>Añadir a pantalla de inicio</Texto>. Se abre a
           pantalla completa y con su icono, como cualquier otra app.
-        </Text>
+        </Texto>
       </View>
       <Pressable
         onPress={() => setOculto(true)}
@@ -41,7 +47,7 @@ export function AvisoInstalar() {
         accessibilityRole="button"
         accessibilityLabel="Cerrar aviso"
       >
-        <Text style={estilos.cerrar}>✕</Text>
+        <Texto style={estilos.cerrar}>✕</Texto>
       </Pressable>
     </View>
   );
@@ -60,22 +66,25 @@ const estilos = StyleSheet.create({
   },
   titulo: {
     color: colores.acento,
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 4,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
   texto: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     lineHeight: 19,
   },
   negrita: {
     color: colores.texto,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
   },
   cerrar: {
     color: colores.textoSuave,
-    fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.medio,
   },
 });

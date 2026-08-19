@@ -58,6 +58,8 @@ export type ReglasTorneo = {
   penalizacionLider: boolean;
   /** Se puede disparar al primero para imponerle una palabra. */
   blueshells: boolean;
+  /** Saltarse una jornada cerrada resta un punto. */
+  faltaPorNoJugar: boolean;
 };
 
 /**
@@ -118,6 +120,8 @@ export type FilaClasificacion = {
   avatar: Avatar;
   puntos: number;
   jugadas: number;
+  /** Jornadas cerradas que se saltó, desde la primera que jugó. */
+  faltas: number;
   aciertos: number;
   intentosTotales: number;
   mediaIntentos: number | null;

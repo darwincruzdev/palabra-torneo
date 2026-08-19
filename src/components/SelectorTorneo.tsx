@@ -1,7 +1,21 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from './Texto';
 import { TORNEO_LIBRE, useApp } from '../estado/AppContext';
-import { colores, espaciado, radio } from '../tema';
+import {
+  ANCHO_COLUMNA,
+  colores,
+  espaciado,
+  fuentes,
+  radio,
+  texto as escala,
+} from '../tema';
 
 type Props = {
   visible: boolean;
@@ -36,10 +50,10 @@ export function SelectorTorneo({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={cerrar}>
       <Pressable style={estilos.fondo} onPress={cerrar}>
         <Pressable style={estilos.panel} onPress={() => {}}>
-          <Text style={estilos.titulo}>¿A qué torneo juegas?</Text>
-          <Text style={estilos.explicacion}>
+          <Texto style={estilos.titulo}>¿A qué torneo juegas?</Texto>
+          <Texto style={estilos.explicacion}>
             Cada torneo tiene su propia palabra del día, distinta de la de los demás.
-          </Text>
+          </Texto>
 
           <ScrollView style={estilos.lista}>
             {torneos.map((torneo) => (
@@ -74,7 +88,7 @@ export function SelectorTorneo({
             style={estilos.enlace}
             accessibilityRole="button"
           >
-            <Text style={estilos.textoEnlace}>Crear un torneo o entrar con un código</Text>
+            <Texto style={estilos.textoEnlace}>Crear un torneo o entrar con un código</Texto>
           </Pressable>
         </Pressable>
       </Pressable>
@@ -107,11 +121,11 @@ function Fila({
       ]}
     >
       <View style={{ flex: 1 }}>
-        <Text style={estilos.nombre}>{nombre}</Text>
-        <Text style={estilos.detalle}>{detalle}</Text>
-        {aviso && <Text style={estilos.aviso}>{aviso}</Text>}
+        <Texto style={estilos.nombre}>{nombre}</Texto>
+        <Texto style={estilos.detalle}>{detalle}</Texto>
+        {aviso && <Texto style={estilos.aviso}>{aviso}</Texto>}
       </View>
-      {marcado && <Text style={estilos.marca}>✓</Text>}
+      {marcado && <Texto style={estilos.marca}>✓</Texto>}
     </Pressable>
   );
 }
@@ -124,6 +138,11 @@ const estilos = StyleSheet.create({
     padding: espaciado.lg,
   },
   panel: {
+    // El diálogo se dibuja en la raíz de la página, fuera de la columna
+    // centrada, así que el tope de ancho hay que ponérselo aquí también.
+    width: '100%',
+    maxWidth: ANCHO_COLUMNA,
+    alignSelf: 'center',
     backgroundColor: colores.superficie,
     borderRadius: radio.lg,
     borderWidth: 1,
@@ -134,12 +153,15 @@ const estilos = StyleSheet.create({
   },
   titulo: {
     color: colores.texto,
-    fontSize: 19,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   explicacion: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     lineHeight: 19,
     marginBottom: espaciado.sm,
   },
@@ -163,31 +185,35 @@ const estilos = StyleSheet.create({
   },
   nombre: {
     color: colores.texto,
-    fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.medio,
   },
   detalle: {
     color: colores.textoSuave,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     marginTop: 2,
   },
   aviso: {
     color: colores.presente,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     marginTop: 4,
   },
   marca: {
     color: colores.correcta,
-    fontSize: 20,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
   },
   enlace: {
     paddingTop: espaciado.sm,
   },
   textoEnlace: {
     color: colores.acento,
-    fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fuentes.titular,
+    fontSize: escala.normal,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
     textAlign: 'center',
   },
 });

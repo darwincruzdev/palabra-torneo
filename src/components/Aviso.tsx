@@ -1,6 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text } from 'react-native';
-import { colores, radio } from '../tema';
+import {
+  Animated,
+  StyleSheet,
+} from 'react-native';
+import { Texto } from './Texto';
+import { colores, fuentes, radio, texto } from '../tema';
 
 type Props = {
   mensaje: string | null;
@@ -22,7 +26,7 @@ export function Aviso({ mensaje }: Props) {
 
   return (
     <Animated.View style={[estilos.caja, { opacity: opacidad }]} pointerEvents="none">
-      <Text style={estilos.texto}>{mensaje}</Text>
+      <Texto style={estilos.texto}>{mensaje}</Texto>
     </Animated.View>
   );
 }
@@ -36,9 +40,9 @@ const estilos = StyleSheet.create({
     borderRadius: radio.sm,
   },
   texto: {
-    color: '#101010',
-    fontWeight: '700',
-    fontSize: 15,
+    color: colores.fondo,
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: texto.normal,
     textAlign: 'center',
   },
 });

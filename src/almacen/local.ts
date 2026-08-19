@@ -60,6 +60,8 @@ export type PerfilLocal = {
    * acabe apareciendo en la clasificación con un nombre que no ha elegido.
    */
   configurado?: boolean;
+  /** Modo de letra grande, para quien no ve bien los tamaños normales. */
+  letraGrande?: boolean;
 };
 
 export function cargarPerfilLocal(): Promise<PerfilLocal | null> {

@@ -9,11 +9,13 @@ import {
   cumple,
   estaProtegido,
   jornadasParaRecargar,
+  mensajeDeBlueshell,
   normalizarReglas,
   obligacionEn,
   obligacionesDe,
   proteccionGastada,
   sinBlueshells,
+  todasLasBlueshells,
 } from '../src/game/reglas';
 import { PALABRAS_PENALIZACION } from '../src/game/constantes';
 import { sumarDias } from '../src/game/fecha';
@@ -21,7 +23,11 @@ import type { Blueshell, DiaTorneo, ReglasTorneo } from '../src/tipos';
 
 const INICIO = '2026-01-01';
 
-const TODAS: ReglasTorneo = { penalizacionLider: true, blueshells: true };
+const TODAS: ReglasTorneo = {
+  penalizacionLider: true,
+  blueshells: true,
+  faltaPorNoJugar: true,
+};
 
 function dia(fecha: string, extra: Partial<DiaTorneo> = {}): DiaTorneo {
   return { fecha, resultados: {}, ...extra };
@@ -36,6 +42,7 @@ describe('normalizarReglas', () => {
     assert.deepEqual(normalizarReglas(undefined), {
       penalizacionLider: true,
       blueshells: true,
+      faltaPorNoJugar: true,
     });
   });
 
@@ -43,6 +50,7 @@ describe('normalizarReglas', () => {
     assert.deepEqual(normalizarReglas({ blueshells: false }), {
       penalizacionLider: true,
       blueshells: false,
+      faltaPorNoJugar: true,
     });
   });
 });
@@ -189,7 +197,7 @@ describe('obligaciones de la jornada', () => {
 
   it('un torneo sin blueshells ignora las que le hayan tirado', () => {
     const obligaciones = obligacionesDe({
-      reglas: { penalizacionLider: true, blueshells: false },
+      reglas: { penalizacionLider: true, blueshells: false, faltaPorNoJugar: true },
       liderando: true,
       blueshells: balas,
     });
@@ -202,7 +210,7 @@ describe('obligaciones de la jornada', () => {
   it('un torneo sin ninguna de las dos normas no impone nada', () => {
     assert.deepEqual(
       obligacionesDe({
-        reglas: { penalizacionLider: false, blueshells: false },
+        reglas: { penalizacionLider: false, blueshells: false, faltaPorNoJugar: true },
         liderando: true,
         blueshells: balas,
       }),
@@ -255,5 +263,48 @@ describe('comprobar el intento', () => {
       sinBlueshells(obligaciones).map((o) => o.motivo),
       ['lider']
     );
+  });
+});
+
+describe('lo que ve el grupo', () => {
+  const jornada = dia('2026-01-10', {
+    blueshells: {
+      caj: bala('ana', 'sosos', '2026-01-09'),
+      bea: bala('dan', 'vivir', '2026-01-08'),
+    },
+  });
+
+  it('devuelve las balas de todos, no sólo las de uno', () => {
+    assert.deepEqual(
+      todasLasBlueshells(jornada).map((b) => [b.autor, b.objetivo]),
+      [
+        ['bea', 'dan'],
+        ['caj', 'ana'],
+      ]
+    );
+  });
+
+  it('no se cae con una jornada sin balas', () => {
+    assert.deepEqual(todasLasBlueshells(undefined), []);
+    assert.deepEqual(todasLasBlueshells(dia('2026-01-11')), []);
+  });
+
+  it('el mensaje dice quién, a quién y con qué palabra', () => {
+    const texto = mensajeDeBlueshell({
+      torneo: 'Torneazo',
+      autor: 'Bea',
+      objetivo: 'Darwin',
+      palabra: 'sosos',
+    });
+    assert.match(texto, /Torneazo/);
+    assert.match(texto, /Bea/);
+    assert.match(texto, /Darwin/);
+    assert.match(texto, /SOSOS/);
+  });
+
+  it('mete el enlace de la web sólo si lo hay', () => {
+    const datos = { torneo: 'T', autor: 'A', objetivo: 'B', palabra: 'sosos' };
+    assert.ok(!mensajeDeBlueshell(datos).includes('http'));
+    assert.match(mensajeDeBlueshell({ ...datos, enlace: 'https://x.web.app' }), /https:\/\/x/);
   });
 });

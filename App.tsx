@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from './src/components/Texto';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import {
@@ -22,7 +28,7 @@ import { PantallaHistorial } from './src/screens/PantallaHistorial';
 import { PantallaDuelos } from './src/screens/PantallaDuelos';
 import { PantallaDuelo } from './src/screens/PantallaDuelo';
 import { PantallaPerfil } from './src/screens/PantallaPerfil';
-import { colores } from './src/tema';
+import { ANCHO_COLUMNA, colores, espaciado, fuentes, texto } from './src/tema';
 
 export type RutasApp = {
   Modo: undefined;
@@ -102,12 +108,39 @@ function Raiz() {
   return (
     <NavigationContainer ref={navegacion} theme={temaNavegacion}>
       <Pila.Navigator
-        screenOptions={{
+        screenOptions={({ navigation }) => ({
           headerStyle: { backgroundColor: colores.fondo },
           headerTintColor: colores.texto,
-          headerTitleStyle: { fontWeight: '800' },
+          headerTitleAlign: 'center',
+          headerTitleStyle: {
+            fontFamily: fuentes.titularNegro,
+            fontSize: texto.grande,
+            letterSpacing: 0.8,
+            textTransform: 'uppercase',
+          },
           contentStyle: { backgroundColor: colores.fondo },
-        }}
+          /**
+           * La flecha de volver, dibujada por nosotros.
+           *
+           * La que trae React Navigation es un PNG con `opacity: 0` que se tiñe
+           * con un filtro SVG, y donde ese filtro no se aplica —los navegadores
+           * de móvil— no se ve absolutamente nada: el botón sigue ahí y se puede
+           * pulsar, pero es transparente. Un carácter de texto no tiene ese
+           * problema, y además es el mismo gesto que ya usa la pantalla de juego.
+           */
+          headerLeft: ({ canGoBack }) =>
+            canGoBack ? (
+              <Pressable
+                onPress={navigation.goBack}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Volver"
+                style={({ pressed }) => [estilos.volver, pressed && { opacity: 0.6 }]}
+              >
+                <Texto style={estilos.flechaVolver}>←</Texto>
+              </Pressable>
+            ) : null,
+        })}
       >
         <Pila.Screen name="Modo" options={{ headerShown: false }}>
           {({ navigation }) => (
@@ -231,6 +264,16 @@ export default function App() {
 }
 
 const estilos = StyleSheet.create({
+  volver: {
+    paddingRight: espaciado.md,
+    paddingVertical: espaciado.xs,
+  },
+  flechaVolver: {
+    color: colores.texto,
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: texto.grande,
+    lineHeight: texto.grande + 4,
+  },
   fondo: {
     flex: 1,
     backgroundColor: colores.fondo,
@@ -239,6 +282,6 @@ const estilos = StyleSheet.create({
   columna: {
     flex: 1,
     width: '100%',
-    maxWidth: 520,
+    maxWidth: ANCHO_COLUMNA,
   },
 });

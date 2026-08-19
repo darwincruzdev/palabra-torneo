@@ -1,7 +1,13 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Texto } from './Texto';
 import type { Marca } from '../tipos';
 import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
+import { useFactorTexto } from '../estado/escala';
 
 export const TECLA_ENTER = 'ENTER';
 export const TECLA_BORRAR = 'BORRAR';
@@ -34,7 +40,11 @@ export function Teclado({ estado, onTecla, deshabilitado, destello }: Props) {
   // escritorio eso estiraba el teclado de lado a lado de la pantalla.
   const hueco = 5;
   const margen = espaciado.sm;
-  const altoTecla = 52;
+  // Las letras ya crecen solas al pasar por `Texto`; la tecla necesita algo más
+  // de alto para que no queden pegadas al borde. Se sube menos que la letra: a
+  // lo ancho no hay sitio, y tres filas mucho más altas se comen el tablero.
+  const factor = useFactorTexto();
+  const altoTecla = Math.round(52 * (1 + (factor - 1) * 0.5));
 
   return (
     <View style={[estilos.teclado, { paddingHorizontal: margen, gap: hueco }]}>
@@ -63,7 +73,7 @@ export function Teclado({ estado, onTecla, deshabilitado, destello }: Props) {
                   iluminada && estilos.iluminada,
                 ]}
               >
-                <Text style={estilos.textoTecla}>{simbolo(tecla)}</Text>
+                <Texto style={estilos.textoTecla}>{simbolo(tecla)}</Texto>
               </Pressable>
             );
           })}

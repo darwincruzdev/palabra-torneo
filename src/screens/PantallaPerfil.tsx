@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  Switch,
+} from 'react-native';
+import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { SelectorAvatar } from '../components/SelectorAvatar';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
@@ -14,10 +22,11 @@ import { cargarHistorial, type EntradaHistorial } from '../almacen/local';
 import { sumarDias } from '../game/fecha';
 import { totalAceptadas, totalSoluciones } from '../game/palabras';
 import { useApp } from '../estado/AppContext';
-import { colores, espaciado, radio } from '../tema';
+import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 export function PantallaPerfil() {
-  const { nombre, avatar, cambiarPerfil, sesion, hayFirebase } = useApp();
+  const { nombre, avatar, cambiarPerfil, sesion, hayFirebase, letraGrande, cambiarLetraGrande } =
+    useApp();
   const [borradorNombre, setBorradorNombre] = useState(nombre);
   const [borradorAvatar, setBorradorAvatar] = useState<DatosAvatar>(avatar);
   const [guardado, setGuardado] = useState(false);
@@ -48,9 +57,9 @@ export function PantallaPerfil() {
       <View style={estilos.cabeceraPerfil}>
         <Avatar avatar={borradorAvatar} lado={72} />
         <View style={{ flex: 1 }}>
-          <Text style={estilos.nombreGrande}>{borradorNombre || 'Sin nombre'}</Text>
+          <Texto style={estilos.nombreGrande}>{borradorNombre || 'Sin nombre'}</Texto>
           {sesion.usuario?.email && (
-            <Text style={estilos.correo}>{sesion.usuario.email}</Text>
+            <Texto style={estilos.correo}>{sesion.usuario.email}</Texto>
           )}
         </View>
       </View>
@@ -68,9 +77,7 @@ export function PantallaPerfil() {
 
       <Titulo>Tu avatar</Titulo>
       <Sutil>Lo dibuja la app, no hace falta subir ninguna foto.</Sutil>
-      <View style={estilos.rejilla}>
-        <SelectorAvatar elegido={borradorAvatar} onElegir={setBorradorAvatar} />
-      </View>
+      <SelectorAvatar elegido={borradorAvatar} onElegir={setBorradorAvatar} plegable />
 
       <Boton
         titulo={guardado ? 'Guardado' : 'Guardar perfil'}
@@ -81,7 +88,26 @@ export function PantallaPerfil() {
         <Sutil>Firebase no está configurado: de momento esto sólo se guarda en el móvil.</Sutil>
       )}
 
-      <Text style={estilos.seccion}>Tus estadísticas</Text>
+      <Texto style={estilos.seccion}>Cómo se ve</Texto>
+      <Tarjeta>
+        <View style={estilos.ajuste}>
+          <View style={{ flex: 1 }}>
+            <Texto style={estilos.tituloAjuste}>Letra grande</Texto>
+            <Texto style={estilos.descripcionAjuste}>
+              Agranda el texto de toda la app y da algo más de alto a las teclas. Se
+              guarda con tu cuenta, así que te acompaña a cualquier aparato.
+            </Texto>
+          </View>
+          <Switch
+            value={letraGrande}
+            onValueChange={cambiarLetraGrande}
+            trackColor={{ true: colores.correcta, false: colores.borde }}
+            thumbColor={colores.texto}
+          />
+        </View>
+      </Tarjeta>
+
+      <Texto style={estilos.seccion}>Tus estadísticas</Texto>
       <Sutil>Suman todas tus partidas, de todos los torneos.</Sutil>
       <Tarjeta>
         <View style={estilos.filaStats}>
@@ -97,7 +123,7 @@ export function PantallaPerfil() {
             const maximo = Math.max(1, ...stats.reparto);
             return (
               <View key={i} style={estilos.filaBarra}>
-                <Text style={estilos.numeroIntento}>{i + 1}</Text>
+                <Texto style={estilos.numeroIntento}>{i + 1}</Texto>
                 <View
                   style={[
                     estilos.barra,
@@ -107,7 +133,7 @@ export function PantallaPerfil() {
                     },
                   ]}
                 >
-                  <Text style={estilos.cuentaBarra}>{cuenta}</Text>
+                  <Texto style={estilos.cuentaBarra}>{cuenta}</Texto>
                 </View>
               </View>
             );
@@ -123,7 +149,7 @@ export function PantallaPerfil() {
         </View>
       </Tarjeta>
 
-      <Text style={estilos.seccion}>Cómo se juega</Text>
+      <Texto style={estilos.seccion}>Cómo se juega</Texto>
       <Tarjeta>
         <Sutil>
           Cada torneo tiene su propia palabra secreta de cinco letras al día, distinta de
@@ -150,33 +176,33 @@ export function PantallaPerfil() {
         </Sutil>
       </Tarjeta>
 
-      <Text style={estilos.seccion}>Puntuación del torneo</Text>
+      <Texto style={estilos.seccion}>Puntuación del torneo</Texto>
       <Tarjeta>
         {PUNTOS_POR_INTENTO.map((puntos, i) => (
           <View key={i} style={estilos.filaPuntos}>
-            <Text style={estilos.textoPuntos}>
+            <Texto style={estilos.textoPuntos}>
               Acertar al {i + 1}
               {i === 0 ? 'er' : 'º'} intento
-            </Text>
-            <Text style={estilos.valorPuntos}>{puntos}</Text>
+            </Texto>
+            <Texto style={estilos.valorPuntos}>{puntos}</Texto>
           </View>
         ))}
         <View style={estilos.filaPuntos}>
-          <Text style={estilos.textoPuntos}>No acertar</Text>
-          <Text style={[estilos.valorPuntos, { color: colores.textoSuave }]}>0</Text>
+          <Texto style={estilos.textoPuntos}>No acertar</Texto>
+          <Texto style={[estilos.valorPuntos, { color: colores.textoSuave }]}>0</Texto>
         </View>
       </Tarjeta>
 
-      <Text style={estilos.seccion}>La regla del líder</Text>
+      <Texto style={estilos.seccion}>La regla del líder</Texto>
       <Tarjeta>
         <Sutil>
           Quien termine una jornada primero en solitario — sin empatar a puntos con el
           segundo — arranca la jornada siguiente obligado a usar una de estas cinco
           palabras como primer intento:
         </Sutil>
-        <Text style={estilos.palabras}>
+        <Texto style={estilos.palabras}>
           {PALABRAS_PENALIZACION.map((p) => p.toUpperCase()).join('\n')}
-        </Text>
+        </Texto>
         <Sutil>
           Las cinco repiten letras, así que gastan un intento dando muy poca información.
           Es el lastre por ir ganando. Si hay empate en lo alto de la tabla, nadie lleva
@@ -184,7 +210,19 @@ export function PantallaPerfil() {
         </Sutil>
       </Tarjeta>
 
-      <Text style={estilos.seccion}>La blueshell</Text>
+      <Texto style={estilos.seccion}>Faltar tiene precio</Texto>
+      <Tarjeta>
+        <Sutil>
+          Saltarse una jornada resta un punto. Sólo cuentan las ya cerradas: la de hoy no
+          penaliza a nadie hasta que pasa la medianoche.
+        </Sutil>
+        <Sutil>
+          Se empieza a contar desde tu primera partida en ese torneo, así que entrar tarde
+          no te cuesta las jornadas de antes. Cada torneo decide si juega con esta norma.
+        </Sutil>
+      </Tarjeta>
+
+      <Texto style={estilos.seccion}>La blueshell</Texto>
       <Tarjeta>
         <Sutil>
           Cada {JORNADAS_POR_CICLO} jornadas tienes una bala y un escudo, y sólo uno de
@@ -212,8 +250,8 @@ export function PantallaPerfil() {
 function Dato({ valor, etiqueta }: { valor: string | number; etiqueta: string }) {
   return (
     <View style={estilos.dato}>
-      <Text style={estilos.valorDato}>{valor}</Text>
-      <Text style={estilos.etiquetaDato}>{etiqueta}</Text>
+      <Texto style={estilos.valorDato}>{valor}</Texto>
+      <Texto style={estilos.etiquetaDato}>{etiqueta}</Texto>
     </View>
   );
 }
@@ -222,7 +260,7 @@ function Leyenda({ color, texto }: { color: string; texto: string }) {
   return (
     <View style={estilos.filaLeyenda}>
       <View style={[estilos.muestra, { backgroundColor: color }]} />
-      <Text style={estilos.textoLeyenda}>{texto}</Text>
+      <Texto style={estilos.textoLeyenda}>{texto}</Texto>
     </View>
   );
 }
@@ -262,6 +300,23 @@ function calcularEstadisticas(historial: EntradaHistorial[]) {
 }
 
 const estilos = StyleSheet.create({
+  ajuste: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaciado.md,
+  },
+  tituloAjuste: {
+    color: colores.texto,
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.medio,
+  },
+  descripcionAjuste: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
+    lineHeight: 19,
+    marginTop: 2,
+  },
   contenido: {
     padding: espaciado.lg,
     gap: espaciado.sm,
@@ -275,12 +330,13 @@ const estilos = StyleSheet.create({
   },
   nombreGrande: {
     color: colores.texto,
-    fontSize: 22,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
   },
   correo: {
     color: colores.textoSuave,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     marginTop: 2,
   },
   campo: {
@@ -291,19 +347,16 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaciado.md,
     paddingVertical: 12,
     color: colores.texto,
-    fontSize: 16,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
     marginVertical: espaciado.sm,
-  },
-  rejilla: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: espaciado.sm,
-    marginVertical: espaciado.md,
   },
   seccion: {
     color: colores.texto,
-    fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.normal,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     marginTop: espaciado.lg,
     marginBottom: espaciado.xs,
   },
@@ -317,12 +370,15 @@ const estilos = StyleSheet.create({
   },
   valorDato: {
     color: colores.texto,
-    fontSize: 24,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.grande,
   },
   etiquetaDato: {
     color: colores.textoSuave,
-    fontSize: 11,
+    fontFamily: fuentes.titular,
+    fontSize: escala.micro,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
     textAlign: 'center',
     marginTop: 2,
   },
@@ -338,7 +394,8 @@ const estilos = StyleSheet.create({
   },
   numeroIntento: {
     color: colores.textoSuave,
-    fontSize: 12,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
     width: 12,
   },
   barra: {
@@ -349,8 +406,8 @@ const estilos = StyleSheet.create({
   },
   cuentaBarra: {
     color: colores.texto,
-    fontSize: 11,
-    fontWeight: '700',
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.micro,
   },
   filaLeyenda: {
     flexDirection: 'row',
@@ -364,7 +421,8 @@ const estilos = StyleSheet.create({
   },
   textoLeyenda: {
     color: colores.textoSuave,
-    fontSize: 13,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
     flex: 1,
   },
   filaPuntos: {
@@ -375,17 +433,18 @@ const estilos = StyleSheet.create({
   },
   textoPuntos: {
     color: colores.texto,
-    fontSize: 14,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
   },
   valorPuntos: {
     color: colores.oro,
-    fontSize: 18,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
   },
   palabras: {
     color: colores.presente,
-    fontSize: 16,
-    fontWeight: '900',
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.normal,
     letterSpacing: 3,
     lineHeight: 26,
     marginVertical: espaciado.md,

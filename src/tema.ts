@@ -70,6 +70,16 @@ export const texto = {
   cifraGrande: 68,
 } as const;
 
+/**
+ * Lo ancho que llega a ser la app en un monitor.
+ *
+ * Vive aquí y no en App.tsx porque hay más de un sitio que tiene que
+ * respetarlo: los diálogos se dibujan fuera de la columna —React Native los
+ * saca a la raíz de la página— y sin este tope se estiraban de lado a lado de
+ * la pantalla mientras el resto seguía centrado.
+ */
+export const ANCHO_COLUMNA = 520;
+
 export const espaciado = {
   xs: 4,
   sm: 8,

@@ -134,10 +134,11 @@ service cloud.firestore {
                .affectedKeys().hasOnly([request.auth.uid])
         )
         || (
-          // El fundador pone el nombre y decide las normas de la casa. La
+          // El fundador pone el nombre, decide las normas de la casa y puede
+          // reiniciar la competición moviendo la fecha de fundación. La
           // semilla no se toca nunca.
           resource.data.propietario == request.auth.uid
-          && camposTocados().hasOnly(['nombre', 'reglas'])
+          && camposTocados().hasOnly(['nombre', 'reglas', 'fechaInicio'])
         )
       );
 
@@ -162,6 +163,16 @@ service cloud.firestore {
                    .affectedKeys().hasOnly([request.auth.uid]);
         }
 
+        // El resultado de una jornada se escribe una vez y no se toca más.
+        //
+        // Sin esto, entrar con la misma cuenta desde otro navegador dejaba
+        // volver a jugar la palabra —el móvil no sabía que ya estaba hecha— y
+        // pisar la puntuación anterior. Entrar con Google dice quién eres; esto
+        // es lo que impide que te repitas la jornada hasta que salga bien.
+        function primerResultado() {
+          return !resource.data.get('resultados', {}).keys().hasAny([request.auth.uid]);
+        }
+
         // Cada jugador sólo puede escribir su propia casilla de cada mapa, así
         // que nadie puede inflarse los puntos, disparar en nombre de otro ni
         // quitarle la protección a nadie.
@@ -176,7 +187,8 @@ service cloud.firestore {
           && camposTocados().hasOnly(['resultados', 'blueshells', 'protecciones'])
           && soloCambioMio('resultados')
           && soloCambioMio('blueshells')
-          && soloCambioMio('protecciones');
+          && soloCambioMio('protecciones')
+          && (!camposTocados().hasAny(['resultados']) || primerResultado());
 
         allow delete: if false;
       }
