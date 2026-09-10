@@ -4,6 +4,23 @@ Juego diario de palabras de cinco letras, al estilo de *lapalabradeldia.com*, co
 torneos privados para jugar contra tu familia y amigos. Hecho con Expo (React
 Native) y Firebase, pensado para publicarse en Google Play.
 
+## Variables de entorno al compilar el APK
+
+El `.env` está en `.gitignore`, así que EAS no lo sube al compilar. Hay que
+mandarlo una vez a su entorno:
+
+```
+npx eas-cli env:push preview --path .env --force
+```
+
+Y cada perfil de `eas.json` declara de qué entorno coge las variables con
+`"environment"`. Sin ese campo la compilación sale **sin Firebase**: la app se
+instala y abre, pero sin login ni torneos, sólo modo libre. Cuesta quince
+minutos de compilación descubrirlo.
+
+EAS rechaza las variables con valor vacío, así que las que no se usen —como el
+identificador de iOS mientras no haya app de iPhone— van comentadas.
+
 ## Cómo funciona
 
 - **Cada torneo tiene su propia palabra secreta** de cinco letras al día, y
