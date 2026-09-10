@@ -17,6 +17,7 @@ import { TECLA_BORRAR, TECLA_ENTER, Teclado } from '../components/Teclado';
 import { Boton, Sutil, Tarjeta } from '../components/ui';
 import { PALABRAS_POR_DUELO, SEGUNDOS_FINAL, ganador, resumir } from '../game/duelo';
 import { useApp } from '../estado/AppContext';
+import * as datosDuelo from '../firebase/duelos';
 import { useDuelo } from '../estado/useDuelo';
 import { useTecladoFisico } from '../estado/useTecladoFisico';
 import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
@@ -24,10 +25,22 @@ import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 type Props = {
   dueloId: string;
   volver: () => void;
+  irAOtroDuelo: (dueloId: string) => void;
 };
 
-export function PantallaDuelo({ dueloId, volver }: Props) {
-  const { uid } = useApp();
+export function PantallaDuelo({ dueloId, volver, irAOtroDuelo }: Props) {
+  const { uid, nombre, avatar } = useApp();
+  const [ocupadoRevancha, setOcupadoRevancha] = useState(false);
+  const [errorRevancha, setErrorRevancha] = useState<string | null>(null);
+  /**
+   * El duelo de revancha que he montado yo, si he montado alguno.
+   *
+   * Se guarda el identificador y no un simple "la propuse yo" porque si los dos
+   * le dan a la vez, el segundo pisa la propuesta del primero: comparando con
+   * lo que quedó escrito de verdad, el que perdió la carrera ve el botón de
+   * aceptar en vez de quedarse esperando una revancha que ya no existe.
+   */
+  const [miRevancha, setMiRevancha] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const duelo = useDuelo(dueloId, uid);
   const [hueco, setHueco] = useState({ ancho: 300, alto: 340 });
@@ -41,6 +54,23 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
     enviar: duelo.enviar,
     activo: duelo.jugando && enfocada,
   });
+
+  const revanchaPropuesta = duelo.duelo?.revancha ?? null;
+  const revanchaEsMia = revanchaPropuesta !== null && revanchaPropuesta === miRevancha;
+
+  /**
+   * A quien propone la revancha también hay que llevarlo al duelo nuevo.
+   *
+   * El que acepta entra por su propio pie; el que esperaba se entera aquí, al
+   * ver que ya hay rival en la sala que montó. Va arriba del todo a propósito:
+   * más abajo hay salidas tempranas y el orden de los hooks cambiaría.
+   */
+  useEffect(() => {
+    if (!revanchaEsMia || !revanchaPropuesta) return;
+    return datosDuelo.observarDuelo(revanchaPropuesta, (nuevo) => {
+      if (nuevo?.rival) irAOtroDuelo(revanchaPropuesta);
+    });
+  }, [revanchaEsMia, revanchaPropuesta, irAOtroDuelo]);
 
   function pulsar(tecla: string) {
     if (tecla === TECLA_ENTER) duelo.enviar();
@@ -81,6 +111,40 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
   }
 
   const mio = resumir(duelo.mio.rejilla);
+
+  /** Si hay revancha en marcha y de quién partió. */
+  const propuesta = !revanchaPropuesta ? null : revanchaEsMia ? 'mia' : 'suya';
+
+  /** Crea el duelo de revancha y lo apunta en éste para que se entere el otro. */
+  async function pedirRevancha() {
+    if (!uid) return;
+    setErrorRevancha(null);
+    setOcupadoRevancha(true);
+    try {
+      const nuevo = await datosDuelo.crearDuelo(uid, nombre || 'Jugador', avatar);
+      await datosDuelo.proponerRevancha(dueloId, nuevo.id);
+      setMiRevancha(nuevo.id);
+    } catch {
+      setErrorRevancha('No se ha podido montar la revancha. Inténtalo otra vez.');
+    } finally {
+      setOcupadoRevancha(false);
+    }
+  }
+
+  /** Entrar en la revancha que ha montado el rival. */
+  async function aceptarRevancha() {
+    if (!uid || !revanchaPropuesta) return;
+    setErrorRevancha(null);
+    setOcupadoRevancha(true);
+    try {
+      await datosDuelo.unirseADuelo(revanchaPropuesta, uid, nombre || 'Jugador', avatar);
+      irAOtroDuelo(revanchaPropuesta);
+    } catch {
+      setErrorRevancha('Tu rival ha cancelado la revancha.');
+    } finally {
+      setOcupadoRevancha(false);
+    }
+  }
 
   /**
    * Paso de una palabra a la siguiente. La ven los dos casi a la vez, porque la
@@ -184,7 +248,29 @@ export function PantallaDuelo({ dueloId, volver }: Props) {
           Con la misma puntuación gana quien haya gastado menos intentos.
         </Sutil>
 
-        <Boton titulo="Volver" onPress={volver} />
+        {/* La revancha la propone uno y el otro la acepta. Quien propone crea
+            el duelo nuevo y lo apunta en éste; al otro le llega por la misma
+            escucha que ya tenía abierta, sin recargar nada. */}
+        {propuesta ? (
+          <Boton
+            titulo={
+              propuesta === 'mia' ? 'Esperando a tu rival…' : 'Aceptar la revancha'
+            }
+            onPress={aceptarRevancha}
+            cargando={ocupadoRevancha}
+            deshabilitado={propuesta === 'mia'}
+          />
+        ) : (
+          <Boton
+            titulo="Revancha"
+            onPress={pedirRevancha}
+            cargando={ocupadoRevancha}
+          />
+        )}
+
+        {errorRevancha && <Texto style={estilos.errorRevancha}>{errorRevancha}</Texto>}
+
+        <Boton titulo="Volver" variante="secundario" onPress={volver} />
       </ScrollView>
     );
   }
@@ -408,6 +494,11 @@ const estilos = StyleSheet.create({
     fontSize: escala.micro,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
+  },
+  errorRevancha: {
+    color: colores.peligro,
+    fontSize: 13,
+    textAlign: 'center',
   },
   errorPulla: {
     color: colores.peligro,

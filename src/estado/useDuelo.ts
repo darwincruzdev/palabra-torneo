@@ -8,11 +8,14 @@ import { esAceptada } from '../game/palabras';
 import {
   PALABRAS_POR_DUELO,
   SEGUNDOS_FINAL,
+  cerradasVacias,
   codificarIntento,
   debeCerrarPorTiempo,
   descodificarLetras,
   descodificarPalabra,
   normalizarProgreso,
+  rivalSeHaIdo,
+  segundosRestantes,
   palabraAcertada,
   palabrasDeDuelo,
   puntosDeDuelo,
@@ -117,12 +120,27 @@ export function useDuelo(dueloId: string, uid: string | null) {
   );
   const rival = duelo?.retador?.uid === uidRival ? duelo?.retador : duelo?.rival;
 
-  const ronda = rondaDe(mio.cerradas, suyo.cerradas);
+  /**
+   * Palabras que le doy por perdidas al rival porque se fue y no volvió.
+   *
+   * No se escriben en la base de datos: su progreso sólo lo puede tocar él, y
+   * está bien que sea así. Esto es una decisión de este móvil para poder seguir
+   * jugando, y cuadra sola: si vuelve, su propia cuenta atrás ya habrá vencido
+   * y cerrará la palabra igual.
+   */
+  const [abandonadas, setAbandonadas] = useState<boolean[]>(cerradasVacias);
+
+  const susCerradas = useMemo(
+    () => suyo.cerradas.map((cerrada, i) => cerrada || abandonadas[i] === true),
+    [suyo.cerradas, abandonadas]
+  );
+
+  const ronda = rondaDe(mio.cerradas, susCerradas);
   const indice = Math.min(ronda, PALABRAS_POR_DUELO - 1);
   const solucion = palabras[indice] ?? '';
 
   const yaCerreLaRonda = Boolean(mio.cerradas[indice]);
-  const elCerroLaRonda = Boolean(suyo.cerradas[indice]);
+  const elCerroLaRonda = Boolean(susCerradas[indice]);
   const terminado = ronda >= PALABRAS_POR_DUELO;
 
   /**
@@ -226,14 +244,52 @@ export function useDuelo(dueloId: string, uid: string | null) {
       setCuenta(null);
       return;
     }
-    setCuenta({ ronda: indice, quedan: SEGUNDOS_FINAL });
-    const tic = setInterval(() => {
-      setCuenta((actual) =>
-        actual ? { ...actual, quedan: Math.max(0, actual.quedan - 1) } : null
-      );
-    }, 1000);
+    // Contra un instante final, no restando de uno en uno: al volver de otra
+    // pestaña la cuenta sale correcta aunque el temporizador se haya parado.
+    const fin = Date.now() + SEGUNDOS_FINAL * 1000;
+    const refrescar = () =>
+      setCuenta({ ronda: indice, quedan: segundosRestantes(fin, Date.now()) });
+    refrescar();
+    const tic = setInterval(refrescar, 250);
     return () => clearInterval(tic);
   }, [contrarreloj, indice]);
+
+  /**
+   * El otro lado del reloj: yo ya cerré y el rival no aparece.
+   *
+   * Su cuenta atrás vive sólo en su móvil, así que si cierra el navegador se le
+   * congela y no llega a escribir nada. Sin esto, el que espera se quedaba
+   * mirando la pantalla para siempre. Pasados sus treinta segundos más un
+   * margen, esta partida da su palabra por perdida y sigue.
+   */
+  const esperandoAlOtro =
+    yaCerreLaRonda && !elCerroLaRonda && !terminado && duelo?.estado === 'jugando';
+
+  const esperaDesde = useRef<{ ronda: number; desde: number } | null>(null);
+
+  useEffect(() => {
+    if (!esperandoAlOtro) {
+      esperaDesde.current = null;
+      return;
+    }
+    // El ancla es la hora de este móvil, de principio a fin: comparar con el
+    // reloj del otro se comería segundos en cuanto uno fuera descuadrado.
+    if (esperaDesde.current?.ronda !== indice) {
+      esperaDesde.current = { ronda: indice, desde: Date.now() };
+    }
+    const tic = setInterval(() => {
+      const espera = esperaDesde.current;
+      if (!espera || espera.ronda !== indice) return;
+      if (!rivalSeHaIdo(espera.desde, Date.now())) return;
+      setAbandonadas((previas) => {
+        if (previas[indice]) return previas;
+        const nuevas = [...previas];
+        nuevas[indice] = true;
+        return nuevas;
+      });
+    }, 500);
+    return () => clearInterval(tic);
+  }, [esperandoAlOtro, indice]);
 
   // Se acabó el tiempo: la palabra se cierra con lo que hubiera.
   useEffect(() => {

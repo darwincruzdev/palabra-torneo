@@ -4,10 +4,12 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import type {
   Avatar,
+  ResumenMes,
   DiaTorneo,
   Obligacion,
   ReglasTorneo,
@@ -15,22 +17,32 @@ import type {
   Torneo,
   TorneoActivo,
 } from '../tipos';
-import { clasificacion, liderDestacado } from '../game/clasificacion';
+import {
+  clasificacion,
+  colistaDestacado,
+  liderDestacado,
+  resumirMeses,
+} from '../game/clasificacion';
 import { fechaJuego, sumarDias } from '../game/fecha';
 import { esAceptada } from '../game/palabras';
 import { normalizar } from '../game/normalizar';
 import {
-  blueshellGastada,
+  balasQueLeQuedan,
   blueshellsContra,
   blueshellsEfectivas,
+  escudosQueLeQuedan,
   estaProtegido,
-  jornadasParaRecargar,
   normalizarReglas,
   obligacionesDe,
-  proteccionGastada,
   todasLasBlueshells,
   type BlueshellLanzada,
 } from '../game/reglas';
+import {
+  mesDe,
+  mesSiguiente,
+  primerDiaDelMes,
+  ultimoDiaDelMes,
+} from '../game/temporada';
 import { avatarInicial, normalizarAvatar } from '../game/avatares';
 import {
   cargarPerfilLocal,
@@ -58,7 +70,11 @@ type Estado = {
   /** null mientras se averigua; false = hay que pasar por la bienvenida. */
   perfilConfigurado: boolean | null;
   torneos: Torneo[];
+  /** Las jornadas de la temporada en curso. Lo anterior va en `resumenes`. */
   jornadas: Record<string, DiaTorneo[]>;
+  /** Cómo quedó cada mes cerrado. Se llena al llamar a `cargarResumenes`. */
+  resumenes: Record<string, ResumenMes[]>;
+  cargarResumenes: (torneoId: string) => Promise<void>;
   /** El torneo cuya palabra se está jugando ahora mismo. */
   activo: TorneoActivo;
   elegirTorneo: (torneoId: string) => void;
@@ -72,6 +88,8 @@ type Estado = {
    * hecha. Es lo que impide repetirla desde otro sitio.
    */
   miResultado: (torneoId: string, fecha: string) => ResultadoDia | null;
+  /** ¿Voy último en solitario? Entonces hoy me toca una letra de regalo. */
+  ultimoEn: (torneoId: string) => boolean;
   /** Las normas de la casa de un torneo, con las de siempre por defecto. */
   reglasDe: (torneoId: string) => ReglasTorneo;
   /** Qué palabras tengo impuestas hoy en ese torneo, y en qué intento. */
@@ -96,6 +114,8 @@ type Estado = {
   crearTorneo: (nombre: string) => Promise<Torneo>;
   unirsePorCodigo: (codigo: string) => Promise<Torneo | null>;
   salir: (torneoId: string) => Promise<void>;
+  /** El fundador decide quién gana un mes empatado. */
+  decidirDesempate: (torneoId: string, mes: string, jugador: string) => Promise<void>;
   /** El fundador reinicia la competición: la clasificación cuenta desde hoy. */
   reiniciarTorneo: (torneoId: string) => Promise<void>;
   publicar: (
@@ -119,8 +139,11 @@ export type EstadoBlueshell = {
   /** Ya gasté hoy la protección. */
   protegido: boolean;
   puedoProteger: boolean;
-  /** Jornadas que faltan para recargar bala y protección, contando la de hoy. */
-  paraRecargar: number;
+  /** Balas y escudos que le quedan a uno este mes. */
+  balas: number;
+  escudos: number;
+  /** Cuándo se recarga todo: el día 1 del mes que viene. */
+  recargaEl: string;
   /**
    * Las balas de todo el mundo, para que el grupo se entere. Las de mañana
    * están en el aire; las de hoy ya han caído.
@@ -138,6 +161,15 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const [avatar, setAvatar] = useState<Avatar>(() => normalizarAvatar(null));
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [jornadas, setJornadas] = useState<Record<string, DiaTorneo[]>>({});
+  /**
+   * Los meses cerrados, ya reducidos a cómo quedaron.
+   *
+   * No se cargan al abrir la app: sólo cuando alguien va a mirarlos. Y una vez
+   * reducidos se tiran los días, que es lo que evita arrastrar el historial
+   * entero en la memoria de cada móvil.
+   */
+  const [resumenes, setResumenes] = useState<Record<string, ResumenMes[]>>({});
+  const cargandoResumenes = useRef<Set<string>>(new Set());
   const [activoId, setActivoId] = useState<string>(TORNEO_LIBRE.id);
   const [configurado, setConfigurado] = useState<boolean | null>(null);
   const [letraGrande, setLetraGrande] = useState(false);
@@ -192,18 +224,30 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     return datos.observarMisTorneos(uid, setTorneos);
   }, [uid]);
 
-  // Una suscripción por torneo a sus jornadas.
+  const hoy = fechaJuego();
+
+  /**
+   * Una escucha por torneo, pero sólo de la temporada en curso.
+   *
+   * La ventana se estira hasta mañana aunque se salga del mes: las blueshells
+   * viven en el día al que golpean, así que la que se dispara el 31 está ya en
+   * el documento del 1.
+   */
   useEffect(() => {
     if (!datos.hayFirebase) return;
+    const mes = mesDe(hoy);
+    const desde = primerDiaDelMes(mes);
+    const finDeMes = ultimoDiaDelMes(mes);
+    const manana = sumarDias(hoy, 1);
+    const hasta = manana > finDeMes ? manana : finDeMes;
+
     const cancelaciones = torneos.map((torneo) =>
-      datos.observarJornadas(torneo.id, (dias) =>
+      datos.observarJornadas(torneo.id, desde, hasta, (dias) =>
         setJornadas((previo) => ({ ...previo, [torneo.id]: dias }))
       )
     );
     return () => cancelaciones.forEach((cancelar) => cancelar());
-  }, [torneos]);
-
-  const hoy = fechaJuego();
+  }, [torneos, hoy]);
 
   const activo: TorneoActivo = useMemo(() => {
     const torneo = torneos.find((t) => t.id === activoId);
@@ -223,6 +267,35 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
    * las cinco palabras obligatorias. Es por torneo, porque cada uno lleva su
    * propia clasificación.
    */
+  /**
+   * Trae el historial de un torneo y lo deja reducido a resúmenes.
+   *
+   * Se pide una sola vez por torneo y sesión, y sólo desde las pantallas que
+   * miran meses pasados. La pantalla de juego y la de modos no lo piden nunca,
+   * que es donde más importa no gastar batería ni datos.
+   */
+  const cargarResumenes = useCallback(
+    async (torneoId: string) => {
+      if (!datos.hayFirebase) return;
+      if (cargandoResumenes.current.has(torneoId)) return;
+      const torneo = torneos.find((t) => t.id === torneoId);
+      if (!torneo) return;
+
+      cargandoResumenes.current.add(torneoId);
+      try {
+        const historial = await datos.obtenerJornadas(torneoId);
+        setResumenes((previo) => ({
+          ...previo,
+          [torneoId]: resumirMeses(torneo, historial, hoy),
+        }));
+      } catch {
+        // Sin historial se sigue jugando: la temporada en curso no depende de él.
+        cargandoResumenes.current.delete(torneoId);
+      }
+    },
+    [torneos, hoy]
+  );
+
   const reglasDe = useCallback(
     (torneoId: string) =>
       normalizarReglas(torneos.find((t) => t.id === torneoId)?.reglas),
@@ -235,7 +308,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       const torneo = torneos.find((t) => t.id === torneoId);
       if (!torneo) return false;
       if (!normalizarReglas(torneo.reglas).penalizacionLider) return false;
-      const filas = clasificacion(torneo, jornadas[torneoId] ?? [], hoy);
+      const filas = clasificacion(torneo, jornadas[torneoId] ?? [], { hasta: hoy });
       return liderDestacado(filas) === uid;
     },
     [torneos, jornadas, uid, hoy]
@@ -250,6 +323,23 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     [jornadas, uid]
   );
 
+  /**
+   * La ayuda al colista se decide con la clasificación cerrada a ayer, igual
+   * que la penalización del líder: si se recalculara con la jornada de hoy,
+   * la letra podría aparecer y desaparecer según fueran jugando los demás.
+   */
+  const ultimoEn = useCallback(
+    (torneoId: string) => {
+      if (!uid) return false;
+      const torneo = torneos.find((t) => t.id === torneoId);
+      if (!torneo) return false;
+      if (!normalizarReglas(torneo.reglas).ayudaAlUltimo) return false;
+      const filas = clasificacion(torneo, jornadas[torneoId] ?? [], { hasta: hoy });
+      return colistaDestacado(filas) === uid;
+    },
+    [torneos, jornadas, uid, hoy]
+  );
+
   const obligacionesHoy = useCallback(
     (torneoId: string): Obligacion[] => {
       if (!uid) return [];
@@ -258,7 +348,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       const dias = jornadas[torneoId] ?? [];
       return obligacionesDe({
         reglas: normalizarReglas(torneo.reglas),
-        liderando: liderDestacado(clasificacion(torneo, dias, hoy)) === uid,
+        liderando: liderDestacado(clasificacion(torneo, dias, { hasta: hoy })) === uid,
         blueshells: blueshellsEfectivas(
           dias.find((d) => d.fecha === hoy),
           uid
@@ -285,7 +375,9 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         recibidas: [],
         protegido: false,
         puedoProteger: false,
-        paraRecargar: 0,
+        balas: 0,
+        escudos: 0,
+        recargaEl: primerDiaDelMes(mesSiguiente(mesDe(hoy))),
         enJuego: { hoy: [], manana: [] },
       };
       if (!torneo || !uid) return vacio;
@@ -296,12 +388,14 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       const lider = liderDestacado(clasificacion(torneo, dias));
       const recibidas = blueshellsContra(diaHoy, uid);
       const protegido = estaProtegido(diaHoy, uid);
-      const balaGastada = blueshellGastada(dias, torneo.fechaInicio, hoy, uid);
+      const mes = mesDe(hoy);
+      const balas = balasQueLeQuedan(dias, torneo.fechaInicio, mes, uid);
+      const escudos = escudosQueLeQuedan(dias, torneo.fechaInicio, mes, uid);
 
       const impedimento = !activas
         ? 'Este torneo juega sin blueshells.'
-        : balaGastada
-          ? 'Ya has gastado tu bala en este ciclo.'
+        : balas === 0
+          ? 'Te has quedado sin balas este mes.'
           : !lider
             ? 'Ahora mismo no hay un líder en solitario al que disparar.'
             : lider === uid
@@ -315,12 +409,10 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         impedimento,
         recibidas,
         protegido,
-        puedoProteger:
-          activas &&
-          recibidas.length > 0 &&
-          !protegido &&
-          !proteccionGastada(dias, torneo.fechaInicio, hoy, uid),
-        paraRecargar: jornadasParaRecargar(torneo.fechaInicio, hoy),
+        puedoProteger: activas && recibidas.length > 0 && !protegido && escudos > 0,
+        balas,
+        escudos,
+        recargaEl: primerDiaDelMes(mesSiguiente(mes)),
         enJuego: {
           hoy: todasLasBlueshells(diaHoy),
           manana: todasLasBlueshells(dias.find((d) => d.fecha === sumarDias(hoy, 1))),
@@ -445,12 +537,29 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     [uid, activoId, elegirTorneo]
   );
 
+  /**
+   * Reinicia la competición desde la jornada siguiente.
+   *
+   * Desde mañana y no desde hoy a propósito: la jornada de hoy ya está a medio
+   * jugar, y arrancarla en hoy le dejaba los puntos de esta mañana a quien ya
+   * hubiera jugado. El que no había jugado se veía a cero y los demás no, así
+   * que parecía que el reinicio sólo funcionaba para uno. Empezando mañana, la
+   * tabla se queda a cero para todos en el mismo instante.
+   */
   const reiniciarTorneo = useCallback(
     async (torneoId: string) => {
-      if (!uid || !datos.hayFirebase) return;
-      await datos.reiniciarTorneo(torneoId, hoy);
+      if (!uid || !datos.hayFirebase) throw new Error('Hay que entrar con Google');
+      await datos.reiniciarTorneo(torneoId, sumarDias(hoy, 1));
     },
     [uid, hoy]
+  );
+
+  const decidirDesempate = useCallback(
+    async (torneoId: string, mes: string, jugador: string) => {
+      if (!uid || !datos.hayFirebase) throw new Error('Hay que entrar con Google');
+      await datos.guardarDesempate(torneoId, mes, jugador);
+    },
+    [uid]
   );
 
   const publicar = useCallback(
@@ -479,9 +588,12 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     perfilConfigurado: configurado,
     torneos,
     jornadas,
+    resumenes,
+    cargarResumenes,
     activo,
     elegirTorneo,
     penalizadoEn,
+    ultimoEn,
     miResultado,
     reglasDe,
     obligacionesHoy,
@@ -496,6 +608,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     unirsePorCodigo,
     salir,
     reiniciarTorneo,
+    decidirDesempate,
     publicar,
   };
 

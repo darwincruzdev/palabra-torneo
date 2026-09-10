@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import { LONGITUD, MAX_INTENTOS } from '../game/constantes';
-import { cumple, obligacionEn, sinBlueshells } from '../game/reglas';
+import {
+  MAX_VOCALES_AL_ABRIR,
+  cumple,
+  demasiadasVocales,
+  obligacionEn,
+  pistaDe,
+  sinBlueshells,
+} from '../game/reglas';
 import { estadoTeclado, patronCompartible, puntosDe } from '../game/evaluar';
 import { fechaJuego, msHastaProximaJornada } from '../game/fecha';
 import { esAceptada, solucionDe } from '../game/palabras';
@@ -16,7 +23,9 @@ const AVISO_MS = 1800;
 function partidaNueva(
   torneoId: string,
   fecha: string,
-  obligaciones: Obligacion[]
+  obligaciones: Obligacion[],
+  sinVocalesAlAbrir: boolean,
+  pista: string | null
 ): PartidaLocal {
   return {
     torneoId,
@@ -25,6 +34,8 @@ function partidaNueva(
     estado: 'jugando',
     penalizado: obligaciones.some((o) => o.motivo === 'lider'),
     obligaciones,
+    sinVocalesAlAbrir,
+    pista,
     enviado: false,
   };
 }
@@ -46,8 +57,17 @@ function avisoDe(obligacion: Obligacion, autor: string): string {
  * así que quien esté en tres torneos tiene tres palabras que adivinar.
  */
 export function useJuego() {
-  const { activo, obligacionesHoy, blueshellsDe, usarProteccion, publicar, miResultado } =
-    useApp();
+  const {
+    activo,
+    obligacionesHoy,
+    blueshellsDe,
+    usarProteccion,
+    publicar,
+    miResultado,
+    reglasDe,
+    ultimoEn,
+    uid,
+  } = useApp();
 
   const torneoId = activo.id;
   const [fecha, setFecha] = useState(fechaJuego);
@@ -73,6 +93,26 @@ export function useJuego() {
 
   const solucion = solucionDe(fecha, activo.semilla);
   const impuestas = obligacionesHoy(torneoId);
+
+  /**
+   * La norma de no abrir con cuatro vocales, que es de torneo.
+   *
+   * En modo libre no se aplica: ahí no se compite con nadie y no hay ventaja
+   * que recortar.
+   */
+  const sinVocalesAlAbrir =
+    activo.tipo === 'torneo' && reglasDe(torneoId).sinVocalesAlAbrir;
+
+  /**
+   * La letra de regalo para quien va último.
+   *
+   * La semilla lleva el día, el torneo y la persona, así que sale siempre la
+   * misma mientras dure la jornada: recargar la pantalla no da letras nuevas.
+   */
+  const pista =
+    activo.tipo === 'torneo' && ultimoEn(torneoId)
+      ? pistaDe(solucion, `${fecha}:${torneoId}:${uid ?? ''}`)
+      : null;
 
   /**
    * Lo que ya consta publicado de esta jornada, que manda sobre el móvil.
@@ -106,7 +146,9 @@ export function useJuego() {
     setFilaAnimada(null);
     cargarPartida(torneoId, fecha).then((guardada) => {
       if (!vigente) return;
-      setPartida(guardada ?? partidaNueva(torneoId, fecha, impuestas));
+      setPartida(
+        guardada ?? partidaNueva(torneoId, fecha, impuestas, sinVocalesAlAbrir, pista)
+      );
     });
     return () => {
       vigente = false;
@@ -136,6 +178,27 @@ export function useJuego() {
       };
     });
   }, [claveImpuestas]);
+
+  // Lo mismo para la norma de las vocales: llega con los torneos, y sólo se
+  // aplica si todavía no se ha escrito nada.
+  useEffect(() => {
+    setPartida((previa) =>
+      previa &&
+      previa.intentos.length === 0 &&
+      previa.sinVocalesAlAbrir !== sinVocalesAlAbrir
+        ? { ...previa, sinVocalesAlAbrir }
+        : previa
+    );
+  }, [sinVocalesAlAbrir]);
+
+  // Y la pista, que también llega con los torneos.
+  useEffect(() => {
+    setPartida((previa) =>
+      previa && previa.intentos.length === 0 && previa.pista !== pista
+        ? { ...previa, pista }
+        : previa
+    );
+  }, [pista]);
 
   // Cambio de jornada con la app abierta: a medianoche entra palabra nueva.
   useEffect(() => {
@@ -227,6 +290,25 @@ export function useJuego() {
       return;
     }
 
+    /**
+     * Abrir con cuatro vocales barre medio abecedario de un tirón.
+     *
+     * Sólo el primer intento, y sólo si nadie le está imponiendo la palabra: el
+     * juego no puede obligar a escribir algo y después rechazarlo. Hoy ninguna
+     * de las cinco de penalización llega a cuatro vocales, pero el día que se
+     * cambie esa lista esto seguirá sin bloquear la partida.
+     */
+    if (
+      !obligacion &&
+      partida.sinVocalesAlAbrir &&
+      partida.intentos.length === 0 &&
+      demasiadasVocales(intento)
+    ) {
+      mostrarAviso(`Para abrir, como mucho ${MAX_VOCALES_AL_ABRIR} vocales`);
+      setTemblor((n) => n + 1);
+      return;
+    }
+
     if (!esAceptada(intento)) {
       mostrarAviso('No está en la lista de palabras');
       setTemblor((n) => n + 1);
@@ -301,6 +383,8 @@ export function useJuego() {
   }, [torneoId, usarProteccion, mostrarAviso]);
 
   return {
+    /** La letra que se le chiva por ir último, si le toca. */
+    pista: partida?.pista ?? null,
     /**
      * El resultado que ya consta en el torneo, si la jornada está hecha. La
      * pantalla enseña el resumen en vez del tablero.

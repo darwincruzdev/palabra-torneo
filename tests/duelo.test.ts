@@ -1,17 +1,23 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  CADUCA_COLA_MS,
+  GRACIA_ABANDONO_MS,
   PALABRAS_POR_DUELO,
+  SEGUNDOS_FINAL,
   codificarIntento,
   descodificarPalabra,
   ganador,
   palabraAcertada,
   palabrasCerradas,
   palabrasDeDuelo,
-  puntosDePalabra,
   puntosDeDuelo,
+  puntosDePalabra,
   rejillaVacia,
   resumir,
+  rivalSeHaIdo,
+  rivalesPosibles,
+  segundosRestantes,
 } from '../src/game/duelo';
 import { esAceptada } from '../src/game/palabras';
 
@@ -174,5 +180,104 @@ describe('quién gana', () => {
     assert.equal(resumir(ana).puntos, 10);
     assert.equal(resumir(bea).puntos, 7);
     assert.equal(ganador({ uid: 'ana', rejilla: ana }, { uid: 'bea', rejilla: bea }).uid, 'ana');
+  });
+});
+
+describe('emparejar en la cola', () => {
+  const AHORA = 1_000_000_000;
+
+  function sala(id: string, uid: string, hace = 0) {
+    return { id, retador: { uid }, creado: AHORA - hace };
+  }
+
+  it('no te empareja contigo mismo', () => {
+    const salas = [sala('a', 'yo'), sala('b', 'otro')];
+    assert.deepEqual(
+      rivalesPosibles(salas, 'yo', AHORA).map((s) => s.id),
+      ['b']
+    );
+  });
+
+  it('entra primero quien lleva más tiempo esperando', () => {
+    const salas = [
+      sala('nueva', 'ana', 1000),
+      sala('vieja', 'bea', 60_000),
+      sala('media', 'caj', 30_000),
+    ];
+    assert.deepEqual(
+      rivalesPosibles(salas, 'yo', AHORA).map((s) => s.id),
+      ['vieja', 'media', 'nueva']
+    );
+  });
+
+  it('descarta las salas abandonadas', () => {
+    const salas = [
+      sala('fantasma', 'ana', CADUCA_COLA_MS + 1),
+      sala('viva', 'bea', CADUCA_COLA_MS - 1),
+    ];
+    assert.deepEqual(
+      rivalesPosibles(salas, 'yo', AHORA).map((s) => s.id),
+      ['viva']
+    );
+  });
+
+  it('descarta lo que no tenga retador, por si llega un documento a medias', () => {
+    const salas = [{ id: 'roto', creado: AHORA }, sala('buena', 'ana')];
+    assert.deepEqual(
+      rivalesPosibles(salas, 'yo', AHORA).map((s) => s.id),
+      ['buena']
+    );
+  });
+
+  it('sin nadie esperando devuelve la lista vacía, no revienta', () => {
+    assert.deepEqual(rivalesPosibles([], 'yo', AHORA), []);
+    assert.deepEqual(rivalesPosibles([sala('mia', 'yo')], 'yo', AHORA), []);
+  });
+});
+
+describe('el reloj del duelo', () => {
+  const AHORA = 1_700_000_000_000;
+
+  it('cuenta hacia abajo desde los segundos que toquen', () => {
+    assert.equal(segundosRestantes(AHORA + SEGUNDOS_FINAL * 1000, AHORA), SEGUNDOS_FINAL);
+    assert.equal(segundosRestantes(AHORA + 1000, AHORA), 1);
+    assert.equal(segundosRestantes(AHORA, AHORA), 0);
+  });
+
+  it('redondea hacia arriba, para que no se vea un cero con tiempo aún', () => {
+    assert.equal(segundosRestantes(AHORA + 1, AHORA), 1);
+    assert.equal(segundosRestantes(AHORA + 29_500, AHORA), 30);
+  });
+
+  it('nunca baja de cero, aunque se vuelva mucho después', () => {
+    // Es el caso de salir de la pestaña: al volver, el instante final quedó muy
+    // atrás y restando de uno en uno la cuenta habría marcado de más.
+    assert.equal(segundosRestantes(AHORA - 500_000, AHORA), 0);
+  });
+});
+
+describe('el rival que se va y no vuelve', () => {
+  const DESDE = 1_700_000_000_000;
+  const LIMITE = SEGUNDOS_FINAL * 1000 + GRACIA_ABANDONO_MS;
+
+  it('no se le da por perdido nada más empezar', () => {
+    assert.equal(rivalSeHaIdo(DESDE, DESDE), false);
+    assert.equal(rivalSeHaIdo(DESDE, DESDE + 1000), false);
+  });
+
+  it('se le respeta su cuenta atrás entera', () => {
+    // Justo al agotarse sus segundos todavía no: puede haber enviado la palabra
+    // y estar el mensaje viajando.
+    assert.equal(rivalSeHaIdo(DESDE, DESDE + SEGUNDOS_FINAL * 1000), false);
+    assert.equal(rivalSeHaIdo(DESDE, DESDE + LIMITE - 1), false);
+  });
+
+  it('pasado el margen, quien espera puede seguir', () => {
+    assert.equal(rivalSeHaIdo(DESDE, DESDE + LIMITE), true);
+    assert.equal(rivalSeHaIdo(DESDE, DESDE + 600_000), true);
+  });
+
+  it('el margen es de verdad, no de cero', () => {
+    assert.ok(GRACIA_ABANDONO_MS > 0, 'sin margen se le robaría la palabra al que llega justo');
   });
 });

@@ -145,6 +145,17 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
         </Pressable>
       )}
 
+      {/* Una mano para quien se está descolgando. Se enseña toda la partida:
+          es una letra, no una cuenta atrás. */}
+      {juego.pista && !yaHecha && (
+        <View style={estilos.bandaPista}>
+          <Texto style={estilos.textoPista}>
+            Vas último, así que va una ayuda: la palabra lleva una{' '}
+            <Texto style={estilos.letraPista}>{juego.pista.toUpperCase()}</Texto>
+          </Texto>
+        </View>
+      )}
+
       {/* La palabra impuesta del intento en curso, venga de ir primero o de que
           te hayan disparado. El tablero no distingue: sólo obedece. */}
       {juego.obligacion && juego.obligacion.motivo === 'lider' && (
@@ -478,6 +489,22 @@ const estilos = StyleSheet.create({
     fontSize: escala.pequeno,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  bandaPista: {
+    backgroundColor: 'rgba(61, 163, 93, 0.12)',
+    borderBottomWidth: 1,
+    borderBottomColor: colores.correcta,
+    paddingHorizontal: espaciado.md,
+    paddingVertical: espaciado.sm,
+  },
+  textoPista: {
+    color: colores.correcta,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  letraPista: {
+    fontFamily: fuentes.ficha,
+    fontSize: escala.medio,
   },
   bandaBlueshell: {
     backgroundColor: 'rgba(40, 200, 224, 0.12)',

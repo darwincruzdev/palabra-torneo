@@ -1,16 +1,26 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  limit,
   onSnapshot,
+  query,
   runTransaction,
   serverTimestamp,
   updateDoc,
+  where,
   type Unsubscribe,
 } from 'firebase/firestore';
 import type { Avatar, Duelo, InvitacionDuelo, JugadorDuelo, ProgresoDuelo } from '../tipos';
 import { generarSemilla } from '../game/semilla';
-import { PALABRAS_POR_DUELO, cerradasVacias, rejillaVacia } from '../game/duelo';
+import {
+  PALABRAS_POR_DUELO,
+  cerradasVacias,
+  rejillaVacia,
+  rivalesPosibles,
+} from '../game/duelo';
 import { baseDatos } from './cliente';
 
 // Sin vocales ni caracteres que se confundan al dictarlos.
@@ -43,7 +53,8 @@ function progresoInicial(): ProgresoDuelo {
 export async function crearDuelo(
   uid: string,
   nombre: string,
-  avatar: Avatar
+  avatar: Avatar,
+  abierto = false
 ): Promise<Duelo> {
   const referencia = doc(collection(baseDatos(), 'duelos'));
   const retador: JugadorDuelo = { uid, nombre, avatar };
@@ -60,6 +71,7 @@ export async function crearDuelo(
       estado: 'esperando',
       retador,
       rival: null,
+      abierto,
       jugadores: [uid],
       progreso: { [uid]: progresoInicial() },
     };
@@ -118,6 +130,74 @@ export async function unirseADuelo(
       estado: 'jugando',
     });
   });
+}
+
+/* -------------------------------------------------------------------- cola */
+
+/**
+ * Busca rival en la cola y, si no hay nadie, se queda esperando.
+ *
+ * No hay colección de espera: la sala es el propio documento del duelo, con
+ * `abierto` puesto. Quien llega lista los abiertos sin rival y entra en el más
+ * antiguo; el que no encuentra a nadie, crea el suyo y espera a que otro entre.
+ *
+ * La consulta va sólo con igualdades y sin ordenar a propósito: así le vale a
+ * Firestore con sus índices automáticos y no hay que crear ninguno a mano. El
+ * orden por antigüedad se hace aquí, sobre un puñado de documentos.
+ *
+ * @returns el duelo, y si hubo que crearlo o se entró en uno que ya esperaba.
+ */
+export async function entrarEnCola(
+  uid: string,
+  nombre: string,
+  avatar: Avatar
+): Promise<{ dueloId: string; codigo: string; esperando: boolean }> {
+  const instantanea = await getDocs(
+    query(
+      collection(baseDatos(), 'duelos'),
+      where('abierto', '==', true),
+      where('rival', '==', null),
+      limit(10)
+    )
+  );
+
+  const candidatos = rivalesPosibles(
+    instantanea.docs.map((d) => ({ ...(d.data() as Duelo), id: d.id })),
+    uid,
+    Date.now()
+  ) as Duelo[];
+
+  // Puede haber dos personas entrando a la vez en el mismo: la transacción de
+  // unirse lo rechaza, y se prueba con el siguiente de la lista.
+  for (const candidato of candidatos) {
+    try {
+      await unirseADuelo(candidato.id, uid, nombre, avatar);
+      return { dueloId: candidato.id, codigo: candidato.codigo, esperando: false };
+    } catch {
+      continue;
+    }
+  }
+
+  const propio = await crearDuelo(uid, nombre, avatar, true);
+  return { dueloId: propio.id, codigo: propio.codigo, esperando: true };
+}
+
+/** Salir de la cola: se lleva por delante el duelo que estaba esperando. */
+export async function salirDeLaCola(dueloId: string, codigo: string): Promise<void> {
+  await deleteDoc(doc(baseDatos(), 'codigosDuelo', codigo)).catch(() => {});
+  await deleteDoc(doc(baseDatos(), 'duelos', dueloId)).catch(() => {});
+}
+
+/* ---------------------------------------------------------------- revancha */
+
+/**
+ * Apunta en el duelo terminado cuál es el de la revancha.
+ *
+ * Con esto el otro se entera sin recargar nada: ya está escuchando este
+ * documento, así que le aparece el botón de aceptar en cuanto se escribe.
+ */
+export async function proponerRevancha(dueloId: string, nuevoId: string): Promise<void> {
+  await updateDoc(doc(baseDatos(), 'duelos', dueloId), { revancha: nuevoId });
 }
 
 /** El duelo en tiempo real: es lo que alimenta la minipantalla del rival. */

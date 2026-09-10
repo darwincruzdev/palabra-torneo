@@ -130,6 +130,27 @@ export async function guardarTorneoActivo(torneoId: string): Promise<void> {
   }
 }
 
+/* ------------------------------------------------------------ aviso de parche */
+
+const CLAVE_AVISO_PARCHE = 'pt:aviso-parche';
+
+/**
+ * Cuándo vio esta persona por primera vez el aviso de una versión.
+ *
+ * Se guarda por versión y no una simple bandera de "visto" porque el aviso dura
+ * un día desde que cada uno lo ve, no desde que se publicó: quien no abre la app
+ * ese día se quedaría sin enterarse.
+ */
+export type AvisoParcheLocal = { version: string; desde: number };
+
+export function cargarAvisoParche(): Promise<AvisoParcheLocal | null> {
+  return leerJson<AvisoParcheLocal>(CLAVE_AVISO_PARCHE);
+}
+
+export function guardarAvisoParche(aviso: AvisoParcheLocal): Promise<void> {
+  return escribirJson(CLAVE_AVISO_PARCHE, aviso);
+}
+
 /* --------------------------------------------------------------- historial */
 
 export type EntradaHistorial = Pick<

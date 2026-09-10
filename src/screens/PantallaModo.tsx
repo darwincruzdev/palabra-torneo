@@ -9,6 +9,7 @@ import { Texto } from '../components/Texto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { AvisoInstalar } from '../components/AvisoInstalar';
+import { AvisoParche } from '../components/AvisoParche';
 import { SelectorTorneo } from '../components/SelectorTorneo';
 import { Cifra, Rotulo } from '../components/ui';
 import { clasificacion } from '../game/clasificacion';
@@ -88,6 +89,8 @@ export function PantallaModo({ irAJugar, irATorneos, irADuelos, irAPerfil }: Pro
         </View>
         <Texto style={estilos.editar}>Editar</Texto>
       </Pressable>
+
+      <AvisoParche />
 
       <AvisoInstalar />
 

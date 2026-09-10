@@ -115,7 +115,7 @@ export function PantallaTorneos({
         const filas = clasificacion(torneo, jornadas[torneo.id] ?? []);
         const miFila = filas.find((f) => f.uid === uid);
         const puesto = filas.findIndex((f) => f.uid === uid) + 1;
-        const lidero = liderDestacado(clasificacion(torneo, jornadas[torneo.id] ?? [], hoy)) === uid;
+        const lidero = liderDestacado(clasificacion(torneo, jornadas[torneo.id] ?? [], { hasta: hoy })) === uid;
         const esActivo = activo.id === torneo.id;
 
         return (

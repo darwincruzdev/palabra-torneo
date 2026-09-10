@@ -39,3 +39,15 @@ export const PALABRAS_PENALIZACION = [
   'cocos',
   'tutus',
 ] as const;
+
+/**
+ * La versión que se anuncia en las notas del parche, y dónde están.
+ *
+ * Se toca a mano en cada parche: la página es un documento aparte, no se
+ * genera desde aquí. Si se queda desactualizada, el botón del perfil manda a
+ * las notas de un parche viejo, que es peor que no tener botón.
+ */
+export const VERSION_PARCHE = '26.10';
+export const NOTAS_DEL_PARCHE = `${
+  (process.env.EXPO_PUBLIC_URL_BASE ?? '').replace(/\/+$/, '')
+}/parche.html`;

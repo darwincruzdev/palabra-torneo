@@ -1,19 +1,24 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  JORNADAS_POR_CICLO,
-  blueshellGastada,
+  BLUESHELLS_POR_MES,
+  MAX_VOCALES_AL_ABRIR,
+  PROTECCIONES_POR_MES,
+  balasQueLeQuedan,
   blueshellsContra,
   blueshellsEfectivas,
-  ciclo,
+  blueshellsGastadas,
+  cuentaVocales,
   cumple,
+  demasiadasVocales,
+  escudosQueLeQuedan,
   estaProtegido,
-  jornadasParaRecargar,
   mensajeDeBlueshell,
   normalizarReglas,
   obligacionEn,
   obligacionesDe,
-  proteccionGastada,
+  pistaDe,
+  proteccionesGastadas,
   sinBlueshells,
   todasLasBlueshells,
 } from '../src/game/reglas';
@@ -26,7 +31,7 @@ const INICIO = '2026-01-01';
 const TODAS: ReglasTorneo = {
   penalizacionLider: true,
   blueshells: true,
-  faltaPorNoJugar: true,
+  faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true,
 };
 
 function dia(fecha: string, extra: Partial<DiaTorneo> = {}): DiaTorneo {
@@ -42,7 +47,7 @@ describe('normalizarReglas', () => {
     assert.deepEqual(normalizarReglas(undefined), {
       penalizacionLider: true,
       blueshells: true,
-      faltaPorNoJugar: true,
+      faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true,
     });
   });
 
@@ -50,24 +55,8 @@ describe('normalizarReglas', () => {
     assert.deepEqual(normalizarReglas({ blueshells: false }), {
       penalizacionLider: true,
       blueshells: false,
-      faltaPorNoJugar: true,
+      faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true,
     });
-  });
-});
-
-describe('ciclos de quince jornadas', () => {
-  it('cuenta desde la fundación del torneo', () => {
-    assert.equal(ciclo(INICIO, INICIO), 0);
-    assert.equal(ciclo(INICIO, sumarDias(INICIO, 14)), 0);
-    assert.equal(ciclo(INICIO, sumarDias(INICIO, 15)), 1);
-    assert.equal(ciclo(INICIO, sumarDias(INICIO, 29)), 1);
-    assert.equal(ciclo(INICIO, sumarDias(INICIO, 30)), 2);
-  });
-
-  it('dice cuántas jornadas faltan para recargar', () => {
-    assert.equal(jornadasParaRecargar(INICIO, INICIO), JORNADAS_POR_CICLO);
-    assert.equal(jornadasParaRecargar(INICIO, sumarDias(INICIO, 14)), 1);
-    assert.equal(jornadasParaRecargar(INICIO, sumarDias(INICIO, 15)), JORNADAS_POR_CICLO);
   });
 });
 
@@ -129,31 +118,6 @@ describe('protección', () => {
   });
 });
 
-describe('gasto por ciclo', () => {
-  it('la bala se descuenta del ciclo en que se disparó, no del que golpea', () => {
-    // Disparada la víspera del reset: cae en la primera jornada del ciclo
-    // siguiente, pero la bala gastada es la del ciclo viejo.
-    const vispera = sumarDias(INICIO, 14); // último día del ciclo 0
-    const golpea = sumarDias(INICIO, 15); // primer día del ciclo 1
-    const dias = [dia(golpea, { blueshells: { ana: bala('bea', 'sosos', vispera) } })];
-
-    assert.equal(blueshellGastada(dias, INICIO, vispera, 'ana'), true);
-    assert.equal(blueshellGastada(dias, INICIO, golpea, 'ana'), false);
-  });
-
-  it('no confunde la bala de una persona con la de otra', () => {
-    const dias = [dia(INICIO, { blueshells: { bea: bala('ana', 'sosos', INICIO) } })];
-    assert.equal(blueshellGastada(dias, INICIO, INICIO, 'bea'), true);
-    assert.equal(blueshellGastada(dias, INICIO, INICIO, 'ana'), false);
-  });
-
-  it('la protección se recarga al cambiar de ciclo', () => {
-    const dias = [dia(INICIO, { protecciones: { ana: true } })];
-    assert.equal(proteccionGastada(dias, INICIO, sumarDias(INICIO, 14), 'ana'), true);
-    assert.equal(proteccionGastada(dias, INICIO, sumarDias(INICIO, 15), 'ana'), false);
-  });
-});
-
 describe('obligaciones de la jornada', () => {
   const balas = [
     { ...bala('ana', 'sosos', '2026-01-09'), autor: 'bea' },
@@ -197,7 +161,7 @@ describe('obligaciones de la jornada', () => {
 
   it('un torneo sin blueshells ignora las que le hayan tirado', () => {
     const obligaciones = obligacionesDe({
-      reglas: { penalizacionLider: true, blueshells: false, faltaPorNoJugar: true },
+      reglas: { penalizacionLider: true, blueshells: false, faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
       liderando: true,
       blueshells: balas,
     });
@@ -210,7 +174,7 @@ describe('obligaciones de la jornada', () => {
   it('un torneo sin ninguna de las dos normas no impone nada', () => {
     assert.deepEqual(
       obligacionesDe({
-        reglas: { penalizacionLider: false, blueshells: false, faltaPorNoJugar: true },
+        reglas: { penalizacionLider: false, blueshells: false, faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
         liderando: true,
         blueshells: balas,
       }),
@@ -306,5 +270,74 @@ describe('lo que ve el grupo', () => {
     const datos = { torneo: 'T', autor: 'A', objetivo: 'B', palabra: 'sosos' };
     assert.ok(!mensajeDeBlueshell(datos).includes('http'));
     assert.match(mensajeDeBlueshell({ ...datos, enlace: 'https://x.web.app' }), /https:\/\/x/);
+  });
+});
+
+
+describe('abrir sin cuatro vocales', () => {
+  it('cuenta las vocales, y la ñ no lo es', () => {
+    assert.equal(cuentaVocales('aireo'), 4);
+    assert.equal(cuentaVocales('salto'), 2);
+    assert.equal(cuentaVocales('ninos'), 2);
+    assert.equal(cuentaVocales('nino'.replace('n', 'ñ')), 2);
+  });
+
+  it('las que puso el grupo de ejemplo quedan fuera', () => {
+    for (const palabra of ['aireo', 'aureo', 'audio']) {
+      assert.equal(demasiadasVocales(palabra), true, palabra);
+    }
+  });
+
+  it('con tres vocales todavía se puede abrir', () => {
+    for (const palabra of ['catio', 'bioma', 'pelee', 'amada']) {
+      assert.equal(demasiadasVocales(palabra), false, palabra);
+    }
+  });
+
+  it('ninguna de las cinco de penalización se pasa', () => {
+    // Si alguna se pasara, al líder se le exigiría una palabra que el juego
+    // rechaza y no podría abrir la jornada.
+    for (const palabra of PALABRAS_PENALIZACION) {
+      assert.equal(demasiadasVocales(palabra), false, palabra);
+    }
+  });
+
+  it('el tope es de tres', () => {
+    assert.equal(MAX_VOCALES_AL_ABRIR, 3);
+  });
+});
+
+describe('la letra que se le chiva al último', () => {
+  it('siempre sale una letra de la palabra', () => {
+    for (const palabra of ['salto', 'cocos', 'aireo', 'bioma']) {
+      const letra = pistaDe(palabra, 'lo que sea');
+      assert.ok(letra && palabra.includes(letra), `${letra} no está en ${palabra}`);
+    }
+  });
+
+  it('con la misma semilla sale siempre la misma', () => {
+    // Es lo que impide pescar letras recargando la pantalla.
+    const semilla = '2026-09-07:torneo1:darwin';
+    const primera = pistaDe('salto', semilla);
+    for (let i = 0; i < 20; i++) {
+      assert.equal(pistaDe('salto', semilla), primera);
+    }
+  });
+
+  it('a cada persona le toca la suya, y cambia cada día', () => {
+    const deDarwin = pistaDe('murcielago'.slice(0, 5), '2026-09-07:t:darwin');
+    const deNico = pistaDe('murcielago'.slice(0, 5), '2026-09-07:t:nico');
+    const deManana = pistaDe('murcielago'.slice(0, 5), '2026-09-08:t:darwin');
+    // No tienen por qué ser distintas siempre, pero sí depender de la semilla.
+    assert.ok([deDarwin, deNico, deManana].every((l) => l && 'murci'.includes(l)));
+    assert.ok(deDarwin !== deNico || deDarwin !== deManana, 'la semilla debe influir');
+  });
+
+  it('no repite letras al sortear: en cocos la O no vale doble', () => {
+    // Se elige entre las distintas, así que hay dos resultados posibles y no
+    // uno con el triple de probabilidad.
+    const salidas = new Set();
+    for (let i = 0; i < 200; i++) salidas.add(pistaDe('cocos', `semilla-${i}`));
+    assert.deepEqual([...salidas].sort(), ['c', 'o', 's']);
   });
 });

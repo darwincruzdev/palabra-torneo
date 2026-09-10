@@ -70,8 +70,14 @@ service cloud.firestore {
         request.auth.uid in resource.data.jugadores
         || resource.data.rival == null
       );
-      // Listar sigue restringido: nadie puede enumerar los duelos de los demás.
-      allow list: if conSesion() && request.auth.uid in resource.data.jugadores;
+      // Listar: los propios, y además los de la cola, que es como se encuentra
+      // rival sin pasarse un código. Un duelo de cola no tiene nada que
+      // proteger —ni puntuaciones ni rival— y su semilla se la iba a quedar
+      // igualmente quien entre.
+      allow list: if conSesion() && (
+        request.auth.uid in resource.data.jugadores
+        || (resource.data.abierto == true && resource.data.rival == null)
+      );
 
       allow create: if conSesion()
         && request.resource.data.retador.uid == request.auth.uid
@@ -87,9 +93,10 @@ service cloud.firestore {
           && request.resource.data.jugadores.size() == 2
         )
         || (
-          // Ya dentro: mi propio progreso, mis pullas y el cierre del duelo.
+          // Ya dentro: mi propio progreso, mis pullas, el cierre del duelo y
+          // proponer la revancha.
           request.auth.uid in resource.data.jugadores
-          && camposTocados().hasOnly(['progreso', 'estado', 'pullas'])
+          && camposTocados().hasOnly(['progreso', 'estado', 'pullas', 'revancha'])
           && (
             !camposTocados().hasAny(['progreso'])
             || request.resource.data.progreso.diff(resource.data.progreso)
@@ -136,9 +143,10 @@ service cloud.firestore {
         || (
           // El fundador pone el nombre, decide las normas de la casa y puede
           // reiniciar la competición moviendo la fecha de fundación. La
-          // semilla no se toca nunca.
+          // semilla no se toca nunca. Las puntuaciones no se tocan desde
+          // ningún sitio: es lo que hace que nadie pueda hacer trampas.
           resource.data.propietario == request.auth.uid
-          && camposTocados().hasOnly(['nombre', 'reglas', 'fechaInicio'])
+          && camposTocados().hasOnly(['nombre', 'reglas', 'fechaInicio', 'desempates'])
         )
       );
 

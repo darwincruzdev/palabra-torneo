@@ -60,6 +60,28 @@ export type ReglasTorneo = {
   blueshells: boolean;
   /** Saltarse una jornada cerrada resta un punto. */
   faltaPorNoJugar: boolean;
+  /**
+   * Qué pasa cuando un mes acaba en empate absoluto.
+   *
+   * Apagado, el trofeo se comparte. Encendido, el mes queda pendiente hasta que
+   * el fundador diga quién lo gana: sirve para resolverlo como quieran —un
+   * duelo, a suertes— sin que la app tenga que opinar.
+   */
+  desempateManual: boolean;
+  /**
+   * Prohíbe abrir la jornada con una palabra de cuatro vocales.
+   *
+   * Sólo afecta al primer intento: del segundo en adelante valen todas, entre
+   * otras cosas porque alguna de ellas puede ser la solución del día.
+   */
+  sinVocalesAlAbrir: boolean;
+  /**
+   * A quien va último en solitario se le chiva una letra de la palabra.
+   *
+   * Es una mano al que se está descolgando, no un premio: en cuanto deja de ir
+   * último solo, se le acaba.
+   */
+  ayudaAlUltimo: boolean;
 };
 
 /**
@@ -99,6 +121,13 @@ export type Torneo = {
    * existieran no lo traen y se quedan con las de siempre.
    */
   reglas?: ReglasTorneo;
+  /**
+   * mes -> quién ganó el desempate, cuando el torneo lo resuelve a mano.
+   *
+   * Sólo se hace caso si ese uid está entre los que empataron de verdad. No es
+   * una puerta para repartir trofeos a dedo: sólo para elegir entre iguales.
+   */
+  desempates?: Record<string, string>;
   /** Las jornadas anteriores a esta fecha no puntúan. */
   fechaInicio: string;
   creado: number;
@@ -112,6 +141,27 @@ export type Invitacion = {
   codigo: string;
   torneoId: string;
   nombre: string;
+};
+
+/**
+ * Cómo quedó un mes ya cerrado.
+ *
+ * Es lo que sustituye al día a día de los meses pasados: un mes terminado no va
+ * a cambiar nunca, así que no tiene sentido arrastrar sus treinta documentos en
+ * la memoria de cada móvil sólo para volver a sumar lo mismo.
+ */
+export type ResumenMes = {
+  mes: string;
+  /** La tabla final de ese mes, ya ordenada. */
+  filas: FilaClasificacion[];
+  /**
+   * Quién se llevó el trofeo. Si el mes quedó pendiente de desempate, son los
+   * que empataron, y `pendiente` lo distingue.
+   */
+  ganadores: string[];
+  pendiente?: boolean;
+  /** Jornadas que llegaron a jugarse, para poder decirlo. */
+  jornadas: number;
 };
 
 export type FilaClasificacion = {
@@ -147,6 +197,15 @@ export type PartidaLocal = {
    * aparecer de golpe a mitad de camino.
    */
   obligaciones?: Obligacion[];
+  /**
+   * Si esta partida se juega con la norma de no abrir con cuatro vocales.
+   *
+   * Se congela al empezar, igual que las palabras impuestas: cambiar la norma a
+   * media partida no puede invalidar un intento ya escrito.
+   */
+  sinVocalesAlAbrir?: boolean;
+  /** La letra que se le chiva por ir último, si le toca ayuda. */
+  pista?: string | null;
   /** Si ya se envió el resultado al torneo. */
   enviado: boolean;
 };
@@ -203,6 +262,16 @@ export type Duelo = {
   estado: 'esperando' | 'jugando' | 'terminado';
   retador: JugadorDuelo;
   rival: JugadorDuelo | null;
+  /**
+   * Duelo de cola: cualquiera puede entrar sin código.
+   *
+   * Es lo que convierte el propio documento del duelo en la sala de espera, sin
+   * necesidad de una colección aparte: quien busca rival lista los que están
+   * abiertos y sin rival, y se mete en el más antiguo.
+   */
+  abierto?: boolean;
+  /** Id del duelo de revancha, cuando alguno de los dos la propone. */
+  revancha?: string;
   /** Para las reglas de seguridad: quién puede leer y escribir. */
   jugadores: string[];
   progreso: Record<string, ProgresoDuelo>;

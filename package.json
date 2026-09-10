@@ -47,9 +47,9 @@
     "build:words": "node scripts/build-words.mjs",
     "build:icons": "node scripts/build-icons.mjs",
     "build:play": "node scripts/build-play-assets.mjs",
-    "build:web": "expo export --platform web && node scripts/patch-html.mjs",
+    "build:web": "expo export --clear --platform web && node scripts/patch-html.mjs",
     "preview:web": "npx --yes serve dist -l 8099",
-    "deploy:firebase": "npm run build:web && npx --yes firebase-tools deploy --only hosting"
+    "deploy:firebase": "npm run tipos && npm test && npm run build:web && npx --yes firebase-tools deploy --only hosting"
   },
   "private": true
 }

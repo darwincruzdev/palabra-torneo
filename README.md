@@ -132,7 +132,7 @@ secas, que también sirve.
 ## Enseñárselo a alguien antes de publicar (Cloudflare Pages)
 
 La misma app se exporta como web estática y se sube a Cloudflare Pages gratis.
-Sale una dirección tipo `https://palabra-torneo.pages.dev` que se abre en
+Sale una dirección tipo `https://palabra-torneo-fc0b8.web.app` que se abre en
 cualquier móvil desde el navegador, sin instalar nada.
 
 ```bash
@@ -153,7 +153,7 @@ Dos cosas a tener en cuenta:
   `npm run build:web`. Sin él la web funciona igual, pero en modo local: se juega
   la palabra del día y nada más, que para enseñarlo suele bastar.
 - Si sí usas Firebase, añade el dominio en **Authentication > Settings > Dominios
-  autorizados** (`palabra-torneo.pages.dev`), o la sesión anónima fallará.
+  autorizados** (`palabra-torneo-fc0b8.web.app`), o la sesión anónima fallará.
 
 Como la web guarda la partida en el navegador y la app en el móvil, son dos
 partidas distintas: la misma persona podría jugar la misma palabra en las dos.

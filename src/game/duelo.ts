@@ -22,6 +22,73 @@ export const PALABRAS_POR_DUELO = 3;
 export const SEGUNDOS_FINAL = 30;
 
 /**
+ * Cuánto aguanta una sala de la cola antes de darse por abandonada.
+ *
+ * Quien cierra la pestaña deja su sala colgada, y sin caducidad la cola se
+ * llenaría de fantasmas: el que busca rival entraría en una sala donde no hay
+ * nadie y se quedaría esperando para siempre.
+ */
+export const CADUCA_COLA_MS = 5 * 60 * 1000;
+
+/**
+ * Margen que se le da al rival por encima de sus treinta segundos.
+ *
+ * Quien espera da la palabra del otro por perdida pasado este rato. El margen
+ * existe para no quitarle la palabra a alguien que la envió en el segundo
+ * treinta y cuyo mensaje aún viaja por la red.
+ */
+export const GRACIA_ABANDONO_MS = 3000;
+
+/**
+ * Segundos que quedan, sacados del reloj y no de ir restando de uno en uno.
+ *
+ * Los navegadores frenan o paran los temporizadores de las pestañas que no se
+ * están viendo. Restando un segundo por tic, salir de la pestaña congelaba la
+ * cuenta y al volver marcaba más tiempo del que quedaba de verdad. Calculándolo
+ * contra un instante final, al volver sale el número correcto aunque el
+ * temporizador no haya corrido.
+ */
+export function segundosRestantes(fin: number, ahora: number): number {
+  return Math.max(0, Math.ceil((fin - ahora) / 1000));
+}
+
+/**
+ * ¿Hay que dar por cerrada la palabra del rival que no aparece?
+ *
+ * Quien cierra primero no puede depender del móvil del otro para seguir: si el
+ * otro cierra el navegador, su cuenta atrás se congela y no llega a escribir
+ * nada, y sin esto la partida se quedaba parada para siempre.
+ */
+export function rivalSeHaIdo(esperandoDesde: number, ahora: number): boolean {
+  return ahora - esperandoDesde >= SEGUNDOS_FINAL * 1000 + GRACIA_ABANDONO_MS;
+}
+
+/** Lo mínimo que hace falta saber de una sala para elegir en cuál entrar. */
+export type SalaEnCola = {
+  id: string;
+  retador?: { uid: string } | null;
+  creado?: number;
+};
+
+/**
+ * De las salas abiertas, con cuáles se puede emparejar y en qué orden.
+ *
+ * Se descartan la propia —nadie duela consigo mismo— y las abandonadas, y el
+ * resto va de más antigua a más nueva: quien lleva más tiempo esperando entra
+ * primero, que es lo justo y además vacía la cola en vez de dejar posos.
+ */
+export function rivalesPosibles(
+  salas: SalaEnCola[],
+  uid: string,
+  ahora: number
+): SalaEnCola[] {
+  return salas
+    .filter((s) => s.retador?.uid && s.retador.uid !== uid)
+    .filter((s) => ahora - (s.creado ?? 0) < CADUCA_COLA_MS)
+    .sort((a, b) => (a.creado ?? 0) - (b.creado ?? 0));
+}
+
+/**
  * Las diez palabras de un duelo, iguales para los dos jugadores.
  *
  * Salen de la semilla del duelo con el mismo recorrido que usan los torneos, así

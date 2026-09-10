@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notas del parche 26.10 · Palabra Torneo</title>
+    <meta name="theme-color" content="#0A0D12" />
+    <meta name="google" content="notranslate" />
+    <meta
+      name="description"
+      content="Se acaban las aperturas de cuatro vocales y el último recibe una letra de ayuda."
+    />
+    <link rel="icon" href="/favicon.ico" />
+  </head>
+  <body class="notranslate">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;600;800&display=swap">
+
+<style>
+  /*
+    Notas del parche de Palabra Torneo.
+
+    Se queda en un solo mundo visual a propósito: la app es oscura por
+    definición (userInterfaceStyle: dark) y estas notas son una extensión de
+    ella, así que no cambian con el tema del lector. Por eso todo color se
+    declara aquí de forma explícita, fondo del body incluido.
+
+    La paleta y las familias no se inventan: son las mismas de src/tema.ts.
+  */
+  :root {
+    --fondo: #0A0D12;
+    --superficie: #141922;
+    --elevado: #1D2430;
+    --borde: #28313F;
+    --texto: #F2F5F8;
+    --suave: #8D9AAC;
+    --tenue: #5C6879;
+
+    /* El idioma del juego: verde acierta, ámbar está pero no ahí, rojo falla. */
+    --nuevo: #28C8E0;
+    --ajuste: #E0A215;
+    --arreglo: #3DA35D;
+    --aviso: #E4523F;
+    --oro: #F3C64B;
+
+    --titular: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    --cuerpo: 'Barlow', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: var(--cuerpo);
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .hoja {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: clamp(28px, 6vw, 64px) clamp(20px, 5vw, 40px) 96px;
+  }
+
+  /* ---------------------------------------------------------- cabecera */
+
+  .cabecera {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 28px;
+    border-bottom: 3px solid var(--borde);
+  }
+
+  .juego {
+    font-family: var(--titular);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--suave);
+  }
+
+  .numero {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .numero h1 {
+    margin: 0;
+    font-family: var(--titular);
+    font-weight: 800;
+    font-size: clamp(56px, 15vw, 104px);
+    line-height: 0.92;
+    letter-spacing: -1px;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lema {
+    font-family: var(--titular);
+    font-weight: 700;
+    font-size: clamp(22px, 5vw, 32px);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--nuevo);
+  }
+
+  .entradilla {
+    margin: 22px 0 0;
+    max-width: 62ch;
+    color: var(--suave);
+  }
+
+  .entradilla strong { color: var(--texto); font-weight: 600; }
+
+  /* ------------------------------------------------------------ aviso */
+
+  .banda {
+    margin-top: 28px;
+    padding: 18px 20px;
+    background: rgba(228, 82, 63, 0.10);
+    border-left: 4px solid var(--aviso);
+    border-radius: 0 6px 6px 0;
+  }
+
+  .banda h2 {
+    margin: 0 0 6px;
+    font-family: var(--titular);
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--aviso);
+  }
+
+  .banda p { margin: 0; color: var(--suave); }
+  .banda p + p { margin-top: 10px; }
+  .banda strong { color: var(--texto); font-weight: 600; }
+
+  /* --------------------------------------------------------- secciones */
+
+  section { margin-top: 52px; }
+
+  .titulo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  /* El cuadrito es el del tablero, no un emoji: dice de qué tipo es la línea. */
+  .ficha {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    flex: none;
+  }
+
+  .titulo h2 {
+    margin: 0;
+    font-family: var(--titular);
+    font-weight: 800;
+    font-size: clamp(28px, 6vw, 38px);
+    line-height: 1;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .titulo .regla {
+    flex: 1;
+    height: 1px;
+    background: var(--borde);
+  }
+
+  .sumario {
+    margin: 0 0 22px;
+    max-width: 62ch;
+    color: var(--tenue);
+    font-size: 15px;
+  }
+
+  section[data-tipo="nuevo"] .ficha { background: var(--nuevo); }
+  section[data-tipo="ajuste"] .ficha { background: var(--ajuste); }
+  section[data-tipo="arreglo"] .ficha { background: var(--arreglo); }
+
+  /* ------------------------------------------------------------ bloque */
+
+  .bloque {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+
+  .bloque h3 {
+    margin: 0 0 4px;
+    font-family: var(--titular);
+    font-weight: 800;
+    font-size: 23px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+
+  .bloque > p {
+    margin: 0 0 14px;
+    color: var(--suave);
+    max-width: 62ch;
+  }
+
+  .bloque > p:last-child { margin-bottom: 0; }
+  .bloque strong { color: var(--texto); font-weight: 600; }
+
+  /* Lista de cambios al estilo "antes ⇒ después". */
+  .cambios {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cambios li {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+    padding-left: 16px;
+    border-left: 2px solid var(--borde);
+  }
+
+  .que {
+    font-family: var(--titular);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--suave);
+  }
+
+  .valores {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .antes { color: var(--tenue); }
+
+  .flecha {
+    color: var(--nuevo);
+    font-weight: 600;
+    padding: 0 6px;
+  }
+
+  .ahora { color: var(--texto); font-weight: 600; }
+
+  .suelto { color: var(--texto); }
+
+  /* ---------------------------------------------------------- comentario */
+
+  .comentario {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: var(--elevado);
+    border-radius: 6px;
+    font-size: 15.5px;
+    color: var(--suave);
+  }
+
+  .comentario span {
+    display: block;
+    margin-bottom: 4px;
+    font-family: var(--titular);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--oro);
+  }
+
+  .comentario p { margin: 0; }
+  .comentario p + p { margin-top: 8px; }
+
+  /* ------------------------------------------------------ parche anterior */
+
+  .anterior {
+    margin-top: 64px;
+    padding-top: 20px;
+    border-top: 3px solid var(--borde);
+  }
+
+  .anterior h2 {
+    margin: 0;
+    font-family: var(--titular);
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--tenue);
+  }
+
+  /* ------------------------------------------------------------- cierre */
+
+  .cierre {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 3px solid var(--borde);
+    color: var(--tenue);
+    font-size: 15px;
+  }
+
+  .cierre strong { color: var(--suave); font-weight: 600; }
+
+  @media (min-width: 620px) {
+    .cambios li {
+      grid-template-columns: 220px 1fr;
+      gap: 14px;
+      align-items: baseline;
+    }
+    .que { padding-top: 2px; }
+  }
+  /* -------------------------------------------------------------- volver */
+
+  .volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+    padding: 8px 14px 8px 10px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    color: var(--suave);
+    text-decoration: none;
+    font-family: var(--titular);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+
+  .volver:hover,
+  .volver:focus-visible {
+    color: var(--texto);
+    border-color: var(--nuevo);
+  }
+
+  .volver:focus-visible { outline: 2px solid var(--nuevo); outline-offset: 2px; }
+
+  .volver .flecha-atras { font-size: 19px; line-height: 1; padding-bottom: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .volver { transition: none; }
+  }
+</style>
+
+<div class="hoja">
+
+  <!-- Se llega aquí desde el perfil de la app, así que hace falta salida. -->
+  <a class="volver" href="/"><span class="flecha-atras">&#8592;</span> Volver al juego</a>
+
+  <header class="cabecera">
+    <div class="juego">Palabra Torneo · Notas del parche</div>
+    <div class="numero">
+      <h1>26.10</h1>
+      <div class="lema">Aperturas y ayudas</div>
+    </div>
+  </header>
+
+  <p class="entradilla">
+    Dos normas que cambian cómo se abre la jornada y cómo se aguanta cuando vas por
+    detrás. Y dos palabras más en el diccionario.
+  </p>
+
+  <section data-tipo="ajuste">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Abrir la jornada</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <h3>Se acabaron las aperturas de cuatro vocales</h3>
+      <ul class="cambios">
+        <li>
+          <span class="que">Primer intento</span>
+          <span class="valores">
+            <span class="antes">cualquier palabra</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">como mucho 3 vocales</span>
+          </span>
+        </li>
+        <li>
+          <span class="que">Del segundo en adelante</span>
+          <span class="valores suelto">Sin cambios: valen todas.</span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          Con cuatro vocales y una consonante —AIREO, AUREO, AUDIO— se barre medio
+          abecedario de un tirón y la apertura deja de ser una apuesta. Son 24 palabras
+          de las 10.841 de la lista, así que la norma toca muy poco y justo donde dolía.
+        </p>
+        <p>
+          Sólo se cierra el <strong>intento</strong>, no la palabra: cuatro de esas 24
+          pueden ser la solución del día, y hay que poder escribirlas en el segundo.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section data-tipo="nuevo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Una mano al último</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <ul class="cambios">
+        <li>
+          <span class="que">Quién la recibe</span>
+          <span class="valores suelto">
+            Quien va <strong>último en solitario</strong>. Si empata con el penúltimo, no
+            hay ayuda.
+          </span>
+        </li>
+        <li>
+          <span class="que">Qué recibe</span>
+          <span class="valores suelto">
+            Una letra de la palabra del día, avisada antes de empezar.
+          </span>
+        </li>
+        <li>
+          <span class="que">Recargar la pantalla</span>
+          <span class="valores suelto">
+            No da letras nuevas: la misma toda la jornada.
+          </span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          Es para no descolgarse, no un premio por ir mal: se acaba en cuanto dejas de ir
+          último solo. Y la letra sale de un cálculo fijo con el día, el torneo y la
+          persona — si se sorteara, se pescarían todas a base de recargar.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section data-tipo="arreglo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Diccionario</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <ul class="cambios">
+        <li>
+          <span class="que">Palabras añadidas</span>
+          <span class="valores suelto">
+            <strong>CATIO</strong> y <strong>BIOMA</strong>.
+          </span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="anterior">
+    <h2>Parche anterior · 26.09 · Temporadas</h2>
+  </div>
+
+  <section data-tipo="nuevo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Temporadas y trofeos</h2>
+      <span class="regla"></span>
+    </div>
+    <p class="sumario">Lo gordo del parche.</p>
+
+    <div class="bloque">
+      <h3>Una temporada al mes</h3>
+      <ul class="cambios">
+        <li>
+          <span class="que">Clasificación</span>
+          <span class="valores">
+            <span class="antes">suma desde que se fundó el torneo</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">suma solo el mes en curso</span>
+          </span>
+        </li>
+        <li>
+          <span class="que">Fin de temporada</span>
+          <span class="valores suelto">
+            Quien va primero el último día del mes se lleva <strong>un trofeo</strong>.
+          </span>
+        </li>
+        <li>
+          <span class="que">Campeón del año</span>
+          <span class="valores suelto">
+            El que más trofeos tenga a 31 de diciembre.
+          </span>
+        </li>
+        <li>
+          <span class="que">Empate en el mes</span>
+          <span class="valores suelto">
+            Manda quien más palabras haya acertado; si siguen iguales, quien las saque en
+            menos intentos. Si empatan en todo, el mes es <strong>de los dos</strong>.
+          </span>
+        </li>
+        <li>
+          <span class="que">Empate a trofeos</span>
+          <span class="valores suelto">
+            Se mira todo el año: primero quién acertó más palabras, luego quién gastó
+            menos intentos. Nunca se decide por orden alfabético.
+          </span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          Una tabla que solo crece deja la competición decidida en marzo: quien coge veinte
+          puntos de ventaja ya no la suelta, y al resto se le quitan las ganas de jugar.
+          Con temporadas mensuales, el que va último tiene una revancha cada treinta días.
+        </p>
+        <p>
+          El palmarés se calcula del historial cada vez que se abre, no se guarda el día 1.
+          Así no hay ningún cierre de temporada que pueda fallar, ni un número que alguien
+          pueda tocar.
+        </p>
+      </div>
+    </div>
+
+    <div class="bloque">
+      <h3>Ver la partida de cada uno</h3>
+      <p>
+        En la pantalla de jornadas, tocando a cualquier jugador se despliega su cuadrícula
+        de colores de ese día: por dónde tanteó, cuántas veces y con cuánta suerte.
+      </p>
+      <ul class="cambios">
+        <li>
+          <span class="que">Jornadas pasadas</span>
+          <span class="valores suelto">Todo a la vista, palabra incluida.</span>
+        </li>
+        <li>
+          <span class="que">Jornada de hoy</span>
+          <span class="valores suelto">
+            Las cuadrículas se ven según juega cada uno. La palabra sigue tapada hasta que
+            juegues la tuya.
+          </span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section data-tipo="ajuste">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Blueshell</h2>
+      <span class="regla"></span>
+    </div>
+    <p class="sumario">La munición pasa a ser de la temporada, igual que los puntos.</p>
+
+    <div class="bloque">
+      <ul class="cambios">
+        <li>
+          <span class="que">Balas</span>
+          <span class="valores">
+            <span class="antes">1 cada 15 jornadas</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">2 al mes</span>
+          </span>
+        </li>
+        <li>
+          <span class="que">Escudos</span>
+          <span class="valores">
+            <span class="antes">1 cada 15 jornadas</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">2 al mes</span>
+          </span>
+        </li>
+        <li>
+          <span class="que">Recarga</span>
+          <span class="valores">
+            <span class="antes">contador propio de cada torneo</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">día 1 de cada mes</span>
+          </span>
+        </li>
+        <li>
+          <span class="que">Faltas por no jugar</span>
+          <span class="valores">
+            <span class="antes">se arrastran desde tu primera partida</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">no cruzan de mes</span>
+          </span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          El ritmo es el mismo de antes —dos balas por cada treinta días—, solo que atado
+          al calendario en vez de a un contador que cada torneo llevaba por su cuenta.
+          Ahora todo el mundo recarga el mismo día y se puede decir en voz alta.
+        </p>
+        <p>
+          Efecto secundario: los primeros días de mes <strong>nadie puede disparar</strong>,
+          porque con la tabla a cero no hay líder al que tirarle. El campeón del mes
+          anterior arranca sin lastre y sin balas encima.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section data-tipo="arreglo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Duelos</h2>
+      <span class="regla"></span>
+    </div>
+    <p class="sumario">Dos fallos serios y tres cosas nuevas.</p>
+
+    <div class="bloque">
+      <h3>Arreglado</h3>
+      <ul class="cambios">
+        <li>
+          <span class="que">Reloj congelado</span>
+          <span class="valores suelto">
+            Al salir del navegador se paraba la cuenta atrás y al volver marcaba más
+            tiempo del que quedaba. Ahora se calcula contra el reloj, no restando de uno
+            en uno.
+          </span>
+        </li>
+        <li>
+          <span class="que">Partida colgada</span>
+          <span class="valores suelto">
+            Si el rival cerraba el navegador y no volvía, el duelo se quedaba parado
+            <strong>para siempre</strong>. Ahora, pasados sus 30 segundos más 3 de margen,
+            sigues tú.
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="bloque">
+      <h3>Nuevo</h3>
+      <ul class="cambios">
+        <li>
+          <span class="que">Duelo rápido</span>
+          <span class="valores suelto">
+            Sin códigos: le das a buscar partida y te empareja con quien esté esperando.
+          </span>
+        </li>
+        <li>
+          <span class="que">Revancha</span>
+          <span class="valores suelto">
+            Al acabar, un botón. Uno la propone y al otro le sale para aceptar.
+          </span>
+        </li>
+        <li>
+          <span class="que">Pullas</span>
+          <span class="valores suelto">
+            Mientras esperas a que el otro termine, ocho caritas para picarle. Le salen en
+            grande en mitad de la pantalla.
+          </span>
+        </li>
+        <li>
+          <span class="que">Corte por tiempo</span>
+          <span class="valores">
+            <span class="antes">15 segundos</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">30 segundos</span>
+          </span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section data-tipo="arreglo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Diccionario y varios</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <ul class="cambios">
+        <li>
+          <span class="que">Palabras añadidas</span>
+          <span class="valores suelto">
+            <strong>PESTO</strong> y <strong>DURUM</strong>, que el juego rechazaba.
+          </span>
+        </li>
+        <li>
+          <span class="que">Letra grande</span>
+          <span class="valores suelto">
+            Nuevo ajuste en el perfil: agranda el texto de toda la app y las teclas. Se
+            guarda con tu cuenta.
+          </span>
+        </li>
+        <li>
+          <span class="que">Botón de volver</span>
+          <span class="valores suelto">
+            En el móvil era invisible: estaba ahí y se podía pulsar, pero no se veía.
+          </span>
+        </li>
+        <li>
+          <span class="que">Salir de un torneo</span>
+          <span class="valores suelto">
+            El botón no hacía nada en la web. Ahora pregunta y funciona.
+          </span>
+        </li>
+        <li>
+          <span class="que">Una jornada, una vez</span>
+          <span class="valores suelto">
+            Entrando con la misma cuenta desde otro navegador se podía repetir la palabra y
+            pisar la puntuación. Cerrado.
+          </span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="cierre">
+    <strong>Palabra Torneo 26.10.</strong> Que gane el mejor, y que al que gane le lluevan
+    blueshells.
+  </p>
+
+</div>
+
+  </body>
+</html>

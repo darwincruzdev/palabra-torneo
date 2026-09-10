@@ -193,7 +193,7 @@ function Raiz() {
           )}
         </Pila.Screen>
 
-        <Pila.Screen name="Historial" options={{ title: 'Jornadas anteriores' }}>
+        <Pila.Screen name="Historial" options={{ title: 'Jornadas' }}>
           {({ navigation, route }) => (
             <PantallaHistorial
               torneoId={route.params.torneoId}
@@ -215,6 +215,10 @@ function Raiz() {
             <PantallaDuelo
               dueloId={route.params.dueloId}
               volver={() => navigation.navigate('Modo')}
+              // `replace` y no `navigate`: la revancha es otro duelo, y hay que
+              // entrar con la pantalla recién montada. Con `navigate` se
+              // quedaría el estado de la partida anterior a medio camino.
+              irAOtroDuelo={(otro) => navigation.replace('Duelo', { dueloId: otro })}
             />
           )}
         </Pila.Screen>

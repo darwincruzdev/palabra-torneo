@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   Share,
   StyleSheet,
@@ -29,12 +30,53 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
   const [ocupado, setOcupado] = useState<'crear' | 'unirse' | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [enCurso, setEnCurso] = useState<string | null>(null);
+  /** El duelo con el que estoy esperando en la cola, si estoy esperando. */
+  const [enCola, setEnCola] = useState<{ dueloId: string; codigo: string } | null>(null);
+  const [buscando, setBuscando] = useState(false);
+  /**
+   * Si la espera acabó en emparejamiento.
+   *
+   * Es imprescindible para no borrar el duelo bueno: salir de la cola y
+   * encontrar rival dejan el mismo rastro —`enCola` a null—, y la limpieza no
+   * puede distinguirlos por sí sola. Va en una referencia y no en el estado
+   * porque la lee la limpieza, que corre después del último dibujado.
+   */
+  const emparejado = useRef(false);
 
   // Si se cerró la pestaña a mitad de un duelo, se puede volver a él: no hay
   // lista de duelos y el código sólo lo tenía quien lo creó.
   useEffect(() => {
     cargarDueloActivo().then(setEnCurso);
   }, []);
+
+  /**
+   * Mientras espero en la cola, escucho mi propio duelo: en cuanto alguien
+   * entra como rival, se abre solo. No hace falta preguntar cada pocos
+   * segundos, la base de datos ya avisa.
+   */
+  useEffect(() => {
+    if (!enCola) return;
+    return duelos.observarDuelo(enCola.dueloId, (duelo) => {
+      if (duelo?.rival) {
+        emparejado.current = true;
+        setEnCola(null);
+        irAlDuelo(enCola.dueloId);
+      }
+    });
+  }, [enCola, irAlDuelo]);
+
+  /**
+   * Si se cierra la pantalla con la cola puesta, se recoge el duelo que quedó
+   * esperando. Sin esto, la cola se iría llenando de salas fantasma que hacen
+   * perder el turno a quien busca rival de verdad.
+   */
+  useEffect(() => {
+    return () => {
+      if (enCola && !emparejado.current) {
+        duelos.salirDeLaCola(enCola.dueloId, enCola.codigo);
+      }
+    };
+  }, [enCola]);
 
   if (!hayFirebase) {
     return (
@@ -48,6 +90,29 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
         </Tarjeta>
       </ScrollView>
     );
+  }
+
+  async function buscarRival() {
+    if (!uid) return;
+    setError(null);
+    setBuscando(true);
+    try {
+      const resultado = await duelos.entrarEnCola(uid, nombre || 'Jugador', avatar);
+      if (resultado.esperando) {
+        setEnCola({ dueloId: resultado.dueloId, codigo: resultado.codigo });
+      } else {
+        irAlDuelo(resultado.dueloId);
+      }
+    } catch (e) {
+      setError(mensajeDeError(e));
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  /** Salir de la cola. El borrado lo hace la limpieza del efecto, un solo camino. */
+  function dejarLaCola() {
+    setEnCola(null);
   }
 
   async function crear() {
@@ -101,22 +166,34 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
 
   return (
     <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
-      <Tarjeta>
-        <Titulo>Cómo funciona</Titulo>
-        <Sutil>
-          Uno contra uno, al mejor de {PALABRAS_POR_DUELO} palabras, las mismas para los
-          dos y a la vez. Cada palabra da puntos según en qué intento la saques (
-          {PUNTOS_POR_INTENTO.join('/')}), con seis intentos: si se agotan, esa palabra va
-          a cero.
-        </Sutil>
-        <View style={estilos.separador} />
-        <Sutil>
-          Se va palabra a palabra, sin adelantarse. El primero que cierra la suya le deja
-          al otro <Texto style={estilos.negrita}>{SEGUNDOS_FINAL} segundos</Texto> para
-          cerrar la suya, y mientras espera ve su tablero en grande y en directo, con
-          letras y todo. Cuando los dos la cierran, empieza la siguiente.
-        </Sutil>
-      </Tarjeta>
+      {enCola ? (
+        <Tarjeta acento={colores.acento}>
+          <Titulo>Buscando rival</Titulo>
+          <View style={estilos.esperando}>
+            <ActivityIndicator color={colores.acento} />
+            <Sutil>
+              En cuanto otro le dé a buscar partida, empezáis. Puedes dejar esto abierto.
+            </Sutil>
+          </View>
+          <View style={{ height: espaciado.md }} />
+          <Boton titulo="Salir de la cola" variante="peligro" onPress={dejarLaCola} />
+        </Tarjeta>
+      ) : (
+        <Tarjeta acento={colores.acento}>
+          <Titulo>Duelo rápido</Titulo>
+          <Sutil>
+            Sin códigos ni invitaciones: te ponemos con quien esté buscando en ese
+            momento.
+          </Sutil>
+          <View style={{ height: espaciado.md }} />
+          <Boton
+            titulo="Buscar partida"
+            onPress={buscarRival}
+            cargando={buscando}
+            deshabilitado={ocupado !== null}
+          />
+        </Tarjeta>
+      )}
 
       {enCurso && !creado && (
         <Tarjeta estilo={{ borderColor: colores.presente }}>
@@ -202,6 +279,23 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
         deshabilitado={ocupado !== null}
       />
 
+      <Tarjeta>
+        <Titulo>Cómo funciona</Titulo>
+        <Sutil>
+          Uno contra uno, al mejor de {PALABRAS_POR_DUELO} palabras, las mismas para los
+          dos y a la vez. Cada palabra da puntos según en qué intento la saques (
+          {PUNTOS_POR_INTENTO.join('/')}), con seis intentos: si se agotan, esa palabra va
+          a cero.
+        </Sutil>
+        <View style={estilos.separador} />
+        <Sutil>
+          Se va palabra a palabra, sin adelantarse. El primero que cierra la suya le deja
+          al otro <Texto style={estilos.negrita}>{SEGUNDOS_FINAL} segundos</Texto> para
+          cerrar la suya, y mientras espera ve su tablero en grande y en directo, con
+          letras y todo. Cuando los dos la cierran, empieza la siguiente.
+        </Sutil>
+      </Tarjeta>
+
       {error && <Texto style={estilos.error}>{error}</Texto>}
     </ScrollView>
   );
@@ -223,6 +317,12 @@ function mensajeDeError(e: unknown): string {
 }
 
 const estilos = StyleSheet.create({
+  esperando: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaciado.md,
+    marginTop: espaciado.sm,
+  },
   contenido: {
     padding: espaciado.lg,
     gap: espaciado.sm,

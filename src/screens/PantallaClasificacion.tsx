@@ -16,7 +16,15 @@ import QRCode from 'react-native-qrcode-svg';
 import { Avatar } from '../components/Avatar';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
 import { Confirmacion } from '../components/Confirmacion';
-import { clasificacion, liderDestacado } from '../game/clasificacion';
+import { RejillaPatron } from '../components/RejillaPatron';
+import {
+  campeonDelAno,
+  clasificacion,
+  liderDestacado,
+  trofeosDeResumenes,
+  trofeosPorJugador,
+} from '../game/clasificacion';
+import { anoDe, mesDe, mesLargo, mesSiguiente, primerDiaDelMes } from '../game/temporada';
 import { fechaJuego, fechaLarga, sumarDias } from '../game/fecha';
 import {
   contenidoQr,
@@ -28,7 +36,8 @@ import {
 } from '../game/invitacion';
 import { PUNTOS_POR_FALTA } from '../game/constantes';
 import {
-  JORNADAS_POR_CICLO,
+  BLUESHELLS_POR_MES,
+  MAX_VOCALES_AL_ABRIR,
   blueshellsContra,
   estaProtegido,
   mensajeDeBlueshell,
@@ -63,11 +72,17 @@ export function PantallaClasificacion({
     lanzarBlueshell,
     cambiarReglas,
     reiniciarTorneo,
+    decidirDesempate,
+    resumenes,
+    cargarResumenes,
   } = useApp();
   const [copiado, setCopiado] = useState<'codigo' | 'enlace' | null>(null);
   const [qrAbierto, setQrAbierto] = useState(false);
   /** Qué se está preguntando ahora mismo, si es que se pregunta algo. */
   const [preguntando, setPreguntando] = useState<'salir' | 'reiniciar' | null>(null);
+  const [errorReinicio, setErrorReinicio] = useState<string | null>(null);
+  /** Cuadrículas de hoy abiertas, por jugador. */
+  const [rejillasHoy, setRejillasHoy] = useState<Record<string, boolean>>({});
   const [palabraBala, setPalabraBala] = useState('');
   const [confirmando, setConfirmando] = useState(false);
   const [lanzando, setLanzando] = useState(false);
@@ -82,7 +97,7 @@ export function PantallaClasificacion({
 
   const filas = useMemo(() => (torneo ? clasificacion(torneo, dias) : []), [torneo, dias]);
   const liderHoy = useMemo(
-    () => (torneo ? liderDestacado(clasificacion(torneo, dias, hoy)) : null),
+    () => (torneo ? liderDestacado(clasificacion(torneo, dias, { hasta: hoy })) : null),
     [torneo, dias, hoy]
   );
 
@@ -116,6 +131,29 @@ export function PantallaClasificacion({
       enCamino: blueshellsContra(jornadaManana, miembro).length,
     };
   };
+
+  const mes = mesDe(hoy);
+
+  /**
+   * El palmarés sale de los resúmenes de meses cerrados, que se piden una vez
+   * al abrir esta pantalla. Se siguen calculando del historial —no hay ningún
+   * cierre de temporada que pueda fallar—, pero ya no viven en memoria como
+   * treinta documentos por mes.
+   */
+  useEffect(() => {
+    cargarResumenes(torneoId);
+  }, [torneoId, cargarResumenes]);
+
+  const misResumenes = resumenes[torneoId] ?? [];
+  const trofeos = useMemo(() => trofeosDeResumenes(misResumenes), [misResumenes]);
+  const trofeosDe = useMemo(() => trofeosPorJugador(trofeos), [trofeos]);
+  const campeonato = useMemo(
+    () =>
+      torneo
+        ? campeonDelAno(torneo, dias, trofeos, anoDe(mes))
+        : { uids: [], trofeos: 0, criterio: 'empate' as const },
+    [torneo, dias, trofeos, mes]
+  );
 
   const reglas = reglasDe(torneoId);
   const balas = blueshellsDe(torneoId);
@@ -190,7 +228,13 @@ export function PantallaClasificacion({
   }
 
   function alternarRegla(
-    cual: 'penalizacionLider' | 'blueshells' | 'faltaPorNoJugar',
+    cual:
+      | 'penalizacionLider'
+      | 'blueshells'
+      | 'faltaPorNoJugar'
+      | 'desempateManual'
+      | 'sinVocalesAlAbrir'
+      | 'ayudaAlUltimo',
     valor: boolean
   ) {
     if (!torneo) return;
@@ -207,7 +251,17 @@ export function PantallaClasificacion({
   async function reiniciarDeVerdad() {
     if (!torneo) return;
     setPreguntando(null);
-    await reiniciarTorneo(torneo.id).catch(() => {});
+    setErrorReinicio(null);
+    try {
+      await reiniciarTorneo(torneo.id);
+    } catch (e) {
+      // Sin esto, un permiso denegado no dejaba ni rastro y el botón parecía
+      // funcionar cuando no había hecho nada.
+      console.warn('No se ha podido reiniciar:', e);
+      setErrorReinicio(
+        'No se ha podido reiniciar. Puede que falten las reglas nuevas del servidor.'
+      );
+    }
   }
 
   return (
@@ -252,7 +306,8 @@ export function PantallaClasificacion({
           {balas.puedoLanzar ? (
             <>
               <Texto style={estilos.explicacion}>
-                Tienes una bala por cada {JORNADAS_POR_CICLO} jornadas. Si la disparas,
+                Te quedan <Texto style={estilos.destacado}>{balas.balas}</Texto> de{' '}
+                {BLUESHELLS_POR_MES} balas este mes. Si la disparas,
                 mañana <Texto style={estilos.destacado}>{nombreLider}</Texto> estará obligado a
                 usar esta palabra en su segundo intento.
               </Texto>
@@ -286,13 +341,18 @@ export function PantallaClasificacion({
           )}
 
           <Texto style={estilos.recarga}>
-            Bala y protección se recargan en {balas.paraRecargar}{' '}
-            {balas.paraRecargar === 1 ? 'jornada' : 'jornadas'}.
+            Te quedan {balas.balas} {balas.balas === 1 ? 'bala' : 'balas'} y{' '}
+            {balas.escudos} {balas.escudos === 1 ? 'escudo' : 'escudos'}. Todo se recarga
+            el {fechaLarga(balas.recargaEl)}, con la temporada nueva.
           </Texto>
         </Tarjeta>
       )}
 
-      <Texto style={estilos.encabezado}>Clasificación general</Texto>
+      <Texto style={estilos.encabezado}>Temporada · {mesLargo(mes)}</Texto>
+      <Texto style={estilos.avisoTemporada}>
+        Vuelve a cero el {fechaLarga(primerDiaDelMes(mesSiguiente(mes)))}. Quien vaya
+        primero al cerrarse el mes se lleva un trofeo.
+      </Texto>
       <Tarjeta estilo={{ padding: 0 }}>
         {filas.map((fila, i) => {
           const balas = balasSobre(fila.uid);
@@ -318,6 +378,13 @@ export function PantallaClasificacion({
                   {fila.uid === uid ? ' (tú)' : ''}
                   {fila.uid === liderHoy ? ' 🎯' : ''}
                 </Texto>
+
+                {trofeosDe[fila.uid] > 0 && (
+                  <View style={[estilos.chapa, estilos.chapaTrofeo]}>
+                    <Texto style={estilos.simbolo}>🏆</Texto>
+                    <Texto style={estilos.cuentaTrofeo}>×{trofeosDe[fila.uid]}</Texto>
+                  </View>
+                )}
 
                 {/* Las balas se enseñan aunque estén paradas: tachadas al lado
                     del escudo se ve de un vistazo lo que se ha quitado de
@@ -390,7 +457,8 @@ export function PantallaClasificacion({
         <Sutil>
           🔵 son las balas que le caen encima a alguien. Tachadas y con 🛡️ al lado,
           que las ha parado todas con su escudo; el recuadro le late para que se vea.
-          Cada uno tiene una bala y un escudo por cada {JORNADAS_POR_CICLO} jornadas.
+          Cada uno tiene {BLUESHELLS_POR_MES} balas y {BLUESHELLS_POR_MES} escudos al
+          mes, que se recargan el día 1 con la clasificación.
         </Sutil>
       )}
 
@@ -406,25 +474,49 @@ export function PantallaClasificacion({
         {torneo.miembros.map((miembro) => {
           const resultado = jornadaHoy?.resultados?.[miembro];
           const perfil = torneo.perfiles?.[miembro];
+          // En cuanto alguien termina, su cuadrícula se puede mirar. No hace
+          // falta haber jugado tú: sin las letras, la cuadrícula dice cómo le
+          // fue a esa persona, no cuál es la palabra.
+          const puedeVerla = Boolean(resultado?.patron);
+          const abierta = rejillasHoy[miembro] === true;
           return (
-            <View key={miembro} style={estilos.filaHoy}>
-              <Texto style={estilos.nombreHoy}>
-                {perfil?.nombre ?? 'Jugador'}
-                {miembro === uid ? ' (tú)' : ''}
-              </Texto>
-              {resultado ? (
-                <Texto style={estilos.resultadoHoy}>
-                  {resultado.acertada ? `${resultado.intentos}/6` : 'X/6'} ·{' '}
-                  <Texto style={estilos.puntosHoy}>
-                    {resultado.puntos} pts
-                  </Texto>
+            <View key={miembro}>
+              <Pressable
+                onPress={() =>
+                  puedeVerla &&
+                  setRejillasHoy((previas) => ({ ...previas, [miembro]: !previas[miembro] }))
+                }
+                disabled={!puedeVerla}
+                accessibilityRole={puedeVerla ? 'button' : undefined}
+                style={({ pressed }) => [estilos.filaHoy, pressed && { opacity: 0.6 }]}
+              >
+                <Texto style={estilos.nombreHoy}>
+                  {perfil?.nombre ?? 'Jugador'}
+                  {miembro === uid ? ' (tú)' : ''}
+                  {puedeVerla ? (abierta ? ' ▾' : ' ▸') : ''}
                 </Texto>
-              ) : (
-                <Texto style={estilos.pendienteHoy}>sin jugar</Texto>
+                {resultado ? (
+                  <Texto style={estilos.resultadoHoy}>
+                    {resultado.acertada ? `${resultado.intentos}/6` : 'X/6'} ·{' '}
+                    <Texto style={estilos.puntosHoy}>
+                      {resultado.puntos} pts
+                    </Texto>
+                  </Texto>
+                ) : (
+                  <Texto style={estilos.pendienteHoy}>sin jugar</Texto>
+                )}
+              </Pressable>
+
+              {abierta && resultado?.patron && (
+                <RejillaPatron patron={resultado.patron} />
               )}
             </View>
           );
         })}
+
+        <Texto style={estilos.avisoRejilla}>
+          Toca a quien haya jugado para ver su partida en cuadritos.
+        </Texto>
       </Tarjeta>
 
       {reglas.blueshells && (balas.enJuego.manana.length > 0 || balas.enJuego.hoy.length > 0) && (
@@ -458,6 +550,90 @@ export function PantallaClasificacion({
                 ))}
               </>
             )}
+          </Tarjeta>
+        </>
+      )}
+
+      {trofeos.length > 0 && (
+        <>
+          <Texto style={estilos.encabezado}>Palmarés {anoDe(mes)}</Texto>
+          <Tarjeta acento={colores.oro}>
+            {campeonato.uids.length > 0 && (
+              <>
+                <Texto style={estilos.campeon}>
+                  {campeonato.uids.length === 1
+                    ? `🏆 ${nombreDe(campeonato.uids[0])} manda este año`
+                    : `🏆 Empate: ${campeonato.uids.map(nombreDe).join(' y ')}`}
+                  {'  ·  '}
+                  {campeonato.trofeos} {campeonato.trofeos === 1 ? 'trofeo' : 'trofeos'}
+                </Texto>
+                {campeonato.criterio !== 'trofeos' && (
+                  <Texto style={estilos.criterio}>
+                    {campeonato.criterio === 'aciertos'
+                      ? 'Empatados a trofeos: manda quien más palabras ha acertado este año.'
+                      : campeonato.criterio === 'media'
+                        ? 'Empatados a trofeos y aciertos: manda quien las saca en menos intentos.'
+                        : 'Empatados en todo. Esto lo arregláis vosotros.'}
+                  </Texto>
+                )}
+              </>
+            )}
+
+            <View style={{ height: espaciado.sm }} />
+
+            {trofeos.map((trofeo) =>
+              trofeo.pendiente ? (
+                <View key={trofeo.mes} style={estilos.pendiente}>
+                  <Texto style={estilos.mesGanado}>
+                    <Texto style={estilos.destacado}>{mesLargo(trofeo.mes)}</Texto>
+                    {'  ·  '}
+                    Empate entre {trofeo.uids.map(nombreDe).join(' y ')}
+                  </Texto>
+
+                  {esFundador ? (
+                    <>
+                      <Texto style={estilos.criterio}>
+                        Resolvedlo como queráis y marca aquí quién se lo lleva.
+                      </Texto>
+                      <View style={estilos.miembros}>
+                        {trofeo.uids.map((candidato) => (
+                          <Pressable
+                            key={candidato}
+                            onPress={() =>
+                              decidirDesempate(torneo.id, trofeo.mes, candidato).catch(() => {})
+                            }
+                            accessibilityRole="button"
+                            style={({ pressed }) => [
+                              estilos.chapaMiembro,
+                              pressed && { opacity: 0.6 },
+                            ]}
+                          >
+                            <Texto style={estilos.textoMiembro}>
+                              Gana {nombreDe(candidato)}
+                            </Texto>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </>
+                  ) : (
+                    <Texto style={estilos.criterio}>
+                      Pendiente de que lo decida quien fundó el torneo.
+                    </Texto>
+                  )}
+                </View>
+              ) : (
+                <Texto key={trofeo.mes} style={estilos.mesGanado}>
+                  <Texto style={estilos.destacado}>{mesLargo(trofeo.mes)}</Texto>
+                  {'  ·  '}
+                  {trofeo.uids.map(nombreDe).join(' y ')}
+                  {trofeo.uids.length > 1 ? ' (compartido)' : ''}
+                </Texto>
+              )
+            )}
+
+            <Texto style={estilos.recarga}>
+              A final de año gana quien más trofeos tenga.
+            </Texto>
           </Tarjeta>
         </>
       )}
@@ -522,6 +698,30 @@ export function PantallaClasificacion({
         />
         <View style={estilos.separadorRegla} />
         <Regla
+          titulo="Sin cuatro vocales al abrir"
+          descripcion={`La primera palabra de la jornada no puede llevar más de ${MAX_VOCALES_AL_ABRIR} vocales, como AIREO o AUDIO. Del segundo intento en adelante valen todas.`}
+          valor={reglas.sinVocalesAlAbrir}
+          editable={esFundador}
+          alCambiar={(v) => alternarRegla('sinVocalesAlAbrir', v)}
+        />
+        <View style={estilos.separadorRegla} />
+        <Regla
+          titulo="Una letra para el último"
+          descripcion="A quien va último en solitario se le chiva una letra de la palabra del día. Se le acaba en cuanto deja de ir último solo."
+          valor={reglas.ayudaAlUltimo}
+          editable={esFundador}
+          alCambiar={(v) => alternarRegla('ayudaAlUltimo', v)}
+        />
+        <View style={estilos.separadorRegla} />
+        <Regla
+          titulo="Desempatar el mes a mano"
+          descripcion="Si un mes acaba empatado a puntos, el trofeo queda pendiente y lo adjudicas tú: por un duelo, a suertes o como decidáis. Apagado, la tabla lo resuelve por aciertos y media de intentos."
+          valor={reglas.desempateManual}
+          editable={esFundador}
+          alCambiar={(v) => alternarRegla('desempateManual', v)}
+        />
+        <View style={estilos.separadorRegla} />
+        <Regla
           titulo="Falta por no jugar"
           descripcion="Saltarse una jornada ya cerrada resta un punto. La de hoy no cuenta hasta medianoche, y no se cobran las anteriores a tu primera partida."
           valor={reglas.faltaPorNoJugar}
@@ -531,7 +731,7 @@ export function PantallaClasificacion({
         <View style={estilos.separadorRegla} />
         <Regla
           titulo="Blueshells"
-          descripcion={`Cada ${JORNADAS_POR_CICLO} jornadas, una bala para obligar al líder a usar una palabra concreta, y una protección para anular las que te tiren.`}
+          descripcion={`Cada mes, ${BLUESHELLS_POR_MES} balas para obligar al líder a usar una palabra concreta y ${BLUESHELLS_POR_MES} escudos para anular las que te tiren.`}
           valor={reglas.blueshells}
           editable={esFundador}
           alCambiar={(v) => alternarRegla('blueshells', v)}
@@ -545,7 +745,7 @@ export function PantallaClasificacion({
 
       <View style={{ height: espaciado.md }} />
       <Boton
-        titulo="Ver jornadas anteriores"
+        titulo="Ver todas las jornadas"
         variante="secundario"
         onPress={irAHistorial}
       />
@@ -553,11 +753,14 @@ export function PantallaClasificacion({
       <View style={{ height: espaciado.lg }} />
 
       {esFundador && (
-        <Boton
-          titulo="Reiniciar la competición"
-          variante="secundario"
-          onPress={() => setPreguntando('reiniciar')}
-        />
+        <>
+          <Boton
+            titulo="Reiniciar la competición"
+            variante="secundario"
+            onPress={() => setPreguntando('reiniciar')}
+          />
+          {errorReinicio && <Texto style={estilos.errorBala}>{errorReinicio}</Texto>}
+        </>
       )}
 
       <Boton
@@ -579,7 +782,7 @@ export function PantallaClasificacion({
       <Confirmacion
         visible={preguntando === 'reiniciar'}
         titulo="Reiniciar la competición"
-        mensaje={`La clasificación de "${torneo.nombre}" pasa a contar sólo desde hoy: todo lo anterior deja de puntuar, y también se reinician las blueshells, los escudos y las faltas. Las partidas viejas no se borran, siguen en las jornadas anteriores. Afecta a los ${torneo.miembros.length} jugadores.`}
+        mensaje={`La clasificación de "${torneo.nombre}" se pone a cero para los ${torneo.miembros.length} jugadores, y la competición nueva arranca con la jornada de mañana. La de hoy deja de contar, también para quien ya la haya jugado. Se reinician además las blueshells, los escudos y las faltas. Las partidas viejas no se borran: siguen en las jornadas anteriores.`}
         textoConfirmar="Reiniciar"
         onConfirmar={reiniciarDeVerdad}
         onCancelar={() => setPreguntando(null)}
@@ -867,6 +1070,66 @@ const estilos = StyleSheet.create({
     borderRadius: radio.pastilla,
     borderWidth: 1,
   },
+  avisoTemporada: {
+    color: colores.textoTenue,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
+    lineHeight: 16,
+    marginBottom: espaciado.xs,
+  },
+  chapaTrofeo: {
+    borderColor: colores.oro,
+    backgroundColor: 'rgba(243, 198, 75, 0.14)',
+  },
+  cuentaTrofeo: {
+    color: colores.oro,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.micro,
+  },
+  campeon: {
+    color: colores.oro,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+    letterSpacing: 0.6,
+  },
+  criterio: {
+    color: colores.textoTenue,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  pendiente: {
+    borderLeftWidth: 2,
+    borderLeftColor: colores.presente,
+    paddingLeft: espaciado.sm,
+    marginVertical: espaciado.xs,
+    gap: 2,
+  },
+  miembros: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: espaciado.sm,
+    marginTop: espaciado.xs,
+  },
+  chapaMiembro: {
+    paddingHorizontal: espaciado.md,
+    paddingVertical: 8,
+    borderRadius: radio.pastilla,
+    borderWidth: 1,
+    borderColor: colores.oro,
+  },
+  textoMiembro: {
+    color: colores.oro,
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.pequeno,
+  },
+  mesGanado: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
+    lineHeight: 24,
+  },
   chapaEscudo: {
     borderColor: colores.acento,
     backgroundColor: 'rgba(40, 200, 224, 0.14)',
@@ -940,6 +1203,12 @@ const estilos = StyleSheet.create({
     fontSize: escala.grande,
     minWidth: 36,
     textAlign: 'right',
+  },
+  avisoRejilla: {
+    color: colores.textoTenue,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
+    marginTop: espaciado.sm,
   },
   filaHoy: {
     flexDirection: 'row',

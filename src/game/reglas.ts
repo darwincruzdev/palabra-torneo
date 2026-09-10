@@ -1,20 +1,68 @@
 import type { Blueshell, DiaTorneo, Obligacion, ReglasTorneo } from '../tipos';
 import { PALABRAS_PENALIZACION } from './constantes';
-import { indiceDia } from './fecha';
+import { hash32 } from './semilla';
+import { mesDe } from './temporada';
 
 /**
- * Cada cuántas jornadas se recargan la blueshell y la protección.
+ * Balas y escudos que tiene cada uno por mes.
  *
- * Se cuenta desde la fundación del torneo, no desde que cada uno la gasta: así
- * todo el mundo recarga el mismo día y se puede decir en pantalla cuánto falta.
+ * Se recargan el día 1, a la vez que se reinicia la clasificación: la munición
+ * es de la temporada, igual que los puntos. Son dos y no una porque es el ritmo
+ * que ya había —una cada quince jornadas—, sólo que ahora atado al calendario
+ * en vez de a un contador propio.
  */
-export const JORNADAS_POR_CICLO = 15;
+/**
+ * Vocales que se toleran en la palabra de apertura.
+ *
+ * Con cuatro vocales y una consonante se barre medio abecedario de un tirón y
+ * la primera tirada deja de ser una apuesta. Sólo hay veinticuatro palabras así
+ * en toda la lista, y cuatro de ellas pueden ser la solución del día: por eso
+ * la norma sólo cierra el primer intento, no la palabra.
+ */
+export const MAX_VOCALES_AL_ABRIR = 3;
+
+const VOCALES = 'aeiou';
+
+/** Cuántas vocales tiene una palabra ya normalizada. La ñ no lo es. */
+export function cuentaVocales(palabra: string): number {
+  return [...palabra].filter((letra) => VOCALES.includes(letra)).length;
+}
+
+/** ¿Se pasa de vocales para abrir con ella? */
+export function demasiadasVocales(palabra: string): boolean {
+  return cuentaVocales(palabra) > MAX_VOCALES_AL_ABRIR;
+}
+
+/**
+ * Una letra de la palabra, para quien va último.
+ *
+ * Sale de un hash y no de un sorteo: tiene que salir la misma letra cada vez
+ * que se abra la pantalla, o recargando se irían pescando letras hasta tenerlas
+ * todas. Con la fecha, el torneo y el uid dentro de la semilla, a cada persona
+ * le toca la suya y cambia cada día.
+ *
+ * Se elige entre las letras distintas: en "cocos" no tiene sentido que la O
+ * salga el doble de veces que la C.
+ */
+export function pistaDe(solucion: string, semilla: string): string | null {
+  const letras = [...new Set(solucion)].sort();
+  if (letras.length === 0) return null;
+  return letras[hash32(semilla) % letras.length];
+}
+
+export const BLUESHELLS_POR_MES = 2;
+export const PROTECCIONES_POR_MES = 2;
 
 /** Las normas de la casa vienen puestas; quien no las quiera, las quita. */
 export const REGLAS_POR_DEFECTO: ReglasTorneo = {
   penalizacionLider: true,
   blueshells: true,
   faltaPorNoJugar: true,
+  // Automático por defecto: es lo que ya hacía, y un torneo que no toque nada
+  // no puede quedarse con trofeos esperando a que alguien decida.
+  desempateManual: false,
+  sinVocalesAlAbrir: true,
+  ayudaAlUltimo: true,
 };
 
 /**
@@ -26,21 +74,11 @@ export function normalizarReglas(reglas: Partial<ReglasTorneo> | undefined | nul
     penalizacionLider: reglas?.penalizacionLider ?? REGLAS_POR_DEFECTO.penalizacionLider,
     blueshells: reglas?.blueshells ?? REGLAS_POR_DEFECTO.blueshells,
     faltaPorNoJugar: reglas?.faltaPorNoJugar ?? REGLAS_POR_DEFECTO.faltaPorNoJugar,
+    desempateManual: reglas?.desempateManual ?? REGLAS_POR_DEFECTO.desempateManual,
+    sinVocalesAlAbrir:
+      reglas?.sinVocalesAlAbrir ?? REGLAS_POR_DEFECTO.sinVocalesAlAbrir,
+    ayudaAlUltimo: reglas?.ayudaAlUltimo ?? REGLAS_POR_DEFECTO.ayudaAlUltimo,
   };
-}
-
-/* ------------------------------------------------------------------ ciclos */
-
-/** En qué ciclo de quince jornadas cae una fecha. El primero es el 0. */
-export function ciclo(fechaInicio: string, fecha: string): number {
-  return Math.floor((indiceDia(fecha) - indiceDia(fechaInicio)) / JORNADAS_POR_CICLO);
-}
-
-/** Jornadas que quedan para recargar, contando la de hoy. */
-export function jornadasParaRecargar(fechaInicio: string, fecha: string): number {
-  const transcurridas = indiceDia(fecha) - indiceDia(fechaInicio);
-  const dentroDelCiclo = ((transcurridas % JORNADAS_POR_CICLO) + JORNADAS_POR_CICLO) % JORNADAS_POR_CICLO;
-  return JORNADAS_POR_CICLO - dentroDelCiclo;
 }
 
 /* -------------------------------------------------------------- blueshells */
@@ -104,34 +142,59 @@ export function blueshellsEfectivas(
 }
 
 /**
- * ¿Ya ha gastado su blueshell en el ciclo al que pertenece esta fecha?
+ * Balas que ha gastado ese mes.
  *
- * Se mira por el día en que se lanzó, no por el día al que golpea: si no,
- * disparar la víspera del reset descontaría del ciclo siguiente.
+ * Se cuenta por el día en que se disparó, no por el día al que golpea: si no,
+ * disparar el 31 le quitaría una bala al mes siguiente. Y lo anterior a la
+ * fundación no cuenta, que es lo que hace que reiniciar la competición devuelva
+ * la munición.
  */
-export function blueshellGastada(
+export function blueshellsGastadas(
   dias: DiaTorneo[],
   fechaInicio: string,
-  fecha: string,
+  mes: string,
   uid: string
-): boolean {
-  const cicloActual = ciclo(fechaInicio, fecha);
-  return dias.some((dia) => {
+): number {
+  return dias.filter((dia) => {
     const mia = dia.blueshells?.[uid];
-    return !!mia && ciclo(fechaInicio, mia.lanzada) === cicloActual;
-  });
+    return !!mia && mia.lanzada >= fechaInicio && mesDe(mia.lanzada) === mes;
+  }).length;
 }
 
-/** ¿Ya ha gastado su protección en el ciclo al que pertenece esta fecha? */
-export function proteccionGastada(
+/** Escudos que ha gastado ese mes. */
+export function proteccionesGastadas(
   dias: DiaTorneo[],
   fechaInicio: string,
-  fecha: string,
+  mes: string,
   uid: string
-): boolean {
-  const cicloActual = ciclo(fechaInicio, fecha);
-  return dias.some(
-    (dia) => dia.protecciones?.[uid] === true && ciclo(fechaInicio, dia.fecha) === cicloActual
+): number {
+  return dias.filter(
+    (dia) =>
+      dia.protecciones?.[uid] === true &&
+      dia.fecha >= fechaInicio &&
+      mesDe(dia.fecha) === mes
+  ).length;
+}
+
+/** Las que le quedan por gastar este mes. Nunca por debajo de cero. */
+export function balasQueLeQuedan(
+  dias: DiaTorneo[],
+  fechaInicio: string,
+  mes: string,
+  uid: string
+): number {
+  return Math.max(0, BLUESHELLS_POR_MES - blueshellsGastadas(dias, fechaInicio, mes, uid));
+}
+
+export function escudosQueLeQuedan(
+  dias: DiaTorneo[],
+  fechaInicio: string,
+  mes: string,
+  uid: string
+): number {
+  return Math.max(
+    0,
+    PROTECCIONES_POR_MES - proteccionesGastadas(dias, fechaInicio, mes, uid)
   );
 }
 

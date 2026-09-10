@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { clasificacion, liderDestacado } from '../src/game/clasificacion';
+import { clasificacion, colistaDestacado, liderDestacado } from '../src/game/clasificacion';
 import { AVATAR_POR_DEFECTO } from '../src/game/avatares';
 import type { DiaTorneo, ResultadoDia, Torneo } from '../src/tipos';
 
@@ -54,21 +54,21 @@ describe('clasificación', () => {
       jornada('2026-08-01', [resultado('ana', 2, 5), resultado('bea', 4, 3)]),
       jornada('2026-08-02', [resultado('ana', 3, 4), resultado('bea', 1, 7)]),
     ];
-    const filas = clasificacion(torneo, dias, undefined, HOY);
+    const filas = clasificacion(torneo, dias, { hoy: HOY });
     assert.equal(filas.find((f) => f.uid === 'ana')!.puntos, 9);
     assert.equal(filas.find((f) => f.uid === 'bea')!.puntos, 10);
     assert.equal(filas[0].uid, 'bea');
   });
 
   it('incluye a los miembros que aún no han jugado, con cero', () => {
-    const filas = clasificacion(torneo, [], undefined, HOY);
+    const filas = clasificacion(torneo, [], { hoy: HOY });
     assert.equal(filas.length, 3);
     assert.ok(filas.every((f) => f.puntos === 0));
   });
 
   it('ignora las jornadas anteriores a la fundación del torneo', () => {
     const dias = [jornada('2026-07-20', [resultado('ana', 1, 7)])];
-    assert.equal(clasificacion(torneo, dias, undefined, HOY)[0].puntos, 0);
+    assert.equal(clasificacion(torneo, dias, { hoy: HOY })[0].puntos, 0);
   });
 
   it('con "hasta" deja fuera la jornada en curso', () => {
@@ -76,7 +76,7 @@ describe('clasificación', () => {
       jornada('2026-08-01', [resultado('ana', 2, 5)]),
       jornada('2026-08-02', [resultado('bea', 1, 7)]),
     ];
-    const cerrada = clasificacion(torneo, dias, '2026-08-02', HOY);
+    const cerrada = clasificacion(torneo, dias, { hasta: '2026-08-02', hoy: HOY });
     assert.equal(cerrada.find((f) => f.uid === 'ana')!.puntos, 5);
     assert.equal(cerrada.find((f) => f.uid === 'bea')!.puntos, 0);
   });
@@ -88,7 +88,7 @@ describe('clasificación', () => {
       jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 2, 5)]),
       jornada('2026-08-02', [resultado('ana', 6, 0), resultado('bea', 5, 2)]),
     ];
-    const filas = clasificacion(torneo, dias, undefined, HOY);
+    const filas = clasificacion(torneo, dias, { hoy: HOY });
     assert.equal(filas[0].puntos, filas[1].puntos);
     assert.equal(filas[0].uid, 'bea', 'gana quien acumula más aciertos');
   });
@@ -99,7 +99,7 @@ describe('clasificación', () => {
       jornada('2026-08-02', [resultado('ana', 4, 3)]),
       jornada('2026-08-03', [resultado('ana', 6, 0)]), // fallo, no cuenta
     ];
-    const ana = clasificacion(torneo, dias, undefined, HOY).find((f) => f.uid === 'ana')!;
+    const ana = clasificacion(torneo, dias, { hoy: HOY }).find((f) => f.uid === 'ana')!;
     assert.equal(ana.jugadas, 3);
     assert.equal(ana.aciertos, 2);
     assert.equal(ana.mediaIntentos, 3);
@@ -109,22 +109,22 @@ describe('clasificación', () => {
 describe('líder destacado (regla de la penalización)', () => {
   it('lo hay cuando alguien va primero en solitario', () => {
     const dias = [jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 4, 3)])];
-    assert.equal(liderDestacado(clasificacion(torneo, dias, undefined, HOY)), 'ana');
+    assert.equal(liderDestacado(clasificacion(torneo, dias, { hoy: HOY })), 'ana');
   });
 
   it('no lo hay si el primero empata a puntos con el segundo', () => {
     const dias = [jornada('2026-08-01', [resultado('ana', 2, 5), resultado('bea', 2, 5)])];
-    assert.equal(liderDestacado(clasificacion(torneo, dias, undefined, HOY)), null);
+    assert.equal(liderDestacado(clasificacion(torneo, dias, { hoy: HOY })), null);
   });
 
   it('no lo hay antes de que nadie puntúe', () => {
-    assert.equal(liderDestacado(clasificacion(torneo, [], undefined, HOY)), null);
+    assert.equal(liderDestacado(clasificacion(torneo, [], { hoy: HOY })), null);
   });
 
   it('no lo hay en un torneo de un solo jugador', () => {
     const soloAna: Torneo = { ...torneo, miembros: ['ana'] };
     const dias = [jornada('2026-08-01', [resultado('ana', 1, 7)])];
-    assert.equal(liderDestacado(clasificacion(soloAna, dias, undefined, HOY)), null);
+    assert.equal(liderDestacado(clasificacion(soloAna, dias, { hoy: HOY })), null);
   });
 
   it('el desempate por aciertos no crea líder si los puntos están igualados', () => {
@@ -132,7 +132,7 @@ describe('líder destacado (regla de la penalización)', () => {
       jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 2, 5)]),
       jornada('2026-08-02', [resultado('ana', 6, 0), resultado('bea', 5, 2)]),
     ];
-    const filas = clasificacion(torneo, dias, undefined, HOY);
+    const filas = clasificacion(torneo, dias, { hoy: HOY });
     assert.equal(filas[0].uid, 'bea');
     assert.equal(liderDestacado(filas), null, 'ir delante por desempate no penaliza');
   });
@@ -141,7 +141,7 @@ describe('líder destacado (regla de la penalización)', () => {
 describe('falta por no jugar', () => {
   const sinFaltas: Torneo = {
     ...torneo,
-    reglas: { penalizacionLider: true, blueshells: true, faltaPorNoJugar: false },
+    reglas: { penalizacionLider: true, blueshells: true, faltaPorNoJugar: false, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
   };
 
   function puntosDe(filas: ReturnType<typeof clasificacion>, uid: string) {
@@ -153,7 +153,7 @@ describe('falta por no jugar', () => {
       jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 1, 7)]),
       jornada('2026-08-02', [resultado('bea', 3, 4)]),
     ];
-    const filas = clasificacion(torneo, dias, undefined, '2026-08-03');
+    const filas = clasificacion(torneo, dias, { hoy: '2026-08-03' });
     assert.equal(puntosDe(filas, 'ana').faltas, 1);
     assert.equal(puntosDe(filas, 'ana').puntos, 6, '7 menos la falta');
     assert.equal(puntosDe(filas, 'bea').faltas, 0);
@@ -163,7 +163,7 @@ describe('falta por no jugar', () => {
   it('la jornada de hoy no penaliza a nadie: sigue abierta', () => {
     const dias = [jornada('2026-08-01', [resultado('ana', 1, 7)])];
     // Estamos en el día 2 y nadie lo ha jugado todavía. Nada que cobrar.
-    const filas = clasificacion(torneo, dias, undefined, '2026-08-02');
+    const filas = clasificacion(torneo, dias, { hoy: '2026-08-02' });
     assert.equal(puntosDe(filas, 'ana').faltas, 0);
     assert.equal(puntosDe(filas, 'ana').puntos, 7);
   });
@@ -175,7 +175,7 @@ describe('falta por no jugar', () => {
       jornada('2026-08-02', [resultado('ana', 1, 7)]),
       jornada('2026-08-03', [resultado('ana', 1, 7), resultado('bea', 1, 7)]),
     ];
-    const filas = clasificacion(torneo, dias, undefined, '2026-08-04');
+    const filas = clasificacion(torneo, dias, { hoy: '2026-08-04' });
     assert.equal(puntosDe(filas, 'bea').faltas, 0);
     assert.equal(puntosDe(filas, 'bea').puntos, 7);
   });
@@ -185,7 +185,7 @@ describe('falta por no jugar', () => {
       jornada('2026-08-01', [resultado('ana', 1, 7)]),
       jornada('2026-08-02', [resultado('ana', 1, 7)]),
     ];
-    const filas = clasificacion(torneo, dias, undefined, '2026-08-03');
+    const filas = clasificacion(torneo, dias, { hoy: '2026-08-03' });
     assert.equal(puntosDe(filas, 'caj').faltas, 0);
     assert.equal(puntosDe(filas, 'caj').puntos, 0);
   });
@@ -196,7 +196,7 @@ describe('falta por no jugar', () => {
       jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 1, 7)]),
       jornada('2026-08-03', [resultado('ana', 1, 7), resultado('bea', 1, 7)]),
     ];
-    const filas = clasificacion(torneo, dias, undefined, '2026-08-04');
+    const filas = clasificacion(torneo, dias, { hoy: '2026-08-04' });
     assert.equal(puntosDe(filas, 'ana').faltas, 1);
     assert.equal(puntosDe(filas, 'bea').faltas, 1);
   });
@@ -206,7 +206,7 @@ describe('falta por no jugar', () => {
       jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 1, 7)]),
       jornada('2026-08-02', [resultado('bea', 3, 4)]),
     ];
-    const filas = clasificacion(sinFaltas, dias, undefined, '2026-08-03');
+    const filas = clasificacion(sinFaltas, dias, { hoy: '2026-08-03' });
     assert.equal(puntosDe(filas, 'ana').faltas, 0);
     assert.equal(puntosDe(filas, 'ana').puntos, 7);
   });
@@ -216,8 +216,75 @@ describe('falta por no jugar', () => {
       jornada('2026-08-01', [resultado('ana', 1, 7)]),
       jornada('2026-08-05', [resultado('ana', 1, 7)]),
     ];
-    const filas = clasificacion(torneo, dias, undefined, '2026-08-06');
+    const filas = clasificacion(torneo, dias, { hoy: '2026-08-06' });
     assert.equal(puntosDe(filas, 'ana').faltas, 3, 'los días 2, 3 y 4');
     assert.equal(puntosDe(filas, 'ana').puntos, 11);
+  });
+});
+
+describe('reiniciar la competición', () => {
+  // Reiniciar mueve la fundación a la jornada siguiente. Es lo que deja la
+  // tabla a cero para todos a la vez: si se pusiera en hoy, quien ya hubiera
+  // jugado esta mañana conservaría sus puntos y parecería que a él no le
+  // afectó el reinicio.
+  const reiniciado: Torneo = { ...torneo, fechaInicio: '2026-08-04' };
+
+  const dias = [
+    jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 2, 5)]),
+    jornada('2026-08-02', [resultado('ana', 1, 7), resultado('bea', 2, 5)]),
+    jornada('2026-08-03', [resultado('ana', 1, 7)]),
+  ];
+
+  it('deja a todo el mundo a cero, incluido quien jugó hoy', () => {
+    const filas = clasificacion(reiniciado, dias, { hoy: '2026-08-03' });
+    for (const fila of filas) {
+      assert.equal(fila.puntos, 0, `${fila.nombre} debería estar a cero`);
+      assert.equal(fila.jugadas, 0);
+      assert.equal(fila.faltas, 0, 'tampoco se arrastran faltas viejas');
+    }
+  });
+
+  it('sin reiniciar, quien jugó hoy conserva sus puntos', () => {
+    const filas = clasificacion(torneo, dias, { hoy: '2026-08-03' });
+    assert.equal(filas.find((f) => f.uid === 'ana')!.puntos, 21);
+  });
+});
+
+describe('quién va último (la ayuda del colista)', () => {
+  const HOY = '2026-08-04';
+
+  it('lo hay cuando alguien va último en solitario', () => {
+    const dias = [
+      jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 2, 5), resultado('caj', 4, 3)]),
+    ];
+    assert.equal(colistaDestacado(clasificacion(torneo, dias, { hoy: HOY })), 'caj');
+  });
+
+  it('no lo hay si el último empata con el penúltimo', () => {
+    // Regalarle la letra a media tabla no es una ayuda, es una fiesta.
+    const dias = [
+      jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 4, 3), resultado('caj', 4, 3)]),
+    ];
+    assert.equal(colistaDestacado(clasificacion(torneo, dias, { hoy: HOY })), null);
+  });
+
+  it('no lo hay al empezar el mes, con todos a cero', () => {
+    assert.equal(colistaDestacado(clasificacion(torneo, [], { hoy: HOY })), null);
+  });
+
+  it('quien no ha jugado va último si los demás puntuaron', () => {
+    const dias = [
+      jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 2, 5)]),
+    ];
+    // Carlos, que no aparece, es el único a cero.
+    assert.equal(colistaDestacado(clasificacion(torneo, dias, { hoy: HOY })), 'caj');
+  });
+
+  it('el líder y el último no pueden ser el mismo', () => {
+    const dias = [
+      jornada('2026-08-01', [resultado('ana', 1, 7), resultado('bea', 2, 5), resultado('caj', 4, 3)]),
+    ];
+    const filas = clasificacion(torneo, dias, { hoy: HOY });
+    assert.notEqual(colistaDestacado(filas), liderDestacado(filas));
   });
 });

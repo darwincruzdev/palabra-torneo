@@ -164,3 +164,16 @@ describe('fechas', () => {
     assert.equal(fechaJuego(new Date('2026-08-14T21:30:00Z')), '2026-08-14');
   });
 });
+
+describe('palabras que faltaban en la lista', () => {
+  // Las echaron en falta jugando: el juego las rechazaba al escribirlas.
+  it('acepta pesto y durum', () => {
+    assert.equal(esAceptada('pesto'), true);
+    assert.equal(esAceptada('durum'), true);
+  });
+
+  it('las acepta escritas como sea', () => {
+    assert.equal(esAceptada(normalizar('PESTO')), true);
+    assert.equal(esAceptada(normalizar('Durum')), true);
+  });
+});

@@ -184,7 +184,7 @@ export async function salirDeTorneo(torneoId: string, uid: string): Promise<void
 }
 
 /**
- * Empieza la competición de cero desde hoy.
+ * Empieza la competición de cero desde la fecha que se le diga.
  *
  * No se borra nada: se mueve la fecha de fundación, y la clasificación ya
  * ignora todo lo anterior a ella. Los resultados viejos siguen guardados —el
@@ -216,6 +216,23 @@ export function observarMisTorneos(
     },
     () => callback([])
   );
+}
+
+/**
+ * Decide quién gana un mes que acabó empatado. Sólo el fundador.
+ *
+ * Aquí no se comprueba nada: la comprobación de que ese uid empató de verdad
+ * vive en el cálculo del palmarés, que es quien reparte los trofeos. Escribir
+ * un nombre que no empató no le da nada a nadie.
+ */
+export async function guardarDesempate(
+  torneoId: string,
+  mes: string,
+  uid: string
+): Promise<void> {
+  await updateDoc(doc(baseDatos(), 'torneos', torneoId), {
+    [`desempates.${mes}`]: uid,
+  });
 }
 
 /** Cambiar las normas de la casa. Sólo lo deja hacer el fundador. */
@@ -261,15 +278,30 @@ export async function activarProteccion(
 /* -------------------------------------------------------------- resultados */
 
 /**
- * Las jornadas de un torneo, en tiempo real. Cada jornada es un documento con
- * los resultados de todo el mundo dentro, así que un año son ~365 documentos.
+ * Las jornadas de la temporada en curso, en tiempo real.
+ *
+ * Antes esto escuchaba la colección entera: un documento por día y torneo, para
+ * siempre, en vivo y en cada móvil. Cada partida de cualquiera despertaba a
+ * todos los demás, y la memoria y la factura crecían sin techo. Ahora la
+ * escucha viva se queda en el mes, que es lo único que la clasificación
+ * necesita; lo anterior se pide suelto y en resumen.
+ *
+ * La ventana llega hasta mañana aunque se salga del mes: las blueshells se
+ * guardan en el día al que golpean, así que la que se dispara el 31 vive ya en
+ * el documento del 1 del mes siguiente.
  */
 export function observarJornadas(
   torneoId: string,
+  desde: string,
+  hasta: string,
   callback: (dias: DiaTorneo[]) => void
 ): Unsubscribe {
   return onSnapshot(
-    collection(baseDatos(), 'torneos', torneoId, 'dias'),
+    query(
+      collection(baseDatos(), 'torneos', torneoId, 'dias'),
+      where('fecha', '>=', desde),
+      where('fecha', '<=', hasta)
+    ),
     (instantanea) => {
       const dias = instantanea.docs.map((d) => d.data() as DiaTorneo);
       dias.sort((a, b) => a.fecha.localeCompare(b.fecha));
@@ -279,6 +311,13 @@ export function observarJornadas(
   );
 }
 
+/**
+ * Todo el historial, de una vez y sin dejar escucha abierta.
+ *
+ * Se pide sólo cuando alguien va a mirar meses cerrados, y quien lo pide lo
+ * reduce a resúmenes y tira los días: un mes cerrado ya no cambia nunca, así
+ * que guardar sus treinta documentos en memoria no aporta nada.
+ */
 export async function obtenerJornadas(torneoId: string): Promise<DiaTorneo[]> {
   const instantanea = await getDocs(collection(baseDatos(), 'torneos', torneoId, 'dias'));
   const dias = instantanea.docs.map((d) => d.data() as DiaTorneo);
