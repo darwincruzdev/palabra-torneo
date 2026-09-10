@@ -5,8 +5,10 @@ import {
   GRACIA_ABANDONO_MS,
   PALABRAS_POR_DUELO,
   SEGUNDOS_FINAL,
+  balancePorRival,
   codificarIntento,
   descodificarPalabra,
+  duelosJugados,
   ganador,
   palabraAcertada,
   palabrasCerradas,
@@ -279,5 +281,80 @@ describe('el rival que se va y no vuelve', () => {
 
   it('el margen es de verdad, no de cero', () => {
     assert.ok(GRACIA_ABANDONO_MS > 0, 'sin margen se le robaría la palabra al que llega justo');
+  });
+});
+
+describe('historial de duelos', () => {
+  const yo = 'darwin';
+  const otro = { uid: 'nico', nombre: 'Nico', avatar: { color: 0, patron: 0 } };
+
+  /** Un duelo terminado con los puntos que se le digan, vía rejilla. */
+  function duelo(id: string, creado: number, mias: string[], suyas: string[]) {
+    return {
+      id,
+      codigo: 'AAA111',
+      semilla: 's',
+      creado,
+      estado: 'terminado' as const,
+      retador: { uid: yo, nombre: 'Darwin', avatar: { color: 1, patron: 0 } },
+      rival: otro,
+      jugadores: [yo, otro.uid],
+      progreso: {
+        [yo]: { rejilla: mias, cerradas: [], letras: [], puntos: 0 },
+        [otro.uid]: { rejilla: suyas, cerradas: [], letras: [], puntos: 0 },
+      },
+    };
+  }
+
+  // Acertar al primer intento son 7 puntos; fallar seis veces, 0.
+  const gano = ['ccccc', '', ''];
+  const perdi = ['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '', ''];
+
+  it('sólo cuenta los terminados', () => {
+    const aMedias = { ...duelo('x', 1, gano, perdi), estado: 'jugando' as const };
+    assert.deepEqual(duelosJugados([aMedias], yo), []);
+  });
+
+  it('dice si ganaste o perdiste', () => {
+    const [d] = duelosJugados([duelo('a', 1, gano, perdi)], yo);
+    assert.equal(d.resultado, 'ganado');
+    assert.ok(d.misPuntos > d.susPuntos);
+
+    const [e] = duelosJugados([duelo('b', 1, perdi, gano)], yo);
+    assert.equal(e.resultado, 'perdido');
+  });
+
+  it('el mismo duelo se ve del revés desde el otro lado', () => {
+    const [mio] = duelosJugados([duelo('a', 1, gano, perdi)], yo);
+    const [suyo] = duelosJugados([duelo('a', 1, gano, perdi)], otro.uid);
+    assert.equal(mio.resultado, 'ganado');
+    assert.equal(suyo.resultado, 'perdido');
+  });
+
+  it('los más recientes primero', () => {
+    const lista = duelosJugados(
+      [duelo('viejo', 100, gano, perdi), duelo('nuevo', 900, gano, perdi)],
+      yo
+    );
+    assert.deepEqual(lista.map((d) => d.id), ['nuevo', 'viejo']);
+  });
+
+  it('el cara a cara suma ganados y perdidos por rival', () => {
+    const lista = duelosJugados(
+      [
+        duelo('a', 3, gano, perdi),
+        duelo('b', 2, gano, perdi),
+        duelo('c', 1, perdi, gano),
+      ],
+      yo
+    );
+    const [contra] = balancePorRival(lista);
+    assert.equal(contra.nombre, 'Nico');
+    assert.equal(contra.ganados, 2);
+    assert.equal(contra.perdidos, 1);
+  });
+
+  it('sin duelos jugados, el balance está vacío', () => {
+    assert.deepEqual(balancePorRival([]), []);
   });
 });

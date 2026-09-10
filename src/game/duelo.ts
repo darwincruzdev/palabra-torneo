@@ -1,3 +1,4 @@
+import type { Duelo, JugadorDuelo } from '../tipos';
 import { LONGITUD, MAX_INTENTOS, PUNTOS_POR_INTENTO } from './constantes';
 import { evaluar, type Marca } from './evaluar';
 import { recorrido } from './semilla';
@@ -351,4 +352,91 @@ export function debeCerrarPorTiempo(
 /** ¿Se ha terminado el duelo? Cuando los dos han cerrado todas. */
 export function dueloTerminado(unas: boolean[], otras: boolean[]): boolean {
   return rondaDe(unas, otras) >= PALABRAS_POR_DUELO;
+}
+
+
+/* ----------------------------------------------------------- historial */
+
+/** Un duelo terminado, visto desde uno de los dos. */
+export type DueloJugado = {
+  id: string;
+  creado: number;
+  rival: JugadorDuelo | null;
+  misPuntos: number;
+  susPuntos: number;
+  resultado: 'ganado' | 'perdido' | 'empate';
+};
+
+/**
+ * Los duelos terminados de alguien, del más reciente al más antiguo.
+ *
+ * Los duelos se jugaban y desaparecían: no quedaba constancia de quién le gana
+ * a quién, que es media gracia de picarse. El resultado se recalcula de las
+ * rejillas guardadas en vez de apuntarse al terminar, así que no depende de que
+ * ninguna escritura final llegara a hacerse.
+ */
+export function duelosJugados(duelos: Duelo[], uid: string): DueloJugado[] {
+  return duelos
+    .filter((d) => d.estado === 'terminado' && d.rival && d.jugadores.includes(uid))
+    .map((duelo) => {
+      const uidRival = duelo.jugadores.find((j) => j !== uid) ?? '';
+      const mia = normalizarProgreso(duelo.progreso?.[uid]).rejilla;
+      const suya = normalizarProgreso(duelo.progreso?.[uidRival]).rejilla;
+      const veredicto = ganador({ uid, rejilla: mia }, { uid: uidRival, rejilla: suya });
+
+      return {
+        id: duelo.id,
+        creado: duelo.creado ?? 0,
+        rival: duelo.retador?.uid === uidRival ? duelo.retador : duelo.rival,
+        misPuntos: resumir(mia).puntos,
+        susPuntos: resumir(suya).puntos,
+        resultado: veredicto.empate
+          ? ('empate' as const)
+          : veredicto.uid === uid
+            ? ('ganado' as const)
+            : ('perdido' as const),
+      };
+    })
+    .sort((a, b) => b.creado - a.creado);
+}
+
+/** Cómo va la cuenta con cada rival. */
+export type BalanceRival = {
+  uid: string;
+  nombre: string;
+  ganados: number;
+  perdidos: number;
+  empates: number;
+};
+
+/**
+ * El cara a cara con cada uno, del más jugado al menos.
+ *
+ * Es lo que de verdad se recuerda: no cuántos duelos llevas, sino que a este le
+ * ganas cuatro a uno.
+ */
+export function balancePorRival(jugados: DueloJugado[]): BalanceRival[] {
+  const cuenta = new Map<string, BalanceRival>();
+
+  for (const duelo of jugados) {
+    if (!duelo.rival) continue;
+    const previo = cuenta.get(duelo.rival.uid) ?? {
+      uid: duelo.rival.uid,
+      nombre: duelo.rival.nombre,
+      ganados: 0,
+      perdidos: 0,
+      empates: 0,
+    };
+    if (duelo.resultado === 'ganado') previo.ganados += 1;
+    else if (duelo.resultado === 'perdido') previo.perdidos += 1;
+    else previo.empates += 1;
+    // El nombre más reciente manda: la gente se cambia el mote.
+    previo.nombre = duelo.rival.nombre;
+    cuenta.set(duelo.rival.uid, previo);
+  }
+
+  return [...cuenta.values()].sort(
+    (a, b) =>
+      b.ganados + b.perdidos + b.empates - (a.ganados + a.perdidos + a.empates)
+  );
 }

@@ -11,6 +11,7 @@ import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { SelectorAvatar } from '../components/SelectorAvatar';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
+import { Desplegable } from '../components/Desplegable';
 import * as Linking from 'expo-linking';
 import { BLUESHELLS_POR_MES, MAX_VOCALES_AL_ABRIR } from '../game/reglas';
 import {
@@ -196,8 +197,13 @@ export function PantallaPerfil() {
         </View>
       </Tarjeta>
 
-      <Texto style={estilos.seccion}>La regla del líder</Texto>
-      <Tarjeta>
+      <Texto style={estilos.seccion}>Las normas de la casa</Texto>
+      <Sutil>
+        Cada torneo enciende las que quiera desde su clasificación. Toca una para leerla.
+      </Sutil>
+      <View style={{ height: espaciado.sm }} />
+
+      <Desplegable titulo="La regla del líder" resumen="Ir primero cuesta abrir con una de cinco palabras malas.">
         <Sutil>
           Quien termine una jornada primero en solitario — sin empatar a puntos con el
           segundo — arranca la jornada siguiente obligado a usar una de estas cinco
@@ -211,10 +217,9 @@ export function PantallaPerfil() {
           Es el lastre por ir ganando. Si hay empate en lo alto de la tabla, nadie lleva
           penalización. Se cuenta por separado en cada torneo.
         </Sutil>
-      </Tarjeta>
+      </Desplegable>
 
-      <Texto style={estilos.seccion}>La temporada</Texto>
-      <Tarjeta>
+      <Desplegable titulo="La temporada" resumen="Cada mes empieza de cero y reparte un trofeo.">
         <Sutil>
           Cada mes es una temporada. El día 1 la clasificación vuelve a cero para todos, y
           quien va primero al cerrarse el mes se lleva un trofeo.
@@ -227,10 +232,9 @@ export function PantallaPerfil() {
         <Sutil>
           Las balas y los escudos también se recargan el día 1, con la temporada nueva.
         </Sutil>
-      </Tarjeta>
+      </Desplegable>
 
-      <Texto style={estilos.seccion}>Faltar tiene precio</Texto>
-      <Tarjeta>
+      <Desplegable titulo="Faltar tiene precio" resumen="Saltarse una jornada cerrada resta un punto.">
         <Sutil>
           Saltarse una jornada resta un punto. Sólo cuentan las ya cerradas: la de hoy no
           penaliza a nadie hasta que pasa la medianoche.
@@ -240,10 +244,9 @@ export function PantallaPerfil() {
           cuesta las jornadas de antes, y las faltas no cruzan de una temporada a otra.
           Cada torneo decide si juega con esta norma.
         </Sutil>
-      </Tarjeta>
+      </Desplegable>
 
-      <Texto style={estilos.seccion}>Abrir la jornada</Texto>
-      <Tarjeta>
+      <Desplegable titulo="Abrir la jornada" resumen="La primera palabra no puede llevar más de tres vocales.">
         <Sutil>
           La primera palabra del día no puede llevar más de {MAX_VOCALES_AL_ABRIR} vocales.
           Con cuatro vocales y una consonante se barre medio abecedario de un tirón y la
@@ -253,10 +256,9 @@ export function PantallaPerfil() {
           Sólo afecta al primer intento: del segundo en adelante valen todas, entre otras
           cosas porque alguna de esas palabras puede ser la solución del día.
         </Sutil>
-      </Tarjeta>
+      </Desplegable>
 
-      <Texto style={estilos.seccion}>Una mano al último</Texto>
-      <Tarjeta>
+      <Desplegable titulo="Una mano al último" resumen="Al que va último se le chiva una letra.">
         <Sutil>
           A quien va último en solitario, el juego le chiva una letra de la palabra del
           día. Sale la misma letra toda la jornada, así que recargar no da letras nuevas.
@@ -265,10 +267,9 @@ export function PantallaPerfil() {
           Se acaba en cuanto deja de ir último solo: si empata con el penúltimo, ya no hay
           ayuda. Es para no descolgarse, no un premio por ir mal.
         </Sutil>
-      </Tarjeta>
+      </Desplegable>
 
-      <Texto style={estilos.seccion}>La blueshell</Texto>
-      <Tarjeta>
+      <Desplegable titulo="La blueshell" resumen="Dos balas y dos escudos al mes para picar al líder.">
         <Sutil>
           Cada mes tienes {BLUESHELLS_POR_MES} balas y {BLUESHELLS_POR_MES} escudos, y
           se recargan el día 1 junto con la clasificación. La bala se le tira a quien va
@@ -285,7 +286,7 @@ export function PantallaPerfil() {
           golpe, tantas como te hayan tirado. Se dispara desde la clasificación del
           torneo, y cada torneo decide si juega con esta norma o sin ella.
         </Sutil>
-      </Tarjeta>
+      </Desplegable>
 
       <View style={{ height: espaciado.lg }} />
       <Boton

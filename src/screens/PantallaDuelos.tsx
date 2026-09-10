@@ -8,9 +8,16 @@ import {
   View,
 } from 'react-native';
 import { Texto } from '../components/Texto';
+import { Avatar } from '../components/Avatar';
 import * as Clipboard from 'expo-clipboard';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
-import { PALABRAS_POR_DUELO, SEGUNDOS_FINAL } from '../game/duelo';
+import {
+  PALABRAS_POR_DUELO,
+  SEGUNDOS_FINAL,
+  balancePorRival,
+  duelosJugados,
+  type DueloJugado,
+} from '../game/duelo';
 import { PUNTOS_POR_INTENTO } from '../game/constantes';
 import { enlaceDeInvitacion, hayEnlaces } from '../game/invitacion';
 import { useApp } from '../estado/AppContext';
@@ -33,6 +40,8 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
   /** El duelo con el que estoy esperando en la cola, si estoy esperando. */
   const [enCola, setEnCola] = useState<{ dueloId: string; codigo: string } | null>(null);
   const [buscando, setBuscando] = useState(false);
+  /** Los duelos ya jugados. Se piden una vez al abrir la pantalla. */
+  const [jugados, setJugados] = useState<DueloJugado[]>([]);
   /**
    * Si la espera acabó en emparejamiento.
    *
@@ -77,6 +86,24 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
       }
     };
   }, [enCola]);
+
+  /**
+   * El historial se pide una sola vez y sin dejar escucha abierta: son partidas
+   * terminadas, no van a cambiar.
+   */
+  useEffect(() => {
+    if (!uid || !hayFirebase) return;
+    let vigente = true;
+    duelos
+      .misDuelos(uid)
+      .then((todos) => {
+        if (vigente) setJugados(duelosJugados(todos, uid));
+      })
+      .catch(() => {});
+    return () => {
+      vigente = false;
+    };
+  }, [uid, hayFirebase]);
 
   if (!hayFirebase) {
     return (
@@ -279,6 +306,46 @@ export function PantallaDuelos({ irAlDuelo }: Props) {
         deshabilitado={ocupado !== null}
       />
 
+      {jugados.length > 0 && (
+        <Tarjeta acento={colores.oro}>
+          <Titulo>Tus duelos</Titulo>
+
+          <View style={estilos.balance}>
+            {balancePorRival(jugados).map((rival) => (
+              <Texto key={rival.uid} style={estilos.lineaBalance}>
+                <Texto style={estilos.negrita}>{rival.nombre}</Texto>
+                {'  '}
+                <Texto style={estilos.ganados}>{rival.ganados}</Texto>
+                {' - '}
+                <Texto style={estilos.perdidos}>{rival.perdidos}</Texto>
+                {rival.empates > 0 ? `  (${rival.empates} en tablas)` : ''}
+              </Texto>
+            ))}
+          </View>
+
+          <View style={estilos.separador} />
+          <Sutil>Los últimos</Sutil>
+
+          {jugados.slice(0, 8).map((duelo) => (
+            <View key={duelo.id} style={estilos.filaDuelo}>
+              <Texto style={estilos.marcaDuelo}>
+                {duelo.resultado === 'ganado'
+                  ? '✓'
+                  : duelo.resultado === 'perdido'
+                    ? '✗'
+                    : '='}
+              </Texto>
+              <Texto style={estilos.nombreDuelo} numberOfLines={1}>
+                {duelo.rival?.nombre ?? 'Rival'}
+              </Texto>
+              <Texto style={estilos.tanteo}>
+                {duelo.misPuntos} - {duelo.susPuntos}
+              </Texto>
+            </View>
+          ))}
+        </Tarjeta>
+      )}
+
       <Tarjeta>
         <Titulo>Cómo funciona</Titulo>
         <Sutil>
@@ -317,6 +384,49 @@ function mensajeDeError(e: unknown): string {
 }
 
 const estilos = StyleSheet.create({
+  balance: {
+    gap: 4,
+    marginTop: espaciado.sm,
+  },
+  lineaBalance: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.normal,
+  },
+  ganados: {
+    color: colores.correcta,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+  },
+  perdidos: {
+    color: colores.peligro,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.medio,
+  },
+  filaDuelo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaciado.sm,
+    paddingVertical: 5,
+  },
+  marcaDuelo: {
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.normal,
+    color: colores.textoSuave,
+    width: 16,
+    textAlign: 'center',
+  },
+  nombreDuelo: {
+    flex: 1,
+    color: colores.texto,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
+  },
+  tanteo: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.pequeno,
+  },
   esperando: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -200,6 +200,28 @@ export async function proponerRevancha(dueloId: string, nuevoId: string): Promis
   await updateDoc(doc(baseDatos(), 'duelos', dueloId), { revancha: nuevoId });
 }
 
+/** Cuántos duelos pasados se traen. Más que eso ya nadie los mira. */
+const MAXIMO_HISTORIAL = 60;
+
+/**
+ * Mis duelos, para el historial.
+ *
+ * Se filtra sólo por estar entre los jugadores —una consulta de un campo, que
+ * Firestore resuelve con sus índices automáticos— y el resto se ordena y se
+ * descarta aquí. Añadir el estado o el orden a la consulta obligaría a crear un
+ * índice a mano en la consola, y no compensa por sesenta documentos.
+ */
+export async function misDuelos(uid: string): Promise<Duelo[]> {
+  const instantanea = await getDocs(
+    query(
+      collection(baseDatos(), 'duelos'),
+      where('jugadores', 'array-contains', uid),
+      limit(MAXIMO_HISTORIAL)
+    )
+  );
+  return instantanea.docs.map((d) => ({ ...(d.data() as Duelo), id: d.id }));
+}
+
 /** El duelo en tiempo real: es lo que alimenta la minipantalla del rival. */
 export function observarDuelo(
   dueloId: string,
