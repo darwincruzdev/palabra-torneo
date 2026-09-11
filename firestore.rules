@@ -171,6 +171,24 @@ service cloud.firestore {
                    .affectedKeys().hasOnly([request.auth.uid]);
         }
 
+        // Una bala tiene que ir contra alguien del torneo y llevar algo que
+        // pueda ser una palabra.
+        //
+        // El servidor no tiene el diccionario, así que no puede comprobar que
+        // exista de verdad —de eso se encarga la app, que ignora las balas con
+        // palabras inventadas—, pero sí puede cerrar lo burdo: disparar a un
+        // desconocido o meter cifras y símbolos donde va una palabra.
+        //
+        // El margen de 5 a 10 es a propósito: la Ñ ocupa dos bytes y no está
+        // claro si aquí se cuenta por letras o por bytes. Pasarse de largo no
+        // hace daño —la app filtra igual—; rechazar "aceña" sí lo haría.
+        function balaCreible() {
+          return request.resource.data.blueshells[request.auth.uid].objetivo
+                   in datosTorneo(torneoId).miembros
+            && request.resource.data.blueshells[request.auth.uid].palabra
+                   .matches('^[a-zñ]{5,10}$');
+        }
+
         // El resultado de una jornada se escribe una vez y no se toca más.
         //
         // Sin esto, entrar con la misma cuenta desde otro navegador dejaba
@@ -189,14 +207,16 @@ service cloud.firestore {
                .hasOnly(['fecha', 'resultados', 'blueshells', 'protecciones'])
           && soloMio('resultados')
           && soloMio('blueshells')
-          && soloMio('protecciones');
+          && soloMio('protecciones')
+          && (!request.resource.data.keys().hasAny(['blueshells']) || balaCreible());
 
         allow update: if esMiembro(torneoId)
           && camposTocados().hasOnly(['resultados', 'blueshells', 'protecciones'])
           && soloCambioMio('resultados')
           && soloCambioMio('blueshells')
           && soloCambioMio('protecciones')
-          && (!camposTocados().hasAny(['resultados']) || primerResultado());
+          && (!camposTocados().hasAny(['resultados']) || primerResultado())
+          && (!camposTocados().hasAny(['blueshells']) || balaCreible());
 
         allow delete: if false;
       }

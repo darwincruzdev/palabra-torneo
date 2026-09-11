@@ -1,5 +1,6 @@
 import type { Blueshell, DiaTorneo, Obligacion, ReglasTorneo } from '../tipos';
 import { PALABRAS_PENALIZACION } from './constantes';
+import { esAceptada } from './palabras';
 import { hash32 } from './semilla';
 import { mesDe } from './temporada';
 
@@ -226,9 +227,24 @@ export function obligacionesDe(opciones: {
   }
 
   if (reglas.blueshells) {
+    /**
+     * Una bala con una palabra que no existe no obliga a nada.
+     *
+     * La app comprueba la palabra al dispararla, pero el servidor no puede: no
+     * tiene el diccionario. Quien escribiera a mano una palabra inventada
+     * dejaría a su víctima sin poder terminar la jornada — el juego le exigiría
+     * esa palabra y luego la rechazaría por no estar en la lista. Aquí se
+     * ignora, y la bala se ve igual en la clasificación: el rastro de quien lo
+     * intentó no se borra.
+     *
+     * Con las balas normales esto no cambia nada: ya venían validadas.
+     */
+    const validas = blueshells.filter((b) => esAceptada(b.palabra));
+
     // Siempre a partir del segundo intento, lleve o no penalización el primero:
-    // la norma dice "de segunda opción".
-    blueshells.forEach((b, i) => {
+    // la norma dice "de segunda opción". Los huecos se cierran, que si no una
+    // bala inventada dejaría un intento libre en medio.
+    validas.forEach((b, i) => {
       obligaciones.push({
         indice: 1 + i,
         palabras: [b.palabra],

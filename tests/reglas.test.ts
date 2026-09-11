@@ -182,6 +182,45 @@ describe('obligaciones de la jornada', () => {
     );
   });
 
+  it('una bala con una palabra que no existe no obliga a nada', () => {
+    // El servidor no tiene el diccionario, así que alguien podría escribir a
+    // mano una bala con una palabra inventada. Si contara, la víctima no podría
+    // terminar la jornada: el juego le exigiría esa palabra y luego la
+    // rechazaría por no estar en la lista.
+    const obligaciones = obligacionesDe({
+      reglas: TODAS,
+      liderando: false,
+      blueshells: [{ ...bala('ana', 'zzzzz', '2026-01-09'), autor: 'bea' }],
+    });
+    assert.deepEqual(obligaciones, []);
+  });
+
+  it('las balas buenas siguen cayendo seguidas aunque una sea inventada', () => {
+    // Sin cerrar el hueco, la inventada dejaría el segundo intento libre y la
+    // buena se iría al tercero.
+    const obligaciones = obligacionesDe({
+      reglas: TODAS,
+      liderando: false,
+      blueshells: [
+        { ...bala('ana', 'zzzzz', '2026-01-09'), autor: 'bea' },
+        { ...bala('ana', 'cocos', '2026-01-09'), autor: 'caj' },
+      ],
+    });
+    assert.deepEqual(
+      obligaciones.map((o) => [o.indice, o.palabras[0]]),
+      [[1, 'cocos']]
+    );
+  });
+
+  it('con balas normales no cambia nada: la ñ y las de siempre valen', () => {
+    const obligaciones = obligacionesDe({
+      reglas: TODAS,
+      liderando: false,
+      blueshells: [{ ...bala('ana', 'aceña', '2026-01-09'), autor: 'bea' }],
+    });
+    assert.deepEqual(obligaciones.map((o) => o.palabras[0]), ['aceña']);
+  });
+
   it('guarda de quién es cada bala, para poder decirlo', () => {
     const obligaciones = obligacionesDe({
       reglas: TODAS,
