@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import type {
   Avatar,
+  PartidaHecha,
   ResumenMes,
   DiaTorneo,
   Obligacion,
@@ -23,6 +24,7 @@ import {
   liderDestacado,
   resumirMeses,
 } from '../game/clasificacion';
+import { misPartidas } from '../game/estadisticas';
 import { fechaJuego, sumarDias } from '../game/fecha';
 import { esAceptada } from '../game/palabras';
 import { normalizar } from '../game/normalizar';
@@ -75,6 +77,12 @@ type Estado = {
   /** Cómo quedó cada mes cerrado. Se llena al llamar a `cargarResumenes`. */
   resumenes: Record<string, ResumenMes[]>;
   cargarResumenes: (torneoId: string) => Promise<void>;
+  /**
+   * Mis partidas que constan en el servidor: las del mes en curso más las de
+   * los meses que se hayan cargado. Es lo que hace que las estadísticas
+   * sobrevivan a cambiar de móvil.
+   */
+  misPartidasPublicadas: PartidaHecha[];
   /** El torneo cuya palabra se está jugando ahora mismo. */
   activo: TorneoActivo;
   elegirTorneo: (torneoId: string) => void;
@@ -170,6 +178,14 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
    */
   const [resumenes, setResumenes] = useState<Record<string, ResumenMes[]>>({});
   const cargandoResumenes = useRef<Set<string>>(new Set());
+  /**
+   * Mis partidas de meses cerrados, sacadas del historial al reducirlo.
+   *
+   * Se guardan aquí porque las estadísticas personales no pueden depender de la
+   * memoria de un móvil: quien se instala la app en otro aparato tenía el
+   * perfil a cero aunque llevara meses jugando.
+   */
+  const [partidasViejas, setPartidasViejas] = useState<Record<string, PartidaHecha[]>>({});
   const [activoId, setActivoId] = useState<string>(TORNEO_LIBRE.id);
   const [configurado, setConfigurado] = useState<boolean | null>(null);
   const [letraGrande, setLetraGrande] = useState(false);
@@ -288,13 +304,28 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
           ...previo,
           [torneoId]: resumirMeses(torneo, historial, hoy),
         }));
+        // De todo el historial sólo se conservan mis partidas: son las que
+        // alimentan las estadísticas, y son treinta al mes en vez de todas.
+        if (uid) {
+          setPartidasViejas((previo) => ({
+            ...previo,
+            [torneoId]: misPartidas(torneoId, historial, uid),
+          }));
+        }
       } catch {
         // Sin historial se sigue jugando: la temporada en curso no depende de él.
         cargandoResumenes.current.delete(torneoId);
       }
     },
-    [torneos, hoy]
+    [torneos, hoy, uid]
   );
+
+  /** Lo del mes en curso llega en vivo; lo viejo, de lo que se haya cargado. */
+  const misPartidasPublicadas = useMemo(() => {
+    if (!uid) return [];
+    const delMes = torneos.flatMap((t) => misPartidas(t.id, jornadas[t.id] ?? [], uid));
+    return [...Object.values(partidasViejas).flat(), ...delMes];
+  }, [torneos, jornadas, partidasViejas, uid]);
 
   const reglasDe = useCallback(
     (torneoId: string) =>
@@ -590,6 +621,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     jornadas,
     resumenes,
     cargarResumenes,
+    misPartidasPublicadas,
     activo,
     elegirTorneo,
     penalizadoEn,

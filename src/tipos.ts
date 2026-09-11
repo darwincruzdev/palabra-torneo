@@ -164,6 +164,17 @@ export type ResumenMes = {
   jornadas: number;
 };
 
+/**
+ * Una partida terminada, para las estadísticas personales.
+ *
+ * Vive en dos sitios a la vez: en el móvil que la jugó y, si era de torneo, en
+ * la jornada del servidor. Por eso el tipo es compartido.
+ */
+export type PartidaHecha = Pick<
+  ResultadoDia,
+  'intentos' | 'acertada' | 'puntos' | 'patron'
+> & { fecha: string; torneoId: string };
+
 export type FilaClasificacion = {
   uid: string;
   nombre: string;

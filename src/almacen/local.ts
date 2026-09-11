@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Avatar, PartidaLocal, ResultadoDia } from '../tipos';
+import type { Avatar, PartidaHecha, PartidaLocal } from '../tipos';
 import { PALABRAS_PENALIZACION } from '../game/constantes';
 
 const CLAVE_PARTIDA = 'pt:partida'; // se le añade :{torneoId}
@@ -153,10 +153,7 @@ export function guardarAvisoParche(aviso: AvisoParcheLocal): Promise<void> {
 
 /* --------------------------------------------------------------- historial */
 
-export type EntradaHistorial = Pick<
-  ResultadoDia,
-  'intentos' | 'acertada' | 'puntos' | 'patron'
-> & { fecha: string; torneoId: string };
+export type EntradaHistorial = PartidaHecha;
 
 export async function cargarHistorial(): Promise<EntradaHistorial[]> {
   return (await leerJson<EntradaHistorial[]>(CLAVE_HISTORIAL)) ?? [];

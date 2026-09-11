@@ -23,14 +23,25 @@ import {
 } from '../game/constantes';
 import { todosLosAvatares, type Avatar as DatosAvatar } from '../game/avatares';
 import { cargarHistorial, type EntradaHistorial } from '../almacen/local';
+import { fusionarHistorial } from '../game/estadisticas';
 import { sumarDias } from '../game/fecha';
 import { totalAceptadas, totalSoluciones } from '../game/palabras';
 import { useApp } from '../estado/AppContext';
 import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
 
 export function PantallaPerfil() {
-  const { nombre, avatar, cambiarPerfil, sesion, hayFirebase, letraGrande, cambiarLetraGrande } =
-    useApp();
+  const {
+    nombre,
+    avatar,
+    cambiarPerfil,
+    sesion,
+    hayFirebase,
+    letraGrande,
+    cambiarLetraGrande,
+    torneos,
+    misPartidasPublicadas,
+    cargarResumenes,
+  } = useApp();
   const [borradorNombre, setBorradorNombre] = useState(nombre);
   const [borradorAvatar, setBorradorAvatar] = useState<DatosAvatar>(avatar);
   const [guardado, setGuardado] = useState(false);
@@ -42,7 +53,27 @@ export function PantallaPerfil() {
     cargarHistorial().then(setHistorial);
   }, []);
 
-  const stats = useMemo(() => calcularEstadisticas(historial), [historial]);
+  /**
+   * Las estadísticas necesitan el historial completo, así que esta pantalla sí
+   * lo pide. Es la única, y se abre de vez en cuando: el resto de la app sigue
+   * sin descargarlo.
+   */
+  useEffect(() => {
+    for (const torneo of torneos) cargarResumenes(torneo.id);
+  }, [torneos, cargarResumenes]);
+
+  /**
+   * Lo guardado en este móvil más lo que consta en el servidor.
+   *
+   * Hacen falta los dos: el modo libre sólo existe aquí, y las partidas de
+   * torneo jugadas desde otro aparato sólo están allí.
+   */
+  const completo = useMemo(
+    () => fusionarHistorial(historial, misPartidasPublicadas),
+    [historial, misPartidasPublicadas]
+  );
+
+  const stats = useMemo(() => calcularEstadisticas(completo), [completo]);
   const opciones = useMemo(() => todosLosAvatares(), []);
 
   const cambiado =
@@ -112,7 +143,10 @@ export function PantallaPerfil() {
       </Tarjeta>
 
       <Texto style={estilos.seccion}>Tus estadísticas</Texto>
-      <Sutil>Suman todas tus partidas, de todos los torneos.</Sutil>
+      <Sutil>
+        Suman todas tus partidas, de todos los torneos. Las de torneo se recuperan de tu
+        cuenta, así que te acompañan aunque cambies de móvil.
+      </Sutil>
       <Tarjeta>
         <View style={estilos.filaStats}>
           <Dato valor={stats.jugadas} etiqueta="jugadas" />
