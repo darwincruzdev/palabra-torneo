@@ -47,11 +47,13 @@ import {
 } from '../game/temporada';
 import { avatarInicial, normalizarAvatar } from '../game/avatares';
 import {
+  borrarTodoLoLocal,
   cargarPerfilLocal,
   cargarTorneoActivo,
   guardarPerfilLocal,
   guardarTorneoActivo,
 } from '../almacen/local';
+import { borrarMisDuelos } from '../firebase/duelos';
 import { useSesionGoogle, type EstadoSesion } from '../firebase/sesion';
 import { FACTOR_LETRA_GRANDE, ProveedorEscala } from './escala';
 import * as datos from '../firebase/datos';
@@ -119,6 +121,8 @@ type Estado = {
   /** Modo de letra grande: agranda todo el texto de la app. */
   letraGrande: boolean;
   cambiarLetraGrande: (valor: boolean) => Promise<void>;
+  /** Borra la cuenta entera. Devuelve el aviso si algo ha fallado, o null. */
+  borrarCuenta: () => Promise<string | null>;
   crearTorneo: (nombre: string) => Promise<Torneo>;
   unirsePorCodigo: (codigo: string) => Promise<Torneo | null>;
   salir: (torneoId: string) => Promise<void>;
@@ -534,6 +538,26 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     [uid, nombre, avatar]
   );
 
+  /**
+   * Borra la cuenta: primero el rastro, después el acceso.
+   *
+   * Ese orden es obligado. Borrar la cuenta de Google primero dejaría la app
+   * sin permiso para tocar nada, y el nombre se quedaría puesto en los torneos
+   * para siempre.
+   *
+   * Si el borrado del acceso falla porque la sesión es vieja, los datos ya se
+   * han ido: al volver a entrar no hay nada que ver y basta con repetirlo.
+   */
+  const borrarCuenta = useCallback(async (): Promise<string | null> => {
+    if (!uid) return 'No hay ninguna sesión abierta.';
+    if (datos.hayFirebase) {
+      await datos.borrarMiRastro(uid, torneos).catch(() => {});
+      await borrarMisDuelos(uid).catch(() => {});
+    }
+    await borrarTodoLoLocal();
+    return sesion.borrarAcceso();
+  }, [uid, torneos, sesion]);
+
   const crearTorneo = useCallback(
     async (nombreTorneo: string) => {
       if (!uid) throw new Error('Hay que entrar con Google para crear un torneo');
@@ -636,6 +660,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     cambiarPerfil,
     letraGrande,
     cambiarLetraGrande,
+    borrarCuenta,
     crearTorneo,
     unirsePorCodigo,
     salir,

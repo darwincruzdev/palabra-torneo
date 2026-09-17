@@ -273,3 +273,21 @@ export async function cerrarDuelo(dueloId: string): Promise<void> {
     () => {}
   );
 }
+
+/* ------------------------------------------------------------ borrar cuenta */
+
+/**
+ * Borra los duelos que creé yo, que son los que llevan mi nombre puesto por mí.
+ *
+ * Los que creó otra persona no se pueden tocar: son su documento, y la base de
+ * datos sólo deja borrarlo a quien lo creó. En esos queda mi nombre de aquel
+ * día, y así se dice en la política de privacidad.
+ */
+export async function borrarMisDuelos(uid: string): Promise<void> {
+  const mios = await misDuelos(uid);
+  await Promise.all(
+    mios
+      .filter((d) => d.retador.uid === uid)
+      .map((d) => salirDeLaCola(d.id, d.codigo))
+  );
+}

@@ -12,6 +12,7 @@ import { Avatar } from '../components/Avatar';
 import { SelectorAvatar } from '../components/SelectorAvatar';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
 import { Desplegable } from '../components/Desplegable';
+import { Confirmacion } from '../components/Confirmacion';
 import * as Linking from 'expo-linking';
 import { BLUESHELLS_POR_MES, MAX_VOCALES_AL_ABRIR } from '../game/reglas';
 import {
@@ -41,11 +42,16 @@ export function PantallaPerfil() {
     torneos,
     misPartidasPublicadas,
     cargarResumenes,
+    uid,
+    borrarCuenta,
   } = useApp();
   const [borradorNombre, setBorradorNombre] = useState(nombre);
   const [borradorAvatar, setBorradorAvatar] = useState<DatosAvatar>(avatar);
   const [guardado, setGuardado] = useState(false);
   const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
+  const [preguntando, setPreguntando] = useState(false);
+  const [borrando, setBorrando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
 
   useEffect(() => setBorradorNombre(nombre), [nombre]);
   useEffect(() => setBorradorAvatar(avatar), [avatar]);
@@ -85,6 +91,34 @@ export function PantallaPerfil() {
     await cambiarPerfil(borradorNombre, borradorAvatar);
     setGuardado(true);
     setTimeout(() => setGuardado(false), 1600);
+  }
+
+  /** Los que fundé yo: al irme se quedan sin nadie que pueda tocar sus normas. */
+  const mios = useMemo(
+    () => torneos.filter((t) => t.propietario === uid),
+    [torneos, uid]
+  );
+
+  const aviso = [
+    `Se borran tu nombre, tu avatar, tus ajustes y el historial de este aparato, y sales de ${
+      torneos.length === 1 ? 'tu torneo' : `tus ${torneos.length} torneos`
+    }.`,
+    'Los puntos de las jornadas que ya jugaste se quedan en la clasificación, pero sin tu nombre. No se pueden borrar: es lo mismo que impide que nadie se limpie una mala jornada.',
+    mios.length > 0 &&
+      `Fundaste ${mios.map((t) => t.nombre).join(', ')}. Al irte nadie podrá volver a cambiar sus normas, aunque los demás puedan seguir jugando.`,
+    'No tiene vuelta atrás.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  async function confirmarBorrado() {
+    setPreguntando(false);
+    setBorrando(true);
+    const error = await borrarCuenta();
+    setBorrando(false);
+    // Si sale bien no hay nada que enseñar: la sesión se cae y la app vuelve
+    // sola a la pantalla de acceso.
+    setFallo(error);
   }
 
   return (
@@ -329,8 +363,38 @@ export function PantallaPerfil() {
         onPress={() => Linking.openURL(NOTAS_DEL_PARCHE).catch(() => {})}
       />
 
+      <Texto style={estilos.seccion}>Tu cuenta</Texto>
+      <View style={{ height: espaciado.xs }} />
+      <Boton titulo="Cerrar sesión" variante="secundario" onPress={() => sesion.salir()} />
+
       <View style={{ height: espaciado.lg }} />
-      <Boton titulo="Cerrar sesión" variante="peligro" onPress={() => sesion.salir()} />
+      <Tarjeta>
+        <Texto style={estilos.tituloAjuste}>Borrar mi cuenta</Texto>
+        <Sutil>
+          Se va todo lo tuyo: el nombre, el avatar, los ajustes, lo guardado en este
+          aparato y tu sitio en los torneos. Los puntos de las jornadas ya jugadas se
+          quedan en la clasificación sin nombre, porque un resultado no se puede tocar
+          una vez escrito.
+        </Sutil>
+        {fallo && <Texto style={estilos.fallo}>{fallo}</Texto>}
+        <View style={{ height: espaciado.sm }} />
+        <Boton
+          titulo={borrando ? 'Borrando…' : 'Borrar mi cuenta'}
+          variante="peligro"
+          deshabilitado={borrando || !uid}
+          onPress={() => setPreguntando(true)}
+        />
+      </Tarjeta>
+
+      <Confirmacion
+        visible={preguntando}
+        titulo="Borrar la cuenta"
+        mensaje={aviso}
+        textoConfirmar="Borrarla"
+        peligro
+        onConfirmar={confirmarBorrado}
+        onCancelar={() => setPreguntando(false)}
+      />
     </ScrollView>
   );
 }
@@ -397,6 +461,13 @@ const estilos = StyleSheet.create({
     color: colores.texto,
     fontFamily: fuentes.cuerpoFuerte,
     fontSize: escala.medio,
+  },
+  fallo: {
+    color: colores.peligro,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
+    lineHeight: 19,
+    marginTop: espaciado.sm,
   },
   descripcionAjuste: {
     color: colores.textoSuave,

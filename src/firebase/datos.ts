@@ -3,6 +3,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -184,6 +185,20 @@ export async function salirDeTorneo(torneoId: string, uid: string): Promise<void
 }
 
 /**
+ * Saca a alguien de un torneo y le borra de paso el nombre y el avatar.
+ *
+ * Salir a secas deja el perfil puesto, que es lo que se quiere cuando alguien
+ * se va de un torneo y puede volver. Al borrar la cuenta no: ahí el nombre es
+ * justo lo que hay que quitar.
+ */
+export async function salirYBorrarPerfil(torneoId: string, uid: string): Promise<void> {
+  await updateDoc(doc(baseDatos(), 'torneos', torneoId), {
+    miembros: arrayRemove(uid),
+    [`perfiles.${uid}`]: deleteField(),
+  });
+}
+
+/**
  * Empieza la competición de cero desde la fecha que se le diga.
  *
  * No se borra nada: se mueve la fecha de fundación, y la clasificación ya
@@ -341,4 +356,25 @@ export async function publicarResultado(
     { fecha, resultados: { [resultado.uid]: resultado } },
     { merge: true }
   );
+}
+
+/* ------------------------------------------------------------ borrar cuenta */
+
+/**
+ * Borra de la base de datos todo lo que lleva mi nombre.
+ *
+ * Lo que no se puede borrar son las puntuaciones de las jornadas ya jugadas:
+ * las reglas no dejan tocar un resultado una vez escrito, y es a propósito —es
+ * lo que impide que nadie se limpie una mala jornada—. Quedan como puntos de
+ * alguien que ya no está, sin nombre y sin avatar, porque el nombre vivía en el
+ * torneo y aquí se va.
+ *
+ * Cada torneo se intenta por separado: que uno falle no puede dejar el resto
+ * sin limpiar ni impedir que se borre la cuenta.
+ */
+export async function borrarMiRastro(uid: string, torneos: Torneo[]): Promise<void> {
+  await Promise.all(
+    torneos.map((t) => salirYBorrarPerfil(t.id, uid).catch(() => {}))
+  );
+  await deleteDoc(doc(baseDatos(), 'usuarios', uid)).catch(() => {});
 }

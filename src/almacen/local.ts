@@ -169,3 +169,26 @@ export async function anotarEnHistorial(entrada: EntradaHistorial): Promise<void
   resto.sort((a, b) => a.fecha.localeCompare(b.fecha));
   await escribirJson(CLAVE_HISTORIAL, resto.slice(-800));
 }
+
+/* ------------------------------------------------------------ borrar todo */
+
+/** Prefijo de todo lo que guarda la app en este aparato. */
+const PREFIJO = 'pt:';
+
+/**
+ * Deja este móvil como recién instalado.
+ *
+ * Se usa al borrar la cuenta: da igual lo que se limpie en el servidor si en el
+ * aparato se quedan el historial, el perfil y las partidas a medias. Va por
+ * prefijo en vez de clave por clave porque las hay con el id dentro
+ * —`pt:partida:{torneo}`, `pt:duelo:{duelo}`— y esas no se pueden enumerar.
+ */
+export async function borrarTodoLoLocal(): Promise<void> {
+  try {
+    const claves = await AsyncStorage.getAllKeys();
+    const mias = claves.filter((c) => c.startsWith(PREFIJO));
+    if (mias.length > 0) await AsyncStorage.multiRemove(mias);
+  } catch {
+    // Si el almacenamiento falla, el borrado del servidor ya se ha hecho.
+  }
+}

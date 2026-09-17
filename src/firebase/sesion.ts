@@ -7,6 +7,7 @@ import {
 } from '@react-native-google-signin/google-signin';
 import {
   GoogleAuthProvider,
+  deleteUser,
   onAuthStateChanged,
   signInWithCredential,
   signOut,
@@ -60,6 +61,11 @@ export type EstadoSesion = {
   /** Camino del navegador: lo llama el botón que dibuja Google. */
   entrarConIdToken: (idToken: string) => void;
   salir: () => Promise<void>;
+  /**
+   * Borra la cuenta de acceso. Devuelve el aviso que haya que enseñar, o null
+   * si ha salido bien.
+   */
+  borrarAcceso: () => Promise<string | null>;
 };
 
 export function useSesionGoogle(): EstadoSesion {
@@ -125,6 +131,29 @@ export function useSesionGoogle(): EstadoSesion {
     if (hayFirebase) await signOut(auth());
   }, []);
 
+  /**
+   * Borra la cuenta de Google de esta app.
+   *
+   * Firebase no deja borrar una cuenta con una sesión vieja: si hace rato que
+   * se entró, pide volver a identificarse. No se reintenta solo —eso abriría el
+   * diálogo de Google por sorpresa, en mitad de un borrado—, se dice qué hacer.
+   */
+  const borrarAcceso = useCallback(async (): Promise<string | null> => {
+    const actual = hayFirebase ? auth().currentUser : null;
+    if (!actual) return 'No hay ninguna sesión abierta.';
+    try {
+      await deleteUser(actual);
+    } catch (e) {
+      const codigo = (e as { code?: string })?.code ?? '';
+      if (codigo.includes('requires-recent-login')) {
+        return 'Por seguridad hay que haber entrado hace poco. Cierra sesión, vuelve a entrar y bórrala entonces.';
+      }
+      return 'No se ha podido borrar la cuenta. Inténtalo otra vez.';
+    }
+    if (!esWeb) await GoogleSignin.signOut().catch(() => {});
+    return null;
+  }, []);
+
   return useMemo(
     () => ({
       cargando,
@@ -135,8 +164,9 @@ export function useSesionGoogle(): EstadoSesion {
       entrar,
       entrarConIdToken: conIdToken,
       salir,
+      borrarAcceso,
     }),
-    [cargando, usuario, error, disponible, entrar, conIdToken, salir]
+    [cargando, usuario, error, disponible, entrar, conIdToken, salir, borrarAcceso]
   );
 }
 
