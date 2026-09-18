@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Notas del parche 26.10 · Palabra Torneo</title>
+    <title>Notas del parche 26.11 · Palabra Torneo</title>
     <meta name="theme-color" content="#0A0D12" />
     <meta name="google" content="notranslate" />
     <meta
       name="description"
-      content="Se acaban las aperturas de cuatro vocales y el último recibe una letra de ayuda."
+      content="Modo arcade: cinco palabras seguidas contra el reloj, con marca propia y comparable."
     />
     <link rel="icon" href="/favicon.ico" />
   </head>
@@ -367,15 +367,199 @@
   <header class="cabecera">
     <div class="juego">Palabra Torneo · Notas del parche</div>
     <div class="numero">
-      <h1>26.10</h1>
-      <div class="lema">Aperturas y ayudas</div>
+      <h1>26.11</h1>
+      <div class="lema">Cinco seguidas</div>
     </div>
   </header>
 
   <p class="entradilla">
-    Dos normas que cambian cómo se abre la jornada y cómo se aguanta cuando vas por
-    detrás. Y dos palabras más en el diccionario.
+    Un modo nuevo para jugar todas las palabras que quieras, con el reloj de por medio y
+    una marca que batir. El modo libre estrena nombre, y la cuenta ya se puede borrar
+    desde dentro.
   </p>
+
+  <section data-tipo="nuevo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Modo arcade</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <h3>Cinco palabras seguidas, contra el reloj</h3>
+      <ul class="cambios">
+        <li>
+          <span class="que">Cuántas</span>
+          <span class="valores suelto">
+            <strong>5 por ronda</strong>, y las rondas que quieras al día.
+          </span>
+        </li>
+        <li>
+          <span class="que">Puntos por palabra</span>
+          <span class="valores">
+            <span class="antes">7 · 5 · 4 · 3 · 2 · 1</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">70 · 50 · 40 · 30 · 20 · 10</span>
+          </span>
+        </li>
+        <li>
+          <span class="que">Premio por tiempo</span>
+          <span class="valores suelto">
+            <strong>+9</strong> por debajo de 2 minutos, bajando hasta <strong>0</strong> a
+            los 10.
+          </span>
+        </li>
+        <li>
+          <span class="que">Ronda perfecta</span>
+          <span class="valores suelto">359 puntos.</span>
+        </li>
+        <li>
+          <span class="que">Salirte a media ronda</span>
+          <span class="valores suelto">La pierdes. No se guarda a medias.</span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          El reloj tenía que pesar de verdad — tres aciertos en un minuto no son lo mismo
+          que tres en diez —, pero sin que compensara ir a lo loco. De ahí el tope de 9:
+          la palabra más barata vale 10, así que <strong>correr no puede pagar nunca una
+          palabra</strong>. Acertar una más gana siempre, se tarde lo que se tarde. Y 9 es
+          además todo lo que el tiempo puede pesar sin romper eso; ni un punto más cabía.
+        </p>
+        <p>
+          La ronda no se guarda a propósito. Es una carrera: esa tensión es justo lo que
+          la separa de la palabra del día, que te espera ahí hasta medianoche.
+        </p>
+      </div>
+    </div>
+
+    <div class="bloque">
+      <h3>Y se le puede mirar la marca a cualquiera</h3>
+      <ul class="cambios">
+        <li>
+          <span class="que">Dónde</span>
+          <span class="valores suelto">
+            En la clasificación del torneo, <strong>tocando su nombre</strong>.
+          </span>
+        </li>
+        <li>
+          <span class="que">Qué se ve</span>
+          <span class="valores suelto">
+            Puntos, tiempo, acertadas, intentos y cuándo la hizo.
+          </span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section data-tipo="ajuste">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>La diaria</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <ul class="cambios">
+        <li>
+          <span class="que">Modo libre</span>
+          <span class="valores">
+            <span class="antes">Modo libre</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">La diaria</span>
+          </span>
+        </li>
+        <li>
+          <span class="que">Cómo se juega</span>
+          <span class="valores suelto">Igual que siempre. Sólo cambia el nombre.</span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          "Modo libre" no decía nada, y con el arcade al lado —que sí es el modo donde
+          juegas libremente— se prestaba a confusión. La diaria es lo que siempre fue: la
+          palabra del día, sin competir con nadie.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section data-tipo="nuevo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Tu cuenta</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <ul class="cambios">
+        <li>
+          <span class="que">Dónde</span>
+          <span class="valores suelto">
+            Perfil → Tu cuenta → <strong>Borrar mi cuenta</strong>.
+          </span>
+        </li>
+        <li>
+          <span class="que">Qué se borra</span>
+          <span class="valores suelto">
+            El acceso, tu nombre y avatar en cada torneo, tu sitio en todos ellos, los
+            duelos que creaste y todo lo guardado en el móvil.
+          </span>
+        </li>
+        <li>
+          <span class="que">Qué se queda</span>
+          <span class="valores suelto">
+            Los puntos de las jornadas ya jugadas, <strong>sin tu nombre</strong>.
+          </span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          Esos puntos no se pueden borrar, y es a propósito: un resultado no se toca una
+          vez publicado, que es lo mismo que impide limpiarse una mala jornada. Además
+          forman parte del histórico de los demás del torneo.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section data-tipo="arreglo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>Blueshell</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <ul class="cambios">
+        <li>
+          <span class="que">Balas con palabras que no existen</span>
+          <span class="valores suelto">
+            Ya no obligan a nada. Se ignoran y la jornada sigue.
+          </span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          Una bala con una palabra inventada dejaba a su víctima sin poder terminar: el
+          juego se la exigía y luego la rechazaba por no estar en la lista. La bala sigue
+          viéndose en la clasificación — el rastro de quien lo intente no se borra.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="anterior">
+    <h2>Parche anterior · 26.10 · Aperturas y ayudas</h2>
+  </div>
 
   <section data-tipo="ajuste">
     <div class="titulo">
@@ -476,266 +660,9 @@
     </div>
   </section>
 
-  <div class="anterior">
-    <h2>Parche anterior · 26.09 · Temporadas</h2>
-  </div>
-
-  <section data-tipo="nuevo">
-    <div class="titulo">
-      <span class="ficha"></span>
-      <h2>Temporadas y trofeos</h2>
-      <span class="regla"></span>
-    </div>
-    <p class="sumario">Lo gordo del parche.</p>
-
-    <div class="bloque">
-      <h3>Una temporada al mes</h3>
-      <ul class="cambios">
-        <li>
-          <span class="que">Clasificación</span>
-          <span class="valores">
-            <span class="antes">suma desde que se fundó el torneo</span>
-            <span class="flecha">⇒</span>
-            <span class="ahora">suma solo el mes en curso</span>
-          </span>
-        </li>
-        <li>
-          <span class="que">Fin de temporada</span>
-          <span class="valores suelto">
-            Quien va primero el último día del mes se lleva <strong>un trofeo</strong>.
-          </span>
-        </li>
-        <li>
-          <span class="que">Campeón del año</span>
-          <span class="valores suelto">
-            El que más trofeos tenga a 31 de diciembre.
-          </span>
-        </li>
-        <li>
-          <span class="que">Empate en el mes</span>
-          <span class="valores suelto">
-            Manda quien más palabras haya acertado; si siguen iguales, quien las saque en
-            menos intentos. Si empatan en todo, el mes es <strong>de los dos</strong>.
-          </span>
-        </li>
-        <li>
-          <span class="que">Empate a trofeos</span>
-          <span class="valores suelto">
-            Se mira todo el año: primero quién acertó más palabras, luego quién gastó
-            menos intentos. Nunca se decide por orden alfabético.
-          </span>
-        </li>
-      </ul>
-
-      <div class="comentario">
-        <span>Comentario</span>
-        <p>
-          Una tabla que solo crece deja la competición decidida en marzo: quien coge veinte
-          puntos de ventaja ya no la suelta, y al resto se le quitan las ganas de jugar.
-          Con temporadas mensuales, el que va último tiene una revancha cada treinta días.
-        </p>
-        <p>
-          El palmarés se calcula del historial cada vez que se abre, no se guarda el día 1.
-          Así no hay ningún cierre de temporada que pueda fallar, ni un número que alguien
-          pueda tocar.
-        </p>
-      </div>
-    </div>
-
-    <div class="bloque">
-      <h3>Ver la partida de cada uno</h3>
-      <p>
-        En la pantalla de jornadas, tocando a cualquier jugador se despliega su cuadrícula
-        de colores de ese día: por dónde tanteó, cuántas veces y con cuánta suerte.
-      </p>
-      <ul class="cambios">
-        <li>
-          <span class="que">Jornadas pasadas</span>
-          <span class="valores suelto">Todo a la vista, palabra incluida.</span>
-        </li>
-        <li>
-          <span class="que">Jornada de hoy</span>
-          <span class="valores suelto">
-            Las cuadrículas se ven según juega cada uno. La palabra sigue tapada hasta que
-            juegues la tuya.
-          </span>
-        </li>
-      </ul>
-    </div>
-  </section>
-
-  <section data-tipo="ajuste">
-    <div class="titulo">
-      <span class="ficha"></span>
-      <h2>Blueshell</h2>
-      <span class="regla"></span>
-    </div>
-    <p class="sumario">La munición pasa a ser de la temporada, igual que los puntos.</p>
-
-    <div class="bloque">
-      <ul class="cambios">
-        <li>
-          <span class="que">Balas</span>
-          <span class="valores">
-            <span class="antes">1 cada 15 jornadas</span>
-            <span class="flecha">⇒</span>
-            <span class="ahora">2 al mes</span>
-          </span>
-        </li>
-        <li>
-          <span class="que">Escudos</span>
-          <span class="valores">
-            <span class="antes">1 cada 15 jornadas</span>
-            <span class="flecha">⇒</span>
-            <span class="ahora">2 al mes</span>
-          </span>
-        </li>
-        <li>
-          <span class="que">Recarga</span>
-          <span class="valores">
-            <span class="antes">contador propio de cada torneo</span>
-            <span class="flecha">⇒</span>
-            <span class="ahora">día 1 de cada mes</span>
-          </span>
-        </li>
-        <li>
-          <span class="que">Faltas por no jugar</span>
-          <span class="valores">
-            <span class="antes">se arrastran desde tu primera partida</span>
-            <span class="flecha">⇒</span>
-            <span class="ahora">no cruzan de mes</span>
-          </span>
-        </li>
-      </ul>
-
-      <div class="comentario">
-        <span>Comentario</span>
-        <p>
-          El ritmo es el mismo de antes —dos balas por cada treinta días—, solo que atado
-          al calendario en vez de a un contador que cada torneo llevaba por su cuenta.
-          Ahora todo el mundo recarga el mismo día y se puede decir en voz alta.
-        </p>
-        <p>
-          Efecto secundario: los primeros días de mes <strong>nadie puede disparar</strong>,
-          porque con la tabla a cero no hay líder al que tirarle. El campeón del mes
-          anterior arranca sin lastre y sin balas encima.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <section data-tipo="arreglo">
-    <div class="titulo">
-      <span class="ficha"></span>
-      <h2>Duelos</h2>
-      <span class="regla"></span>
-    </div>
-    <p class="sumario">Dos fallos serios y tres cosas nuevas.</p>
-
-    <div class="bloque">
-      <h3>Arreglado</h3>
-      <ul class="cambios">
-        <li>
-          <span class="que">Reloj congelado</span>
-          <span class="valores suelto">
-            Al salir del navegador se paraba la cuenta atrás y al volver marcaba más
-            tiempo del que quedaba. Ahora se calcula contra el reloj, no restando de uno
-            en uno.
-          </span>
-        </li>
-        <li>
-          <span class="que">Partida colgada</span>
-          <span class="valores suelto">
-            Si el rival cerraba el navegador y no volvía, el duelo se quedaba parado
-            <strong>para siempre</strong>. Ahora, pasados sus 30 segundos más 3 de margen,
-            sigues tú.
-          </span>
-        </li>
-      </ul>
-    </div>
-
-    <div class="bloque">
-      <h3>Nuevo</h3>
-      <ul class="cambios">
-        <li>
-          <span class="que">Duelo rápido</span>
-          <span class="valores suelto">
-            Sin códigos: le das a buscar partida y te empareja con quien esté esperando.
-          </span>
-        </li>
-        <li>
-          <span class="que">Revancha</span>
-          <span class="valores suelto">
-            Al acabar, un botón. Uno la propone y al otro le sale para aceptar.
-          </span>
-        </li>
-        <li>
-          <span class="que">Pullas</span>
-          <span class="valores suelto">
-            Mientras esperas a que el otro termine, ocho caritas para picarle. Le salen en
-            grande en mitad de la pantalla.
-          </span>
-        </li>
-        <li>
-          <span class="que">Corte por tiempo</span>
-          <span class="valores">
-            <span class="antes">15 segundos</span>
-            <span class="flecha">⇒</span>
-            <span class="ahora">30 segundos</span>
-          </span>
-        </li>
-      </ul>
-    </div>
-  </section>
-
-  <section data-tipo="arreglo">
-    <div class="titulo">
-      <span class="ficha"></span>
-      <h2>Diccionario y varios</h2>
-      <span class="regla"></span>
-    </div>
-
-    <div class="bloque">
-      <ul class="cambios">
-        <li>
-          <span class="que">Palabras añadidas</span>
-          <span class="valores suelto">
-            <strong>PESTO</strong> y <strong>DURUM</strong>, que el juego rechazaba.
-          </span>
-        </li>
-        <li>
-          <span class="que">Letra grande</span>
-          <span class="valores suelto">
-            Nuevo ajuste en el perfil: agranda el texto de toda la app y las teclas. Se
-            guarda con tu cuenta.
-          </span>
-        </li>
-        <li>
-          <span class="que">Botón de volver</span>
-          <span class="valores suelto">
-            En el móvil era invisible: estaba ahí y se podía pulsar, pero no se veía.
-          </span>
-        </li>
-        <li>
-          <span class="que">Salir de un torneo</span>
-          <span class="valores suelto">
-            El botón no hacía nada en la web. Ahora pregunta y funciona.
-          </span>
-        </li>
-        <li>
-          <span class="que">Una jornada, una vez</span>
-          <span class="valores suelto">
-            Entrando con la misma cuenta desde otro navegador se podía repetir la palabra y
-            pisar la puntuación. Cerrado.
-          </span>
-        </li>
-      </ul>
-    </div>
-  </section>
-
   <p class="cierre">
-    <strong>Palabra Torneo 26.10.</strong> Que gane el mejor, y que al que gane le lluevan
-    blueshells.
+    <strong>Palabra Torneo 26.11.</strong> Cinco seguidas, el reloj corriendo y nadie a
+    quien echarle la culpa.
   </p>
 
 </div>
