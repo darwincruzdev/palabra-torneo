@@ -15,7 +15,14 @@ import { Desplegable } from '../components/Desplegable';
 import { Confirmacion } from '../components/Confirmacion';
 import * as Linking from 'expo-linking';
 import { BLUESHELLS_POR_MES, MAX_VOCALES_AL_ABRIR } from '../game/reglas';
-import { PALABRAS_POR_RONDA, PUNTOS_MAXIMOS, reloj } from '../game/arcade';
+import {
+  PALABRAS_POR_RONDA,
+  SEGUNDOS_NULO,
+  SEGUNDOS_PLENO,
+  TOTAL_MAXIMO,
+  reloj,
+  totalDe,
+} from '../game/arcade';
 import {
   MAX_INTENTOS,
   NOTAS_DEL_PARCHE,
@@ -225,7 +232,10 @@ export function PantallaPerfil() {
         <Sutil>Tu mejor ronda de arcade</Sutil>
         {recordArcade ? (
           <View style={[estilos.filaStats, { marginTop: espaciado.sm }]}>
-            <Dato valor={`${recordArcade.puntos}/${PUNTOS_MAXIMOS}`} etiqueta="puntos" />
+            <Dato
+              valor={`${totalDe(recordArcade)}/${TOTAL_MAXIMO}`}
+              etiqueta="puntos"
+            />
             <Dato valor={reloj(recordArcade.segundos)} etiqueta="tiempo" />
             <Dato
               valor={`${recordArcade.acertadas}/${PALABRAS_POR_RONDA}`}
@@ -280,10 +290,20 @@ export function PantallaPerfil() {
         <Sutil>
           <Texto style={estilos.tituloAjuste}>El arcade.</Texto>{' '}
           {PALABRAS_POR_RONDA} palabras seguidas con el reloj corriendo, las veces que
-          quieras. Puntúan como siempre, y de cada ronda queda la mejor marca: puntos, y
-          a igualdad de puntos, menos tiempo. La tuya se puede mirar desde la
-          clasificación tocando tu nombre, y tú puedes mirar la de los demás. Si te sales
-          a media ronda, se pierde.
+          quieras. De cada ronda queda la mejor marca, y la tuya se puede mirar desde la
+          clasificación tocando tu nombre, igual que tú puedes mirar la de los demás. Si
+          te sales a media ronda, se pierde.
+        </Sutil>
+        <Sutil>
+          Cada palabra vale sus puntos de siempre, multiplicados por diez: 70 al primer
+          intento, 10 al sexto. Y el tiempo suma aparte, de {SEGUNDOS_PLENO / 60} minutos
+          para abajo hasta {SEGUNDOS_NULO / 60}, donde ya no da nada.
+        </Sutil>
+        <Sutil>
+          Lo que suma el reloj llega a 9 y ni un punto más, y eso no es un número al
+          azar: la palabra más barata vale 10, así que correr no puede pagar nunca una
+          palabra. Acertar una más gana siempre, se tarde lo que se tarde — y dentro de
+          eso, ir rápido puntúa de verdad.
         </Sutil>
       </Tarjeta>
 

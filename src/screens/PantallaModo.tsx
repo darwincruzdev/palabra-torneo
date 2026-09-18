@@ -14,7 +14,7 @@ import { SelectorTorneo } from '../components/SelectorTorneo';
 import { Cifra, Rotulo } from '../components/ui';
 import { clasificacion } from '../game/clasificacion';
 import { PALABRAS_POR_DUELO } from '../game/duelo';
-import { PALABRAS_POR_RONDA, reloj } from '../game/arcade';
+import { PALABRAS_POR_RONDA, reloj, totalDe } from '../game/arcade';
 import { fechaJuego } from '../game/fecha';
 import { TORNEO_LIBRE, useApp } from '../estado/AppContext';
 import { colores, espaciado, fuentes, radio, texto } from '../tema';
@@ -180,7 +180,7 @@ export function PantallaModo({
         <View style={estilos.marcaArcade}>
           {recordArcade ? (
             <>
-              <Texto style={estilos.puntosArcade}>{recordArcade.puntos}</Texto>
+              <Texto style={estilos.puntosArcade}>{totalDe(recordArcade)}</Texto>
               <Texto style={estilos.tiempoArcade}>{reloj(recordArcade.segundos)}</Texto>
             </>
           ) : (

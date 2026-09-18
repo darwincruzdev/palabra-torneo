@@ -7,7 +7,14 @@ import { Aviso } from '../components/Aviso';
 import { Tablero } from '../components/Tablero';
 import { TECLA_BORRAR, TECLA_ENTER, Teclado } from '../components/Teclado';
 import { Boton } from '../components/ui';
-import { PUNTOS_MAXIMOS, comentarioDeRonda, reloj } from '../game/arcade';
+import {
+  ESCALA,
+  TOTAL_MAXIMO,
+  bonusDeTiempo,
+  comentarioDeRonda,
+  reloj,
+  totalDe,
+} from '../game/arcade';
 import { useArcade } from '../estado/useArcade';
 import { useTecladoFisico } from '../estado/useTecladoFisico';
 import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
@@ -43,12 +50,12 @@ export function PantallaArcade({ volver }: Props) {
 
   async function compartir() {
     if (!arcade.marca) return;
-    const { puntos, acertadas, segundos, intentos } = arcade.marca;
+    const { acertadas, segundos, intentos } = arcade.marca;
     try {
       await Share.share({
         message:
-          `Arcade de Palabra Torneo: ${puntos}/${PUNTOS_MAXIMOS} puntos\n` +
-          `${acertadas}/${arcade.total} palabras en ${reloj(segundos)} · ${intentos} intentos`,
+          `Arcade de Palabra Torneo: ${arcade.total} de ${TOTAL_MAXIMO} puntos\n` +
+          `${acertadas}/${arcade.palabras} palabras en ${reloj(segundos)} · ${intentos} intentos`,
       });
     } catch {
       // Diálogo de compartir cancelado.
@@ -70,7 +77,7 @@ export function PantallaArcade({ volver }: Props) {
         <View style={estilos.centro}>
           <Texto style={estilos.titulo}>Arcade</Texto>
           <Texto style={estilos.subtitulo}>
-            Palabra {arcade.numero} de {arcade.total}
+            Palabra {arcade.numero} de {arcade.palabras}
           </Texto>
         </View>
 
@@ -82,7 +89,7 @@ export function PantallaArcade({ volver }: Props) {
       {/* Cinco casillas: cuántas van, con cuántos puntos cada una. Es el
           marcador de la ronda y de paso dice lo que queda. */}
       <View style={estilos.tira}>
-        {Array.from({ length: arcade.total }, (_, i) => {
+        {Array.from({ length: arcade.palabras }, (_, i) => {
           const hecha = arcade.resultados[i];
           const enCurso = i === arcade.numero - 1 && !arcade.terminada;
           return (
@@ -151,13 +158,22 @@ export function PantallaArcade({ volver }: Props) {
           <Texto style={estilos.tituloFinal}>Ronda terminada</Texto>
 
           <View style={estilos.marcador}>
-            <Dato valor={`${arcade.marca.puntos}`} etiqueta={`de ${PUNTOS_MAXIMOS} puntos`} destacado />
+            <Dato valor={`${arcade.total}`} etiqueta={`de ${TOTAL_MAXIMO} puntos`} destacado />
             <Dato valor={reloj(arcade.marca.segundos)} etiqueta="tiempo" />
             <Dato
-              valor={`${arcade.marca.acertadas}/${arcade.total}`}
+              valor={`${arcade.marca.acertadas}/${arcade.palabras}`}
               etiqueta="acertadas"
             />
           </View>
+
+          {/* De dónde sale el número: las palabras por un lado y el reloj por
+              otro. Sin esto, el premio por tiempo sería magia. */}
+          <Texto style={estilos.desglose}>
+            {arcade.marca.puntos * ESCALA} por las palabras ·{' '}
+            <Texto style={estilos.bonus}>
+              +{bonusDeTiempo(arcade.marca.segundos)} por el tiempo
+            </Texto>
+          </Texto>
 
           <Texto style={estilos.comentario}>
             {comentarioDeRonda(arcade.marca, arcade.aBatir)}
@@ -167,8 +183,8 @@ export function PantallaArcade({ volver }: Props) {
             <View style={estilos.previa}>
               <Texto style={estilos.etiquetaPrevia}>Tu mejor ronda</Texto>
               <Texto style={estilos.textoPrevia}>
-                {arcade.aBatir.puntos} puntos · {reloj(arcade.aBatir.segundos)} ·{' '}
-                {arcade.aBatir.acertadas}/{arcade.total} acertadas
+                {totalDe(arcade.aBatir)} puntos · {reloj(arcade.aBatir.segundos)} ·{' '}
+                {arcade.aBatir.acertadas}/{arcade.palabras} acertadas
               </Texto>
             </View>
           )}
@@ -354,6 +370,17 @@ const estilos = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 2,
     textAlign: 'center',
+  },
+  desglose: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
+    textAlign: 'center',
+    marginTop: -espaciado.xs,
+  },
+  bonus: {
+    color: colores.acento,
+    fontFamily: fuentes.cuerpoFuerte,
   },
   comentario: {
     color: colores.textoSuave,

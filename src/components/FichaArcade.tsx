@@ -3,7 +3,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-nat
 import { Texto } from './Texto';
 import { Avatar } from './Avatar';
 import { Boton } from './ui';
-import { PALABRAS_POR_RONDA, PUNTOS_MAXIMOS, reloj } from '../game/arcade';
+import { PALABRAS_POR_RONDA, TOTAL_MAXIMO, reloj, totalDe } from '../game/arcade';
 import { fechaLarga } from '../game/fecha';
 import { useApp } from '../estado/AppContext';
 import type { Avatar as DatosAvatar, RecordArcade } from '../tipos';
@@ -76,7 +76,7 @@ export function FichaArcade({ uid, nombre, avatar, cerrar }: Props) {
           ) : marca ? (
             <>
               <View style={estilos.marcador}>
-                <Dato valor={`${marca.puntos}`} etiqueta={`de ${PUNTOS_MAXIMOS}`} destacado />
+                <Dato valor={`${totalDe(marca)}`} etiqueta={`de ${TOTAL_MAXIMO}`} destacado />
                 <Dato valor={reloj(marca.segundos)} etiqueta="tiempo" />
                 <Dato
                   valor={`${marca.acertadas}/${PALABRAS_POR_RONDA}`}

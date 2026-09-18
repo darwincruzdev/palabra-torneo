@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import { LONGITUD, MAX_INTENTOS } from '../game/constantes';
 import {
+  ESCALA,
   PALABRAS_POR_RONDA,
   marcaDeRonda,
   puntosDeRonda,
   semillaDeRonda,
+  totalDe,
 } from '../game/arcade';
 import { estadoTeclado, puntosDe } from '../game/evaluar';
 import { fechaJuego } from '../game/fecha';
@@ -215,11 +217,20 @@ export function useArcade() {
   return {
     /** De 1 a 5, para la cabecera. */
     numero: ronda.indice + 1,
-    total: PALABRAS_POR_RONDA,
+    /** Cuántas palabras tiene la ronda. */
+    palabras: PALABRAS_POR_RONDA,
     palabra,
     intentos: ronda.intentos,
     resultados: ronda.resultados,
-    puntos: puntosDeRonda(ronda.resultados),
+    /**
+     * Lo llevado hasta ahora, ya en puntos de arcade.
+     *
+     * Durante la ronda son sólo las palabras: lo que suma el reloj no se sabe
+     * hasta que se para, y enseñarlo bajando en directo sería mentir a medias.
+     */
+    puntos: puntosDeRonda(ronda.resultados) * ESCALA,
+    /** El total de verdad, con el tiempo dentro. Sólo al terminar. */
+    total: marca ? totalDe(marca) : null,
     segundos: terminada && marca ? marca.segundos : segundos,
     terminada,
     revelando,
