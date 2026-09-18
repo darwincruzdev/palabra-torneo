@@ -15,6 +15,7 @@ import { Desplegable } from '../components/Desplegable';
 import { Confirmacion } from '../components/Confirmacion';
 import * as Linking from 'expo-linking';
 import { BLUESHELLS_POR_MES, MAX_VOCALES_AL_ABRIR } from '../game/reglas';
+import { PALABRAS_POR_RONDA, PUNTOS_MAXIMOS, reloj } from '../game/arcade';
 import {
   MAX_INTENTOS,
   NOTAS_DEL_PARCHE,
@@ -44,6 +45,7 @@ export function PantallaPerfil() {
     cargarResumenes,
     uid,
     borrarCuenta,
+    recordArcade,
   } = useApp();
   const [borradorNombre, setBorradorNombre] = useState(nombre);
   const [borradorAvatar, setBorradorAvatar] = useState<DatosAvatar>(avatar);
@@ -219,6 +221,22 @@ export function PantallaPerfil() {
             etiqueta="puntos por jornada"
           />
         </View>
+        <View style={estilos.separador} />
+        <Sutil>Tu mejor ronda de arcade</Sutil>
+        {recordArcade ? (
+          <View style={[estilos.filaStats, { marginTop: espaciado.sm }]}>
+            <Dato valor={`${recordArcade.puntos}/${PUNTOS_MAXIMOS}`} etiqueta="puntos" />
+            <Dato valor={reloj(recordArcade.segundos)} etiqueta="tiempo" />
+            <Dato
+              valor={`${recordArcade.acertadas}/${PALABRAS_POR_RONDA}`}
+              etiqueta="acertadas"
+            />
+          </View>
+        ) : (
+          <Sutil>
+            Todavía ninguna. Son {PALABRAS_POR_RONDA} palabras seguidas contra el reloj.
+          </Sutil>
+        )}
       </Tarjeta>
 
       <Texto style={estilos.seccion}>Cómo se juega</Texto>
@@ -245,6 +263,27 @@ export function PantallaPerfil() {
           {totalAceptadas.toLocaleString('es-ES')} palabras distintas como intento, y la
           solución sale siempre de un grupo de {totalSoluciones.toLocaleString('es-ES')}{' '}
           palabras de uso corriente.
+        </Sutil>
+      </Tarjeta>
+
+      <Texto style={estilos.seccion}>Las tres formas de jugar</Texto>
+      <Tarjeta>
+        <Sutil>
+          <Texto style={estilos.tituloAjuste}>El torneo.</Texto> Una palabra al día por
+          torneo, con clasificación, normas de la casa y trofeo a fin de mes. Es donde
+          se compite.
+        </Sutil>
+        <Sutil>
+          <Texto style={estilos.tituloAjuste}>La diaria.</Texto> La palabra del día, a
+          secas, la misma para todo el que juegue sin torneo. No puntúa y no la ve nadie.
+        </Sutil>
+        <Sutil>
+          <Texto style={estilos.tituloAjuste}>El arcade.</Texto>{' '}
+          {PALABRAS_POR_RONDA} palabras seguidas con el reloj corriendo, las veces que
+          quieras. Puntúan como siempre, y de cada ronda queda la mejor marca: puntos, y
+          a igualdad de puntos, menos tiempo. La tuya se puede mirar desde la
+          clasificación tocando tu nombre, y tú puedes mirar la de los demás. Si te sales
+          a media ronda, se pierde.
         </Sutil>
       </Tarjeta>
 

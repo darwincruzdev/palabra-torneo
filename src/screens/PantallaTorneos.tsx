@@ -96,7 +96,7 @@ export function PantallaTorneos({
             proyecto y vuelve a arrancar. Está explicado paso a paso en el README.
           </Sutil>
         </Tarjeta>
-        <Sutil>Mientras tanto puedes jugar en modo libre con normalidad.</Sutil>
+        <Sutil>Mientras tanto puedes jugar La diaria con normalidad.</Sutil>
       </ScrollView>
     );
   }

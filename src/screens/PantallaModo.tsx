@@ -14,6 +14,7 @@ import { SelectorTorneo } from '../components/SelectorTorneo';
 import { Cifra, Rotulo } from '../components/ui';
 import { clasificacion } from '../game/clasificacion';
 import { PALABRAS_POR_DUELO } from '../game/duelo';
+import { PALABRAS_POR_RONDA, reloj } from '../game/arcade';
 import { fechaJuego } from '../game/fecha';
 import { TORNEO_LIBRE, useApp } from '../estado/AppContext';
 import { colores, espaciado, fuentes, radio, texto } from '../tema';
@@ -22,6 +23,7 @@ type Props = {
   irAJugar: () => void;
   irATorneos: () => void;
   irADuelos: () => void;
+  irAArcade: () => void;
   irAPerfil: () => void;
 };
 
@@ -32,8 +34,14 @@ type Props = {
  * duelo y libre van debajo en dos columnas estrechas. La asimetría es
  * deliberada: tres tarjetas idénticas no dicen cuál es la que importa.
  */
-export function PantallaModo({ irAJugar, irATorneos, irADuelos, irAPerfil }: Props) {
-  const { nombre, avatar, torneos, jornadas, uid, elegirTorneo } = useApp();
+export function PantallaModo({
+  irAJugar,
+  irATorneos,
+  irADuelos,
+  irAArcade,
+  irAPerfil,
+}: Props) {
+  const { nombre, avatar, torneos, jornadas, uid, elegirTorneo, recordArcade } = useApp();
   const [eligiendoTorneo, setEligiendoTorneo] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -143,13 +151,43 @@ export function PantallaModo({ irAJugar, irATorneos, irADuelos, irAPerfil }: Pro
           onPress={irADuelos}
         />
         <Secundaria
-          rotulo="Libre"
-          titulo="Practicar"
-          descripcion="Una palabra al día. No puntúa."
+          rotulo="Diaria"
+          titulo="La diaria"
+          descripcion="La palabra de hoy, sin competir."
           color={colores.acento}
           onPress={jugarLibre}
         />
       </View>
+
+      {/* El arcade va en una franja propia y no en una tercera columna: lo que
+          tiene que enseñar es la marca, y eso no cabe en un cuadradito. */}
+      <Pressable
+        onPress={irAArcade}
+        accessibilityRole="button"
+        accessibilityLabel="Modo arcade"
+        style={({ pressed }) => [estilos.arcade, { opacity: pressed ? 0.8 : 1 }]}
+      >
+        <View style={[estilos.reglaSuperior, { backgroundColor: colores.oro }]} />
+        <View style={{ flex: 1 }}>
+          <Texto style={[estilos.rotuloSecundaria, { color: colores.oro }]}>ARCADE</Texto>
+          <Texto style={estilos.tituloSecundaria}>{PALABRAS_POR_RONDA} seguidas</Texto>
+          <Texto style={estilos.descripcionSecundaria}>
+            {recordArcade
+              ? 'Contra el reloj. A ver si bates tu marca.'
+              : 'Contra el reloj, hasta que caigan las cinco.'}
+          </Texto>
+        </View>
+        <View style={estilos.marcaArcade}>
+          {recordArcade ? (
+            <>
+              <Texto style={estilos.puntosArcade}>{recordArcade.puntos}</Texto>
+              <Texto style={estilos.tiempoArcade}>{reloj(recordArcade.segundos)}</Texto>
+            </>
+          ) : (
+            <Texto style={estilos.sinMarca}>sin marca</Texto>
+          )}
+        </View>
+      </Pressable>
 
       {torneos.length > 0 && (
         <Pressable onPress={irATorneos} style={estilos.enlace} accessibilityRole="button">
@@ -317,6 +355,42 @@ const estilos = StyleSheet.create({
     fontFamily: fuentes.cuerpo,
     fontSize: texto.micro,
     lineHeight: 16,
+  },
+  arcade: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaciado.md,
+    backgroundColor: colores.superficie,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    borderRadius: radio.md,
+    padding: espaciado.md,
+    paddingTop: espaciado.md + 3,
+    overflow: 'hidden',
+  },
+  marcaArcade: {
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: colores.borde,
+    paddingLeft: espaciado.md,
+    minWidth: 76,
+  },
+  puntosArcade: {
+    color: colores.oro,
+    fontFamily: fuentes.titularNegro,
+    fontSize: texto.titulo,
+  },
+  tiempoArcade: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.cuerpo,
+    fontSize: texto.micro,
+  },
+  sinMarca: {
+    color: colores.textoTenue,
+    fontFamily: fuentes.titular,
+    fontSize: texto.micro,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   enlace: {
     paddingVertical: espaciado.sm,

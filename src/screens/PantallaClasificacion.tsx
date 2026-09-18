@@ -14,6 +14,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import QRCode from 'react-native-qrcode-svg';
 import { Avatar } from '../components/Avatar';
+import { FichaArcade } from '../components/FichaArcade';
+import { normalizarAvatar } from '../game/avatares';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
 import { Confirmacion } from '../components/Confirmacion';
 import { RejillaPatron } from '../components/RejillaPatron';
@@ -103,6 +105,9 @@ export function PantallaClasificacion({
 
   const jornadaHoy = dias.find((d) => d.fecha === hoy);
   const yaJugueHoy = Boolean(uid && jornadaHoy?.resultados?.[uid]);
+
+  /** A quién le estamos mirando la marca de arcade. */
+  const [mirando, setMirando] = useState<string | null>(null);
 
   const nombreDe = (miembro: string) =>
     torneo?.perfiles?.[miembro]?.nombre ?? 'Jugador';
@@ -373,11 +378,20 @@ export function PantallaClasificacion({
             <Avatar avatar={fila.avatar} lado={34} />
             <View style={{ flex: 1 }}>
               <View style={estilos.lineaNombre}>
-                <Texto style={estilos.nombreJugador} numberOfLines={1}>
-                  {fila.nombre}
-                  {fila.uid === uid ? ' (tú)' : ''}
-                  {fila.uid === liderHoy ? ' 🎯' : ''}
-                </Texto>
+                {/* El nombre abre su marca de arcade. Es lo único que se puede
+                    mirar de otra persona, y el sitio donde se busca. */}
+                <Pressable
+                  onPress={() => setMirando(fila.uid)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver la marca de arcade de ${fila.nombre}`}
+                  style={({ pressed }) => [{ flexShrink: 1 }, pressed && { opacity: 0.6 }]}
+                >
+                  <Texto style={estilos.nombreJugador} numberOfLines={1}>
+                    {fila.nombre}
+                    {fila.uid === uid ? ' (tú)' : ''}
+                    {fila.uid === liderHoy ? ' 🎯' : ''}
+                  </Texto>
+                </Pressable>
 
                 {trofeosDe[fila.uid] > 0 && (
                   <View style={[estilos.chapa, estilos.chapaTrofeo]}>
@@ -453,6 +467,9 @@ export function PantallaClasificacion({
           );
         })}
       </Tarjeta>
+      <Texto style={estilos.pistaArcade}>
+        Toca un nombre para ver su mejor ronda de arcade.
+      </Texto>
       {reglas.blueshells && (
         <Sutil>
           🔵 son las balas que le caen encima a alguien. Tachadas y con 🛡️ al lado,
@@ -787,6 +804,13 @@ export function PantallaClasificacion({
         onConfirmar={reiniciarDeVerdad}
         onCancelar={() => setPreguntando(null)}
       />
+
+      <FichaArcade
+        uid={mirando}
+        nombre={mirando ? nombreDe(mirando) : ''}
+        avatar={normalizarAvatar(mirando ? torneo.perfiles?.[mirando]?.avatar : undefined)}
+        cerrar={() => setMirando(null)}
+      />
     </ScrollView>
   );
 }
@@ -1069,6 +1093,13 @@ const estilos = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: radio.pastilla,
     borderWidth: 1,
+  },
+  pistaArcade: {
+    color: colores.textoTenue,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
+    textAlign: 'center',
+    marginTop: espaciado.xs,
   },
   avisoTemporada: {
     color: colores.textoTenue,

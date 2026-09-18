@@ -22,6 +22,7 @@ import { PantallaAcceso } from './src/screens/PantallaAcceso';
 import { PantallaBienvenida } from './src/screens/PantallaBienvenida';
 import { PantallaModo } from './src/screens/PantallaModo';
 import { PantallaJuego } from './src/screens/PantallaJuego';
+import { PantallaArcade } from './src/screens/PantallaArcade';
 import { PantallaTorneos } from './src/screens/PantallaTorneos';
 import { PantallaClasificacion } from './src/screens/PantallaClasificacion';
 import { PantallaHistorial } from './src/screens/PantallaHistorial';
@@ -33,6 +34,7 @@ import { ANCHO_COLUMNA, colores, espaciado, fuentes, texto } from './src/tema';
 export type RutasApp = {
   Modo: undefined;
   Juego: undefined;
+  Arcade: undefined;
   Torneos: undefined;
   Clasificacion: { torneoId: string };
   Historial: { torneoId: string };
@@ -148,6 +150,7 @@ function Raiz() {
               irAJugar={() => navigation.navigate('Juego')}
               irATorneos={() => navigation.navigate('Torneos')}
               irADuelos={() => navigation.navigate('Duelos')}
+              irAArcade={() => navigation.navigate('Arcade')}
               irAPerfil={() => navigation.navigate('Perfil')}
             />
           )}
@@ -164,6 +167,16 @@ function Raiz() {
                 navigation.navigate('Clasificacion', { torneoId })
               }
               irAPerfil={() => navigation.navigate('Perfil')}
+            />
+          )}
+        </Pila.Screen>
+
+        <Pila.Screen name="Arcade" options={{ headerShown: false }}>
+          {({ navigation }) => (
+            <PantallaArcade
+              volver={() =>
+                navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Modo')
+              }
             />
           )}
         </Pila.Screen>

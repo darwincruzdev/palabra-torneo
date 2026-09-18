@@ -14,6 +14,7 @@ import type {
   DiaTorneo,
   Obligacion,
   ReglasTorneo,
+  RecordArcade,
   ResultadoDia,
   Torneo,
   TorneoActivo,
@@ -25,6 +26,7 @@ import {
   resumirMeses,
 } from '../game/clasificacion';
 import { misPartidas } from '../game/estadisticas';
+import { esMejor } from '../game/arcade';
 import { fechaJuego, sumarDias } from '../game/fecha';
 import { esAceptada } from '../game/palabras';
 import { normalizar } from '../game/normalizar';
@@ -49,6 +51,8 @@ import { avatarInicial, normalizarAvatar } from '../game/avatares';
 import {
   borrarTodoLoLocal,
   cargarPerfilLocal,
+  cargarRecordArcade,
+  guardarRecordArcadeLocal,
   cargarTorneoActivo,
   guardarPerfilLocal,
   guardarTorneoActivo,
@@ -61,7 +65,7 @@ import * as datos from '../firebase/datos';
 export const TORNEO_LIBRE: TorneoActivo = {
   tipo: 'libre',
   id: 'libre',
-  nombre: 'Modo libre',
+  nombre: 'La diaria',
   semilla: undefined,
 };
 
@@ -123,6 +127,12 @@ type Estado = {
   cambiarLetraGrande: (valor: boolean) => Promise<void>;
   /** Borra la cuenta entera. Devuelve el aviso si algo ha fallado, o null. */
   borrarCuenta: () => Promise<string | null>;
+  /** Mi mejor ronda de arcade, o null si todavía no he hecho ninguna. */
+  recordArcade: RecordArcade | null;
+  /** Anota una ronda terminada. Sólo se queda si mejora lo que había. */
+  guardarRecordArcade: (marca: RecordArcade) => void;
+  /** La marca de otra persona del torneo, para poder mirarla. */
+  recordArcadeDe: (uid: string) => Promise<RecordArcade | null>;
   crearTorneo: (nombre: string) => Promise<Torneo>;
   unirsePorCodigo: (codigo: string) => Promise<Torneo | null>;
   salir: (torneoId: string) => Promise<void>;
@@ -168,6 +178,7 @@ const Contexto = createContext<Estado | null>(null);
 export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const sesion = useSesionGoogle();
   const uid = sesion.usuario?.uid ?? null;
+  const [recordArcade, setRecordArcade] = useState<RecordArcade | null>(null);
 
   const [nombre, setNombre] = useState('');
   const [avatar, setAvatar] = useState<Avatar>(() => normalizarAvatar(null));
@@ -207,6 +218,9 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     cargarTorneoActivo().then((id) => {
       if (id) setActivoId(id);
     });
+    cargarRecordArcade().then((guardado) => {
+      if (guardado) setRecordArcade((previa) => (esMejor(guardado, previa) ? guardado : previa));
+    });
   }, []);
 
   useEffect(() => {
@@ -214,6 +228,12 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     datos
       .leerPerfil(uid)
       .then((perfil) => {
+        // La del servidor y la del móvil pueden no coincidir: se juega sin
+        // cuenta, o desde dos aparatos. Manda la mejor, no la última en llegar.
+        if (perfil?.arcade) {
+          const delServidor = perfil.arcade;
+          setRecordArcade((previa) => (esMejor(delServidor, previa) ? delServidor : previa));
+        }
         if (perfil?.configurado) {
           setNombre(perfil.nombre);
           setAvatar(perfil.avatar);
@@ -558,6 +578,30 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     return sesion.borrarAcceso();
   }, [uid, torneos, sesion]);
 
+  /**
+   * Anota una ronda de arcade terminada.
+   *
+   * Sólo se guarda si bate lo anterior, así que una ronda mala no borra la
+   * buena. Va al móvil y, si hay cuenta, al documento de usuario, que es de
+   * donde lo leen los demás desde la clasificación.
+   */
+  const guardarRecord = useCallback(
+    (marca: RecordArcade) => {
+      setRecordArcade((previa) => {
+        if (!esMejor(marca, previa)) return previa;
+        guardarRecordArcadeLocal(marca);
+        if (uid && datos.hayFirebase) datos.guardarRecordArcade(uid, marca).catch(() => {});
+        return marca;
+      });
+    },
+    [uid]
+  );
+
+  const recordArcadeDe = useCallback(async (otro: string) => {
+    if (!datos.hayFirebase) return null;
+    return datos.leerRecordArcade(otro).catch(() => null);
+  }, []);
+
   const crearTorneo = useCallback(
     async (nombreTorneo: string) => {
       if (!uid) throw new Error('Hay que entrar con Google para crear un torneo');
@@ -661,6 +705,9 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     letraGrande,
     cambiarLetraGrande,
     borrarCuenta,
+    recordArcade,
+    guardarRecordArcade: guardarRecord,
+    recordArcadeDe,
     crearTorneo,
     unirsePorCodigo,
     salir,

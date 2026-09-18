@@ -22,6 +22,7 @@ import type {
   DiaTorneo,
   Invitacion,
   Perfil,
+  RecordArcade,
   ReglasTorneo,
   ResultadoDia,
   Torneo,
@@ -58,7 +59,12 @@ export async function guardarLetraGrande(uid: string, letraGrande: boolean) {
 export async function leerPerfil(
   uid: string
 ): Promise<
-  (Omit<Perfil, 'uid'> & { configurado: boolean; letraGrande: boolean }) | null
+  | (Omit<Perfil, 'uid'> & {
+      configurado: boolean;
+      letraGrande: boolean;
+      arcade: RecordArcade | null;
+    })
+  | null
 > {
   const documento = await getDoc(doc(baseDatos(), 'usuarios', uid));
   if (!documento.exists()) return null;
@@ -68,7 +74,54 @@ export async function leerPerfil(
     avatar: normalizarAvatar(datos.avatar),
     configurado: datos.configurado === true,
     letraGrande: datos.letraGrande === true,
+    arcade: comoRecordArcade(datos.arcade),
   };
+}
+
+/* ------------------------------------------------------------------ arcade */
+
+/**
+ * La marca de arcade que llega del servidor, comprobada campo a campo.
+ *
+ * Es un documento que escribe cada cual en el suyo, así que puede traer
+ * cualquier cosa: sin esto, una marca a medio escribir dejaría la ficha con
+ * `undefined` por todas partes.
+ */
+function comoRecordArcade(bruto: unknown): RecordArcade | null {
+  if (!bruto || typeof bruto !== 'object') return null;
+  const d = bruto as Record<string, unknown>;
+  const numero = (v: unknown) => (typeof v === 'number' && isFinite(v) ? v : null);
+  const puntos = numero(d.puntos);
+  const segundos = numero(d.segundos);
+  if (puntos === null || segundos === null) return null;
+  return {
+    puntos,
+    segundos,
+    acertadas: numero(d.acertadas) ?? 0,
+    intentos: numero(d.intentos) ?? 0,
+    fecha: typeof d.fecha === 'string' ? d.fecha : '',
+  };
+}
+
+/** Guarda mi mejor ronda en mi propio documento de usuario. */
+export async function guardarRecordArcade(
+  uid: string,
+  record: RecordArcade
+): Promise<void> {
+  await setDoc(doc(baseDatos(), 'usuarios', uid), { arcade: record }, { merge: true });
+}
+
+/**
+ * La marca de otra persona.
+ *
+ * El documento de usuario lo puede leer cualquiera con sesión —ahí sólo están
+ * el nombre, el avatar y esto—, que es lo que permite mirar la marca de alguien
+ * desde la clasificación sin tocar las reglas.
+ */
+export async function leerRecordArcade(uid: string): Promise<RecordArcade | null> {
+  const documento = await getDoc(doc(baseDatos(), 'usuarios', uid));
+  if (!documento.exists()) return null;
+  return comoRecordArcade(documento.data().arcade);
 }
 
 /**

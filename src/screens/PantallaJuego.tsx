@@ -140,7 +140,7 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
       {esLibre && (
         <Pressable onPress={() => setSelectorAbierto(true)} style={estilos.bandaLibre}>
           <Texto style={estilos.textoLibre}>
-            Estás en modo libre: esta partida no puntúa. Toca para elegir un torneo.
+            Estás en La diaria: esta partida no puntúa. Toca para elegir un torneo.
           </Texto>
         </Pressable>
       )}
@@ -302,7 +302,7 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
 
           {esLibre && (
             <Texto style={estilos.avisoLibre}>
-              En modo libre no hay puntos. Entra en un torneo para competir.
+              En La diaria no hay puntos. Entra en un torneo para competir.
             </Texto>
           )}
 

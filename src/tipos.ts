@@ -313,3 +313,30 @@ export type InvitacionDuelo = {
 export type TorneoActivo =
   | { tipo: 'libre'; id: 'libre'; nombre: string; semilla: undefined }
   | { tipo: 'torneo'; id: string; nombre: string; semilla: string; torneo: Torneo };
+
+/* ------------------------------------------------------------------ arcade */
+
+/** Lo que dio una palabra dentro de una ronda de arcade. */
+export type ResultadoPalabra = {
+  /** Intentos gastados en ella, acertara o no. */
+  intentos: number;
+  acertada: boolean;
+};
+
+/**
+ * La mejor ronda de arcade de alguien.
+ *
+ * Vive en su documento de usuario, que cualquiera con sesión puede leer: es lo
+ * que permite mirar la marca de otro desde la clasificación sin abrir nada
+ * nuevo ni dar permiso de más.
+ */
+export type RecordArcade = {
+  puntos: number;
+  segundos: number;
+  /** Cuántas de las cinco acertó. */
+  acertadas: number;
+  /** Intentos gastados en toda la ronda. */
+  intentos: number;
+  /** Día en que la hizo. */
+  fecha: string;
+};

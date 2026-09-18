@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Avatar, PartidaHecha, PartidaLocal } from '../tipos';
+import type { Avatar, PartidaHecha, PartidaLocal, RecordArcade } from '../tipos';
 import { PALABRAS_PENALIZACION } from '../game/constantes';
 
 const CLAVE_PARTIDA = 'pt:partida'; // se le añade :{torneoId}
@@ -168,6 +168,24 @@ export async function anotarEnHistorial(entrada: EntradaHistorial): Promise<void
   resto.push(entrada);
   resto.sort((a, b) => a.fecha.localeCompare(b.fecha));
   await escribirJson(CLAVE_HISTORIAL, resto.slice(-800));
+}
+
+/* --------------------------------------------------------------- arcade */
+
+const CLAVE_ARCADE = 'pt:arcade';
+
+/**
+ * La mejor ronda de arcade guardada en este aparato.
+ *
+ * Con cuenta, la buena es la del servidor; esto es lo que hace que el arcade
+ * también funcione sin Firebase configurado y sin haber entrado.
+ */
+export function cargarRecordArcade(): Promise<RecordArcade | null> {
+  return leerJson<RecordArcade>(CLAVE_ARCADE);
+}
+
+export function guardarRecordArcadeLocal(record: RecordArcade): Promise<void> {
+  return escribirJson(CLAVE_ARCADE, record);
 }
 
 /* ------------------------------------------------------------ borrar todo */
