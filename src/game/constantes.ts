@@ -47,7 +47,7 @@ export const PALABRAS_PENALIZACION = [
  * genera desde aquí. Si se queda desactualizada, el botón del perfil manda a
  * las notas de un parche viejo, que es peor que no tener botón.
  */
-export const VERSION_PARCHE = '26.11';
+export const VERSION_PARCHE = '26.12';
 export const NOTAS_DEL_PARCHE = `${
   (process.env.EXPO_PUBLIC_URL_BASE ?? '').replace(/\/+$/, '')
 }/parche.html`;
