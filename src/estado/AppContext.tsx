@@ -16,6 +16,7 @@ import type {
   ReglasTorneo,
   RecordArcade,
   ResultadoDia,
+  Ulti,
   Torneo,
   TorneoActivo,
 } from '../tipos';
@@ -26,6 +27,13 @@ import {
   resumirMeses,
 } from '../game/clasificacion';
 import { misPartidas } from '../game/estadisticas';
+import {
+  impedimentoParaUlti,
+  problemaConLaPalabra,
+  ultiDe,
+  ultisQueLeQuedan,
+  type UltiLanzada,
+} from '../game/ulti';
 import { esMejor } from '../game/arcade';
 import { fechaJuego, sumarDias } from '../game/fecha';
 import { esAceptada } from '../game/palabras';
@@ -121,6 +129,10 @@ type Estado = {
   ) => Promise<{ objetivo: string; palabra: string }>;
   /** Gasta la protección de hoy: anula todas las balas recibidas. */
   usarProteccion: (torneoId: string) => Promise<void>;
+  /** La foto de la ulti de un torneo para quien mira. */
+  ultisDe: (torneoId: string) => EstadoUlti;
+  /** Gasta la ulti poniéndole esa palabra al resto del torneo para mañana. */
+  lanzarUlti: (torneoId: string, palabra: string) => Promise<void>;
   cambiarPerfil: (nombre: string, avatar: Avatar) => Promise<void>;
   /** Modo de letra grande: agranda todo el texto de la app. */
   letraGrande: boolean;
@@ -145,6 +157,25 @@ type Estado = {
     fecha: string,
     resultado: Omit<ResultadoDia, 'uid' | 'nombre' | 'avatar'>
   ) => Promise<void>;
+};
+
+/** La foto de la ulti de un torneo para la persona que mira. */
+export type EstadoUlti = {
+  /** La norma está encendida en este torneo. */
+  activa: boolean;
+  /** La que manda hoy, si la hay. */
+  hoy: UltiLanzada | null;
+  /** La que ya está puesta para mañana, si alguien se adelantó. */
+  manana: UltiLanzada | null;
+  /** ¿La de hoy es mía? Entonces juego la palabra normal. */
+  esMia: boolean;
+  puedoGastar: boolean;
+  /** Por qué no puedo, en una frase, o null si sí puedo. */
+  impedimento: string | null;
+  /** Las que me quedan este mes: cero o una. */
+  quedan: number;
+  /** Cuándo vuelve: el día 1 del mes que viene. */
+  recargaEl: string;
 };
 
 /** La foto de las blueshells de un torneo para la persona que mira. */
@@ -477,6 +508,83 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     [torneos, jornadas, uid, hoy]
   );
 
+  /**
+   * La ulti de un torneo.
+   *
+   * La de hoy decide a qué palabra juega cada uno; la de mañana sólo sirve para
+   * saber si el sitio está cogido y para que el grupo se entere de que viene
+   * una — quién la ha puesto se ve, la palabra no.
+   */
+  const ultisDe = useCallback(
+    (torneoId: string): EstadoUlti => {
+      const mes = mesDe(hoy);
+      const vacio: EstadoUlti = {
+        activa: false,
+        hoy: null,
+        manana: null,
+        esMia: false,
+        puedoGastar: false,
+        impedimento: null,
+        quedan: 0,
+        recargaEl: primerDiaDelMes(mesSiguiente(mes)),
+      };
+      const torneo = torneos.find((t) => t.id === torneoId);
+      if (!torneo || !uid) return vacio;
+
+      const reglas = normalizarReglas(torneo.reglas);
+      const dias = jornadas[torneoId] ?? [];
+      const laDeHoy = ultiDe(dias.find((d) => d.fecha === hoy), reglas);
+      const laDeManana = ultiDe(dias.find((d) => d.fecha === sumarDias(hoy, 1)), reglas);
+      const quedan = ultisQueLeQuedan(dias, torneo.fechaInicio, mes, uid);
+      const impedimento = impedimentoParaUlti({
+        activa: reglas.ulti,
+        quedan,
+        ocupada: laDeManana !== null,
+      });
+
+      return {
+        activa: reglas.ulti,
+        hoy: laDeHoy,
+        manana: laDeManana,
+        esMia: laDeHoy?.autor === uid,
+        puedoGastar: reglas.ulti && impedimento === null,
+        impedimento,
+        quedan,
+        recargaEl: primerDiaDelMes(mesSiguiente(mes)),
+      };
+    },
+    [torneos, jornadas, uid, hoy]
+  );
+
+  const lanzarUlti = useCallback(
+    async (torneoId: string, palabra: string) => {
+      if (!uid) throw new Error('Hay que entrar con Google para gastar la ulti');
+      const estado = ultisDe(torneoId);
+      if (!estado.puedoGastar) {
+        throw new Error(estado.impedimento ?? 'Ahora no puedes gastar la ulti');
+      }
+      const limpia = normalizar(palabra);
+      const problema = problemaConLaPalabra(limpia);
+      if (problema) throw new Error(problema);
+
+      const ulti: Ulti = { palabra: limpia, lanzada: hoy };
+      try {
+        // Afecta a mañana: la jornada de hoy ya la está jugando gente.
+        await datos.lanzarUlti(torneoId, sumarDias(hoy, 1), uid, ulti);
+      } catch (e) {
+        // El servidor no deja dos ultis en la misma jornada. Si dos personas
+        // pulsan a la vez, la segunda llega aquí: el permiso denegado es la
+        // respuesta correcta, pero contado así no se entiende nada.
+        const codigo = (e as { code?: string })?.code ?? '';
+        if (codigo.includes('permission-denied')) {
+          throw new Error('Alguien se te ha adelantado: mañana ya tiene palabra puesta.');
+        }
+        throw e;
+      }
+    },
+    [uid, hoy, ultisDe]
+  );
+
   const cambiarReglas = useCallback(
     async (torneoId: string, reglas: ReglasTorneo) => {
       if (!uid || !datos.hayFirebase) return;
@@ -701,6 +809,8 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     cambiarReglas,
     lanzarBlueshell,
     usarProteccion,
+    ultisDe,
+    lanzarUlti,
     cambiarPerfil,
     letraGrande,
     cambiarLetraGrande,

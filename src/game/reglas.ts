@@ -64,6 +64,7 @@ export const REGLAS_POR_DEFECTO: ReglasTorneo = {
   desempateManual: false,
   sinVocalesAlAbrir: true,
   ayudaAlUltimo: true,
+  ulti: true,
 };
 
 /**
@@ -79,6 +80,7 @@ export function normalizarReglas(reglas: Partial<ReglasTorneo> | undefined | nul
     sinVocalesAlAbrir:
       reglas?.sinVocalesAlAbrir ?? REGLAS_POR_DEFECTO.sinVocalesAlAbrir,
     ayudaAlUltimo: reglas?.ayudaAlUltimo ?? REGLAS_POR_DEFECTO.ayudaAlUltimo,
+    ulti: reglas?.ulti ?? REGLAS_POR_DEFECTO.ulti,
   };
 }
 

@@ -16,6 +16,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { Avatar } from '../components/Avatar';
 import { FichaArcade } from '../components/FichaArcade';
 import { normalizarAvatar } from '../game/avatares';
+import { ULTIS_POR_MES, mensajeDeUlti } from '../game/ulti';
 import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
 import { Confirmacion } from '../components/Confirmacion';
 import { RejillaPatron } from '../components/RejillaPatron';
@@ -72,6 +73,8 @@ export function PantallaClasificacion({
     reglasDe,
     blueshellsDe,
     lanzarBlueshell,
+    ultisDe,
+    lanzarUlti,
     cambiarReglas,
     reiniciarTorneo,
     decidirDesempate,
@@ -108,6 +111,11 @@ export function PantallaClasificacion({
 
   /** A quién le estamos mirando la marca de arcade. */
   const [mirando, setMirando] = useState<string | null>(null);
+  const [palabraUlti, setPalabraUlti] = useState('');
+  const [confirmandoUlti, setConfirmandoUlti] = useState(false);
+  const [gastandoUlti, setGastandoUlti] = useState(false);
+  const [errorUlti, setErrorUlti] = useState<string | null>(null);
+  const [ultiGastada, setUltiGastada] = useState(false);
 
   const nombreDe = (miembro: string) =>
     torneo?.perfiles?.[miembro]?.nombre ?? 'Jugador';
@@ -162,6 +170,7 @@ export function PantallaClasificacion({
 
   const reglas = reglasDe(torneoId);
   const balas = blueshellsDe(torneoId);
+  const ulti = ultisDe(torneoId);
   const esFundador = Boolean(torneo && uid === torneo.propietario);
   const nombreLider = balas.lider
     ? (torneo?.perfiles?.[balas.lider]?.nombre ?? 'quien va primero')
@@ -219,6 +228,47 @@ export function PantallaClasificacion({
     }
   }
 
+  /**
+   * Gasta la ulti. Dos toques, como la bala.
+   *
+   * Es una al mes y no tiene marcha atrás: una vez puesta no se puede cambiar
+   * ni quitar, así que un toque suelto no puede bastar.
+   */
+  async function gastarUlti() {
+    if (!torneo) return;
+    if (!confirmandoUlti) {
+      setConfirmandoUlti(true);
+      return;
+    }
+    setErrorUlti(null);
+    setGastandoUlti(true);
+    try {
+      await lanzarUlti(torneo.id, palabraUlti);
+      setPalabraUlti('');
+      setConfirmandoUlti(false);
+      setUltiGastada(true);
+    } catch (e) {
+      setErrorUlti(e instanceof Error ? e.message : 'No se ha podido gastar la ulti');
+      setConfirmandoUlti(false);
+    } finally {
+      setGastandoUlti(false);
+    }
+  }
+
+  /** Avisa al grupo de que mañana hay ulti. La palabra no va, claro. */
+  function contarUlti() {
+    if (!torneo) return;
+    Linking.openURL(
+      enlaceWhatsapp(
+        mensajeDeUlti({
+          torneo: torneo.nombre,
+          autor: nombreDe(uid ?? ''),
+          enlace: enlaceDeLaApp() || undefined,
+        })
+      )
+    ).catch(() => {});
+  }
+
   /** Abre WhatsApp con la pulla escrita, para calentar al grupo. */
   function contarlo() {
     if (!torneo || !lanzada) return;
@@ -239,7 +289,8 @@ export function PantallaClasificacion({
       | 'faltaPorNoJugar'
       | 'desempateManual'
       | 'sinVocalesAlAbrir'
-      | 'ayudaAlUltimo',
+      | 'ayudaAlUltimo'
+      | 'ulti',
     valor: boolean
   ) {
     if (!torneo) return;
@@ -282,6 +333,81 @@ export function PantallaClasificacion({
           irAJugar();
         }}
       />
+
+      {reglas.ulti && (
+        <Tarjeta acento={colores.peligro}>
+          <Sutil>Tu ulti</Sutil>
+
+          {/* Lo primero, lo que ya está pasando: hoy o mañana. */}
+          {ulti.hoy && (
+            <Texto style={estilos.explicacion}>
+              {ulti.esMia
+                ? 'Hoy el torneo juega tu palabra. Tú juegas la normal.'
+                : `Hoy jugáis la palabra que eligió ${nombreDe(ulti.hoy.autor)}.`}
+            </Texto>
+          )}
+
+          {ulti.manana && (
+            <View style={estilos.lanzada}>
+              <Texto style={estilos.lanzadaTitulo}>Mañana hay ulti</Texto>
+              <Texto style={estilos.explicacion}>
+                {ulti.manana.autor === uid ? (
+                  <>
+                    La has puesto tú. Mañana la juega todo el torneo menos tú, que jugarás
+                    la palabra normal.
+                  </>
+                ) : (
+                  <>
+                    <Texto style={estilos.destacado}>{nombreDe(ulti.manana.autor)}</Texto> ha
+                    gastado la suya. Mañana jugáis su palabra.
+                  </>
+                )}
+              </Texto>
+              {(ulti.manana.autor === uid || ultiGastada) && (
+                <Boton titulo="Contarlo por WhatsApp" onPress={contarUlti} />
+              )}
+            </View>
+          )}
+
+          {ulti.puedoGastar ? (
+            <>
+              <Texto style={estilos.explicacion}>
+                Te queda <Texto style={estilos.destacado}>{ulti.quedan}</Texto> de{' '}
+                {ULTIS_POR_MES} al mes. Elige la palabra y mañana la jugará todo el torneo
+                menos tú, que jugarás la normal. Una vez puesta no se puede cambiar.
+              </Texto>
+              <TextInput
+                value={palabraUlti}
+                onChangeText={(texto) => {
+                  setPalabraUlti(texto.toUpperCase().replace(/[^A-ZÑÁÉÍÓÚÜ]/g, ''));
+                  setConfirmandoUlti(false);
+                  setErrorUlti(null);
+                }}
+                placeholder="SALTO"
+                placeholderTextColor={colores.textoSuave}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={5}
+                style={estilos.campoBala}
+              />
+              {errorUlti && <Texto style={estilos.errorBala}>{errorUlti}</Texto>}
+              <Boton
+                titulo={confirmandoUlti ? '¿Seguro? Toca otra vez' : 'Gastar mi ulti'}
+                variante={confirmandoUlti ? 'peligro' : 'secundario'}
+                cargando={gastandoUlti}
+                deshabilitado={palabraUlti.length < 5}
+                onPress={gastarUlti}
+              />
+            </>
+          ) : (
+            <Texto style={estilos.explicacion}>{ulti.impedimento}</Texto>
+          )}
+
+          <Texto style={estilos.recarga}>
+            Vuelve el {fechaLarga(ulti.recargaEl)}.
+          </Texto>
+        </Tarjeta>
+      )}
 
       {reglas.blueshells && (
         <Tarjeta acento={colores.acento}>
@@ -728,6 +854,14 @@ export function PantallaClasificacion({
           valor={reglas.ayudaAlUltimo}
           editable={esFundador}
           alCambiar={(v) => alternarRegla('ayudaAlUltimo', v)}
+        />
+        <View style={estilos.separadorRegla} />
+        <Regla
+          titulo="La ulti"
+          descripcion={`Una vez al mes, cada uno puede elegir la palabra que jugará mañana el resto del torneo. Quien la gasta juega la palabra normal de ese día. Sólo cabe una ulti por jornada: manda quien llegue primero.`}
+          valor={reglas.ulti}
+          editable={esFundador}
+          alCambiar={(v) => alternarRegla('ulti', v)}
         />
         <View style={estilos.separadorRegla} />
         <Regla

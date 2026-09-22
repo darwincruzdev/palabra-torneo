@@ -31,7 +31,7 @@ const INICIO = '2026-01-01';
 const TODAS: ReglasTorneo = {
   penalizacionLider: true,
   blueshells: true,
-  faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true,
+  faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true,
 };
 
 function dia(fecha: string, extra: Partial<DiaTorneo> = {}): DiaTorneo {
@@ -47,7 +47,7 @@ describe('normalizarReglas', () => {
     assert.deepEqual(normalizarReglas(undefined), {
       penalizacionLider: true,
       blueshells: true,
-      faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true,
+      faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true,
     });
   });
 
@@ -55,7 +55,7 @@ describe('normalizarReglas', () => {
     assert.deepEqual(normalizarReglas({ blueshells: false }), {
       penalizacionLider: true,
       blueshells: false,
-      faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true,
+      faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true,
     });
   });
 });
@@ -161,7 +161,7 @@ describe('obligaciones de la jornada', () => {
 
   it('un torneo sin blueshells ignora las que le hayan tirado', () => {
     const obligaciones = obligacionesDe({
-      reglas: { penalizacionLider: true, blueshells: false, faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
+      reglas: { penalizacionLider: true, blueshells: false, faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true },
       liderando: true,
       blueshells: balas,
     });
@@ -174,7 +174,7 @@ describe('obligaciones de la jornada', () => {
   it('un torneo sin ninguna de las dos normas no impone nada', () => {
     assert.deepEqual(
       obligacionesDe({
-        reglas: { penalizacionLider: false, blueshells: false, faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
+        reglas: { penalizacionLider: false, blueshells: false, faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true },
         liderando: true,
         blueshells: balas,
       }),

@@ -9,6 +9,7 @@ const ACEPTADAS: string[] = aceptadasJson as string[];
 const SOLUCIONES: string[] = solucionesJson as string[];
 
 const setAceptadas = new Set(ACEPTADAS);
+const setSoluciones = new Set(SOLUCIONES);
 
 /**
  * Recorrido de la lista para quien juega sin torneo, en el modo libre. Es
@@ -44,6 +45,17 @@ export function solucionDe(fecha: string, semilla: string = SEMILLA_LIBRE): stri
 export function numeroJornada(fecha: string, fechaInicio?: string): number {
   if (!fechaInicio) return indiceDia(fecha) + 1;
   return indiceDia(fecha) - indiceDia(fechaInicio) + 1;
+}
+
+/**
+ * ¿Es una de las palabras que el juego puede sacar como solución?
+ *
+ * Es una lista mucho más corta que la de intentos aceptados: sólo palabras de
+ * uso corriente. Sirve para no dejar imponer una rareza del diccionario largo
+ * a todo un torneo.
+ */
+export function esSolucion(palabra: string): boolean {
+  return setSoluciones.has(normalizar(palabra));
 }
 
 /**

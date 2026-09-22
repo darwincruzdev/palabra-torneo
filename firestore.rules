@@ -152,9 +152,10 @@ service cloud.firestore {
 
       allow delete: if conSesion() && resource.data.propietario == request.auth.uid;
 
-      // Una jornada = un documento con tres mapas: los resultados, las
-      // blueshells que caen ese día y quién gastó su protección. Los tres van
-      // indexados por uid, y de cada uno sólo se puede tocar la casilla propia.
+      // Una jornada = un documento con cuatro mapas: los resultados, las
+      // blueshells que caen ese día, quién gastó su protección y quién gastó su
+      // ulti. Los cuatro van indexados por uid, y de cada uno sólo se puede
+      // tocar la casilla propia.
       match /dias/{fecha} {
         allow read: if esMiembro(torneoId);
 
@@ -169,6 +170,32 @@ service cloud.firestore {
           return request.resource.data.get(campo, {})
                    .diff(resource.data.get(campo, {}))
                    .affectedKeys().hasOnly([request.auth.uid]);
+        }
+
+        // La ulti: una palabra, y nada más.
+        function ultiCreible() {
+          return request.resource.data.ultis[request.auth.uid].palabra
+                   .matches('^[a-zñ]{5,10}$');
+        }
+
+        // Una ulti por jornada en todo el torneo, y escrita una sola vez.
+        //
+        // Esto sí lo puede sostener el servidor, y hace falta que lo sostenga.
+        // La app no deja gastarla si ya hay una, pero dos personas pueden pulsar
+        // a la vez desde dos móviles y ninguna de las dos lo sabría: aquí la
+        // segunda se encuentra el mapa con una casilla que no es la suya y el
+        // `hasOnly` la rechaza. Gana quien llegue primero, de verdad.
+        //
+        // Y sin `primeraUlti` se podría reescribir la propia a media mañana,
+        // con medio torneo ya jugando: cambiarle la palabra a los que no han
+        // empezado sería peor que ponerla. Una vez puesta, no se toca.
+        function unicaUlti() {
+          return request.resource.data.get('ultis', {})
+                   .keys().hasOnly([request.auth.uid]);
+        }
+
+        function primeraUlti() {
+          return !resource.data.get('ultis', {}).keys().hasAny([request.auth.uid]);
         }
 
         // Una bala tiene que ir contra alguien del torneo y llevar algo que
@@ -204,19 +231,25 @@ service cloud.firestore {
         // quitarle la protección a nadie.
         allow create: if esMiembro(torneoId)
           && request.resource.data.keys()
-               .hasOnly(['fecha', 'resultados', 'blueshells', 'protecciones'])
+               .hasOnly(['fecha', 'resultados', 'blueshells', 'protecciones', 'ultis'])
           && soloMio('resultados')
           && soloMio('blueshells')
           && soloMio('protecciones')
-          && (!request.resource.data.keys().hasAny(['blueshells']) || balaCreible());
+          && soloMio('ultis')
+          && (!request.resource.data.keys().hasAny(['blueshells']) || balaCreible())
+          && (!request.resource.data.keys().hasAny(['ultis'])
+              || (ultiCreible() && unicaUlti()));
 
         allow update: if esMiembro(torneoId)
-          && camposTocados().hasOnly(['resultados', 'blueshells', 'protecciones'])
+          && camposTocados().hasOnly(['resultados', 'blueshells', 'protecciones', 'ultis'])
           && soloCambioMio('resultados')
           && soloCambioMio('blueshells')
           && soloCambioMio('protecciones')
+          && soloCambioMio('ultis')
           && (!camposTocados().hasAny(['resultados']) || primerResultado())
-          && (!camposTocados().hasAny(['blueshells']) || balaCreible());
+          && (!camposTocados().hasAny(['blueshells']) || balaCreible())
+          && (!camposTocados().hasAny(['ultis'])
+              || (ultiCreible() && unicaUlti() && primeraUlti()));
 
         allow delete: if false;
       }

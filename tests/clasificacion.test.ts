@@ -141,7 +141,7 @@ describe('líder destacado (regla de la penalización)', () => {
 describe('falta por no jugar', () => {
   const sinFaltas: Torneo = {
     ...torneo,
-    reglas: { penalizacionLider: true, blueshells: true, faltaPorNoJugar: false, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
+    reglas: { penalizacionLider: true, blueshells: true, faltaPorNoJugar: false, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true },
   };
 
   function puntosDe(filas: ReturnType<typeof clasificacion>, uid: string) {

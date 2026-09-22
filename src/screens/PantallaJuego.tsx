@@ -145,6 +145,31 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
         </Pressable>
       )}
 
+      {/* La ulti de hoy. Que se sepa quién la puso es media gracia del asunto;
+          la palabra, evidentemente, no se dice. */}
+      {juego.ulti && !yaHecha && (
+        <View style={estilos.bandaUlti}>
+          <Texto style={estilos.textoUlti}>
+            {juego.ulti.autor === uid ? (
+              <>
+                Hoy juega el torneo la palabra que elegiste tú. A ti te toca la normal:
+                sin ventaja.
+              </>
+            ) : (
+              <>
+                <Texto style={estilos.nombreUlti}>
+                  {activo.tipo === 'torneo'
+                    ? (activo.torneo.perfiles?.[juego.ulti.autor]?.nombre ?? 'Alguien')
+                    : 'Alguien'}
+                </Texto>{' '}
+                ha gastado su ulti: hoy no juegas la palabra del día, sino la que ha
+                elegido.
+              </>
+            )}
+          </Texto>
+        </View>
+      )}
+
       {/* Una mano para quien se está descolgando. Se enseña toda la partida:
           es una letra, no una cuenta atrás. */}
       {juego.pista && !yaHecha && (
@@ -489,6 +514,25 @@ const estilos = StyleSheet.create({
     fontSize: escala.pequeno,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  bandaUlti: {
+    backgroundColor: 'rgba(228, 82, 63, 0.14)',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colores.peligro,
+    paddingHorizontal: espaciado.lg,
+    paddingVertical: espaciado.sm,
+  },
+  textoUlti: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  nombreUlti: {
+    color: colores.peligro,
+    fontFamily: fuentes.cuerpoFuerte,
   },
   bandaPista: {
     backgroundColor: 'rgba(61, 163, 93, 0.12)',

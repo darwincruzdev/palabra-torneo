@@ -47,6 +47,21 @@ export type DiaTorneo = {
   blueshells?: Record<string, Blueshell>;
   /** uid -> gastó aquí su protección, que anula todas las de esa jornada. */
   protecciones?: Record<string, true>;
+  /** uid del que la gasta -> la palabra que le pone al resto ese día. */
+  ultis?: Record<string, Ulti>;
+};
+
+/**
+ * La ulti: la palabra que alguien le pone al resto del torneo por un día.
+ *
+ * Quien la gasta juega la palabra normal de la jornada; los demás, la que haya
+ * elegido. Una al mes y se acabó.
+ */
+export type Ulti = {
+  /** La palabra impuesta, ya normalizada. */
+  palabra: string;
+  /** Día en que se gastó, que es el que decide de qué mes se descuenta. */
+  lanzada: string;
 };
 
 /**
@@ -75,6 +90,14 @@ export type ReglasTorneo = {
    * otras cosas porque alguna de ellas puede ser la solución del día.
    */
   sinVocalesAlAbrir: boolean;
+  /**
+   * Una vez al mes, alguien puede elegir la palabra que jugará el resto.
+   *
+   * Quien la gasta se queda con la palabra normal de ese día, así que no sabe
+   * nada que los demás no sepan de la suya: elige el problema ajeno, no el
+   * propio.
+   */
+  ulti: boolean;
   /**
    * A quien va último en solitario se le chiva una letra de la palabra.
    *

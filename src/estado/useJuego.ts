@@ -12,6 +12,7 @@ import {
 import { estadoTeclado, patronCompartible, puntosDe } from '../game/evaluar';
 import { fechaJuego, msHastaProximaJornada } from '../game/fecha';
 import { esAceptada, solucionDe } from '../game/palabras';
+import { solucionParaMi } from '../game/ulti';
 import { borrarEn, escribirEn, filaVacia, texto } from '../game/fila';
 import { normalizar } from '../game/normalizar';
 import { anotarEnHistorial, cargarPartida, guardarPartida } from '../almacen/local';
@@ -66,6 +67,7 @@ export function useJuego() {
     miResultado,
     reglasDe,
     ultimoEn,
+    ultisDe,
     uid,
   } = useApp();
 
@@ -91,7 +93,22 @@ export function useJuego() {
   const [temblor, setTemblor] = useState(0);
   const [filaAnimada, setFilaAnimada] = useState<number | null>(null);
 
-  const solucion = solucionDe(fecha, activo.semilla);
+  /**
+   * La ulti que manda hoy en este torneo, si alguien la gastó.
+   *
+   * En modo libre no existe: ahí no hay torneo al que picar.
+   */
+  const ulti = activo.tipo === 'torneo' ? ultisDe(torneoId).hoy : null;
+
+  /**
+   * La palabra de hoy, que ya no tiene por qué ser la misma para todos.
+   *
+   * Con una ulti puesta, el torneo entero juega la palabra que eligió quien la
+   * gastó — menos esa persona, que juega la normal. Todo lo que hay debajo
+   * —el tablero, el teclado, la pista, los puntos— trabaja con ésta y no se
+   * entera de nada.
+   */
+  const solucion = solucionParaMi(solucionDe(fecha, activo.semilla), ulti, uid);
   const impuestas = obligacionesHoy(torneoId);
 
   /**
@@ -390,6 +407,8 @@ export function useJuego() {
      * pantalla enseña el resumen en vez del tablero.
      */
     publicada,
+    /** La ulti que manda hoy, para poder anunciarla en el tablero. */
+    ulti,
     obligaciones,
     /** La que toca en el intento en curso, para poder anunciarla. */
     obligacion,

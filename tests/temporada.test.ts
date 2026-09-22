@@ -42,7 +42,7 @@ const torneo: Torneo = {
     bea: { nombre: 'Bea', avatar: AVATAR_POR_DEFECTO },
     caj: { nombre: 'Carlos', avatar: AVATAR_POR_DEFECTO },
   },
-  reglas: { penalizacionLider: true, blueshells: true, faltaPorNoJugar: false, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
+  reglas: { penalizacionLider: true, blueshells: true, faltaPorNoJugar: false, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true },
   fechaInicio: '2026-01-01',
   creado: 0,
 };
@@ -50,7 +50,7 @@ const torneo: Torneo = {
 /** Para lo único que se comprueba aquí de faltas: que no crucen de mes. */
 const conFaltas: Torneo = {
   ...torneo,
-  reglas: { penalizacionLider: true, blueshells: true, faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
+  reglas: { penalizacionLider: true, blueshells: true, faltaPorNoJugar: true, desempateManual: false, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true },
 };
 
 function resultado(uid: string, puntos: number): ResultadoDia {
@@ -368,7 +368,7 @@ describe('quién gana el mes cuando se empata a puntos', () => {
 describe('desempate del mes a mano', () => {
   const aMano: Torneo = {
     ...torneo,
-    reglas: { ...torneo.reglas!, desempateManual: true, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
+    reglas: { ...torneo.reglas!, desempateManual: true, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true },
   };
 
   /** Un mes que acaba en empate absoluto: mismos puntos, aciertos y media. */
@@ -425,7 +425,7 @@ describe('desempate del mes a mano', () => {
 describe('qué cuenta como empate según la norma', () => {
   const aMano: Torneo = {
     ...torneo,
-    reglas: { ...torneo.reglas!, desempateManual: true, sinVocalesAlAbrir: true, ayudaAlUltimo: true },
+    reglas: { ...torneo.reglas!, desempateManual: true, sinVocalesAlAbrir: true, ayudaAlUltimo: true, ulti: true },
   };
 
   /**

@@ -26,6 +26,7 @@ import type {
   ReglasTorneo,
   ResultadoDia,
   Torneo,
+  Ulti,
 } from '../tipos';
 import { fechaJuego } from '../game/fecha';
 import { generarSemilla } from '../game/semilla';
@@ -326,6 +327,25 @@ export async function lanzarBlueshell(
   await setDoc(
     doc(baseDatos(), 'torneos', torneoId, 'dias', fechaObjetivo),
     { fecha: fechaObjetivo, blueshells: { [autor]: blueshell } },
+    { merge: true }
+  );
+}
+
+/**
+ * Gasta la ulti: la palabra que jugará mañana el resto del torneo.
+ *
+ * Va al documento de la jornada a la que afecta, que normalmente todavía no
+ * existe: por eso con merge, igual que las balas.
+ */
+export async function lanzarUlti(
+  torneoId: string,
+  fechaObjetivo: string,
+  autor: string,
+  ulti: Ulti
+): Promise<void> {
+  await setDoc(
+    doc(baseDatos(), 'torneos', torneoId, 'dias', fechaObjetivo),
+    { fecha: fechaObjetivo, ultis: { [autor]: ulti } },
     { merge: true }
   );
 }

@@ -396,6 +396,24 @@ export function PantallaPerfil() {
         </Sutil>
       </Desplegable>
 
+      <Desplegable titulo="La ulti" resumen="Una al mes: tú eliges la palabra que juegan los demás.">
+        <Sutil>
+          Una vez al mes puedes elegir la palabra que jugará mañana todo el torneo. Tú
+          no: a ti te toca la palabra normal de ese día, así que eliges el problema de
+          los demás y no el tuyo.
+        </Sutil>
+        <Sutil>
+          Tiene que ser una palabra de las que el juego usa como solución, no una rareza
+          del diccionario largo. Con una rareza el torneo entero sacaría cero, y eso no
+          es picar a nadie, es reventar la jornada.
+        </Sutil>
+        <Sutil>
+          Sólo cabe una ulti por jornada en todo el torneo: si dos la gastan a la vez,
+          vale la que llegue primero y la otra no se pone. Una vez puesta no se puede
+          cambiar ni quitar — media mañana después habría gente jugándola ya.
+        </Sutil>
+      </Desplegable>
+
       <Desplegable titulo="La blueshell" resumen="Dos balas y dos escudos al mes para picar al líder.">
         <Sutil>
           Cada mes tienes {BLUESHELLS_POR_MES} balas y {BLUESHELLS_POR_MES} escudos, y
