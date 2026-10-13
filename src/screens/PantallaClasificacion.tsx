@@ -338,12 +338,25 @@ export function PantallaClasificacion({
         <Tarjeta acento={colores.peligro}>
           <Sutil>Tu ulti</Sutil>
 
-          {/* Lo primero, lo que ya está pasando: hoy o mañana. */}
+          {/*
+            Lo que ya está pasando: hoy o mañana.
+
+            A quien la gastó se le enseña su palabra. La gasta un día y la juega
+            el torneo al siguiente, y para entonces ya no se acuerda de qué puso
+            — que es la pregunta que acababa siempre en el grupo de WhatsApp.
+            A los demás no se les enseña, claro.
+          */}
           {ulti.hoy && (
             <Texto style={estilos.explicacion}>
-              {ulti.esMia
-                ? 'Hoy el torneo juega tu palabra. Tú juegas la normal.'
-                : `Hoy jugáis la palabra que eligió ${nombreDe(ulti.hoy.autor)}.`}
+              {ulti.esMia ? (
+                <>
+                  Hoy el torneo juega tu{' '}
+                  <Texto style={estilos.destacado}>{ulti.hoy.palabra.toUpperCase()}</Texto>.
+                  Tú juegas la normal. La pusiste el {fechaLarga(ulti.hoy.lanzada)}.
+                </>
+              ) : (
+                <>Hoy jugáis la palabra que eligió {nombreDe(ulti.hoy.autor)}.</>
+              )}
             </Texto>
           )}
 
@@ -353,8 +366,12 @@ export function PantallaClasificacion({
               <Texto style={estilos.explicacion}>
                 {ulti.manana.autor === uid ? (
                   <>
-                    La has puesto tú. Mañana la juega todo el torneo menos tú, que jugarás
-                    la palabra normal.
+                    La has puesto tú:{' '}
+                    <Texto style={estilos.destacado}>
+                      {ulti.manana.palabra.toUpperCase()}
+                    </Texto>
+                    . Mañana la juega todo el torneo menos tú, que jugarás la palabra
+                    normal.
                   </>
                 ) : (
                   <>

@@ -145,15 +145,27 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
         </Pressable>
       )}
 
+      {/*
+        Las franjas de aquí abajo desaparecen en cuanto la partida termina.
+        Todas dicen qué hacer mientras juegas —la letra de regalo, la palabra
+        impuesta, las balas que vienen—, y al acabar no sirven para nada salvo
+        para robarle sitio al tablero: con el panel de resultado ocupando media
+        pantalla, dos de estas franjas dejaban la jugada recortada y sin poder
+        repasarla, que es justo lo que uno quiere mirar al terminar.
+      */}
+
       {/* La ulti de hoy. Que se sepa quién la puso es media gracia del asunto;
-          la palabra, evidentemente, no se dice. */}
-      {juego.ulti && !yaHecha && (
+          la palabra, a quien no la eligió, evidentemente no se le dice. */}
+      {juego.ulti && !yaHecha && !terminada && (
         <View style={estilos.bandaUlti}>
           <Texto style={estilos.textoUlti}>
             {juego.ulti.autor === uid ? (
               <>
-                Hoy juega el torneo la palabra que elegiste tú. A ti te toca la normal:
-                sin ventaja.
+                Hoy el torneo juega tu{' '}
+                <Texto style={estilos.nombreUlti}>
+                  {juego.ulti.palabra.toUpperCase()}
+                </Texto>
+                . A ti te toca la normal: sin ventaja.
               </>
             ) : (
               <>
@@ -172,7 +184,7 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
 
       {/* Una mano para quien se está descolgando. Se enseña toda la partida:
           es una letra, no una cuenta atrás. */}
-      {juego.pista && !yaHecha && (
+      {juego.pista && !yaHecha && !terminada && (
         <View style={estilos.bandaPista}>
           <Texto style={estilos.textoPista}>
             Vas último, así que va una ayuda: la palabra lleva una{' '}
@@ -183,7 +195,7 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
 
       {/* La palabra impuesta del intento en curso, venga de ir primero o de que
           te hayan disparado. El tablero no distingue: sólo obedece. */}
-      {juego.obligacion && juego.obligacion.motivo === 'lider' && (
+      {juego.obligacion && juego.obligacion.motivo === 'lider' && !terminada && (
         <View style={estilos.bandaPenalizacion}>
           <Texto style={estilos.textoPenalizacion}>
             Lideras {activo.nombre} en solitario. Abre con una de estas:
@@ -194,7 +206,7 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
         </View>
       )}
 
-      {juego.obligacion && juego.obligacion.motivo === 'blueshell' && (
+      {juego.obligacion && juego.obligacion.motivo === 'blueshell' && !terminada && (
         <View style={estilos.bandaBlueshell}>
           <Texto style={estilos.textoBlueshell}>
             Blueshell de {juego.autorObligacion}. Tu palabra {juego.obligacion.indice + 1}.ª
@@ -208,7 +220,7 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
 
       {/* Avisar de las que están por venir, para que nadie se lleve la sorpresa
           al segundo intento con la protección ya sin usar. */}
-      {juego.balasPendientes > 0 && juego.obligacion?.motivo !== 'blueshell' && (
+      {juego.balasPendientes > 0 && juego.obligacion?.motivo !== 'blueshell' && !terminada && (
         <View style={estilos.bandaBlueshell}>
           <Texto style={estilos.textoBlueshell}>
             {juego.balasPendientes === 1
@@ -315,6 +327,20 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
               : 'Hoy no ha podido ser'}
           </Texto>
           <Texto style={estilos.palabraFinal}>{juego.solucion.toUpperCase()}</Texto>
+
+          {/* La franja de la ulti se va al terminar, así que el porqué de una
+              palabra rara se cuenta aquí, donde ya no le quita sitio a nada. */}
+          {juego.ulti && (
+            <Texto style={estilos.pieUlti}>
+              {juego.ulti.autor === uid
+                ? 'Tu ulti: el resto del torneo ha jugado otra.'
+                : `La puso ${
+                    activo.tipo === 'torneo'
+                      ? (activo.torneo.perfiles?.[juego.ulti.autor]?.nombre ?? 'alguien')
+                      : 'alguien'
+                  } con su ulti.`}
+            </Texto>
+          )}
 
           {!esLibre && (
             <View style={estilos.marcadorFinal}>
@@ -514,6 +540,13 @@ const estilos = StyleSheet.create({
     fontSize: escala.pequeno,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  pieUlti: {
+    color: colores.peligro,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.micro,
+    textAlign: 'center',
+    marginTop: -espaciado.xs,
   },
   bandaUlti: {
     backgroundColor: 'rgba(228, 82, 63, 0.14)',
