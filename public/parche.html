@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Notas del parche 26.12 · Palabra Torneo</title>
+    <title>Notas del parche 26.13 · Palabra Torneo</title>
     <meta name="theme-color" content="#0A0D12" />
     <meta name="google" content="notranslate" />
     <meta
       name="description"
-      content="La ulti: una vez al mes eliges tú la palabra que jugará mañana el resto del torneo."
+      content="El tablero vuelve a verse entero al terminar, y quien gasta la ulti puede consultar qué palabra puso."
     />
     <link rel="icon" href="/favicon.ico" />
   </head>
@@ -367,15 +367,96 @@
   <header class="cabecera">
     <div class="juego">Palabra Torneo · Notas del parche</div>
     <div class="numero">
-      <h1>26.12</h1>
-      <div class="lema">La ulti</div>
+      <h1>26.13</h1>
+      <div class="lema">Dejar ver</div>
     </div>
   </header>
 
   <p class="entradilla">
-    Una norma nueva, y de las gordas: una vez al mes puedes elegir tú la palabra que
-    jugará mañana el resto del torneo. Menos tú.
+    Dos arreglos pequeños y de los que se notan a diario: al terminar la jornada vuelve a
+    verse el tablero entero, y quien gasta la ulti puede consultar qué palabra puso.
   </p>
+
+  <section data-tipo="arreglo">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>El tablero al terminar</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <h3>Se veía la jugada a medias</h3>
+      <ul class="cambios">
+        <li>
+          <span class="que">Avisos de ayuda</span>
+          <span class="valores">
+            <span class="antes">se quedaban puestos</span>
+            <span class="flecha">⇒</span>
+            <span class="ahora">desaparecen al acabar</span>
+          </span>
+        </li>
+        <li>
+          <span class="que">A quién afectaba</span>
+          <span class="valores suelto">
+            Sobre todo a quien iba último, que arrastraba el aviso de la letra de regalo.
+          </span>
+        </li>
+        <li>
+          <span class="que">De dónde venía tu palabra</span>
+          <span class="valores suelto">
+            Si fue una ulti, ahora se dice en el panel de resultado.
+          </span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          Esos avisos dicen <strong>qué hacer mientras juegas</strong>: la letra por ir
+          último, la palabra impuesta, las balas que vienen. Acabada la jornada no sirven
+          para nada, y con el panel de resultado ocupando media pantalla, dos de ellos
+          dejaban el tablero recortado justo cuando uno quiere repasar cómo lo ha hecho.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section data-tipo="ajuste">
+    <div class="titulo">
+      <span class="ficha"></span>
+      <h2>La ulti</h2>
+      <span class="regla"></span>
+    </div>
+
+    <div class="bloque">
+      <ul class="cambios">
+        <li>
+          <span class="que">Tu palabra</span>
+          <span class="valores suelto">
+            Se ve en la clasificación, con el día en que la pusiste.
+          </span>
+        </li>
+        <li>
+          <span class="que">Quién la ve</span>
+          <span class="valores suelto">
+            <strong>Sólo quien la eligió.</strong> Al resto, su nombre y nada más.
+          </span>
+        </li>
+      </ul>
+
+      <div class="comentario">
+        <span>Comentario</span>
+        <p>
+          Se pone un día y el torneo la juega al siguiente, y para entonces ya no te
+          acuerdas de qué pusiste. Acababa siempre en la misma pregunta por WhatsApp.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="anterior">
+    <h2>Parche anterior · 26.12 · La ulti</h2>
+  </div>
 
   <section data-tipo="nuevo">
     <div class="titulo">
@@ -451,192 +532,9 @@
     </div>
   </section>
 
-  <div class="anterior">
-    <h2>Parche anterior · 26.11 · Cinco seguidas</h2>
-  </div>
-
-  <section data-tipo="nuevo">
-    <div class="titulo">
-      <span class="ficha"></span>
-      <h2>Modo arcade</h2>
-      <span class="regla"></span>
-    </div>
-
-    <div class="bloque">
-      <h3>Cinco palabras seguidas, contra el reloj</h3>
-      <ul class="cambios">
-        <li>
-          <span class="que">Cuántas</span>
-          <span class="valores suelto">
-            <strong>5 por ronda</strong>, y las rondas que quieras al día.
-          </span>
-        </li>
-        <li>
-          <span class="que">Puntos por palabra</span>
-          <span class="valores">
-            <span class="antes">7 · 5 · 4 · 3 · 2 · 1</span>
-            <span class="flecha">⇒</span>
-            <span class="ahora">70 · 50 · 40 · 30 · 20 · 10</span>
-          </span>
-        </li>
-        <li>
-          <span class="que">Premio por tiempo</span>
-          <span class="valores suelto">
-            <strong>+9</strong> por debajo de 2 minutos, bajando hasta <strong>0</strong> a
-            los 10.
-          </span>
-        </li>
-        <li>
-          <span class="que">Ronda perfecta</span>
-          <span class="valores suelto">359 puntos.</span>
-        </li>
-        <li>
-          <span class="que">Salirte a media ronda</span>
-          <span class="valores suelto">La pierdes. No se guarda a medias.</span>
-        </li>
-      </ul>
-
-      <div class="comentario">
-        <span>Comentario</span>
-        <p>
-          El reloj tenía que pesar de verdad — tres aciertos en un minuto no son lo mismo
-          que tres en diez —, pero sin que compensara ir a lo loco. De ahí el tope de 9:
-          la palabra más barata vale 10, así que <strong>correr no puede pagar nunca una
-          palabra</strong>. Acertar una más gana siempre, se tarde lo que se tarde. Y 9 es
-          además todo lo que el tiempo puede pesar sin romper eso; ni un punto más cabía.
-        </p>
-        <p>
-          La ronda no se guarda a propósito. Es una carrera: esa tensión es justo lo que
-          la separa de la palabra del día, que te espera ahí hasta medianoche.
-        </p>
-      </div>
-    </div>
-
-    <div class="bloque">
-      <h3>Y se le puede mirar la marca a cualquiera</h3>
-      <ul class="cambios">
-        <li>
-          <span class="que">Dónde</span>
-          <span class="valores suelto">
-            En la clasificación del torneo, <strong>tocando su nombre</strong>.
-          </span>
-        </li>
-        <li>
-          <span class="que">Qué se ve</span>
-          <span class="valores suelto">
-            Puntos, tiempo, acertadas, intentos y cuándo la hizo.
-          </span>
-        </li>
-      </ul>
-    </div>
-  </section>
-
-  <section data-tipo="ajuste">
-    <div class="titulo">
-      <span class="ficha"></span>
-      <h2>La diaria</h2>
-      <span class="regla"></span>
-    </div>
-
-    <div class="bloque">
-      <ul class="cambios">
-        <li>
-          <span class="que">Modo libre</span>
-          <span class="valores">
-            <span class="antes">Modo libre</span>
-            <span class="flecha">⇒</span>
-            <span class="ahora">La diaria</span>
-          </span>
-        </li>
-        <li>
-          <span class="que">Cómo se juega</span>
-          <span class="valores suelto">Igual que siempre. Sólo cambia el nombre.</span>
-        </li>
-      </ul>
-
-      <div class="comentario">
-        <span>Comentario</span>
-        <p>
-          "Modo libre" no decía nada, y con el arcade al lado —que sí es el modo donde
-          juegas libremente— se prestaba a confusión. La diaria es lo que siempre fue: la
-          palabra del día, sin competir con nadie.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <section data-tipo="nuevo">
-    <div class="titulo">
-      <span class="ficha"></span>
-      <h2>Tu cuenta</h2>
-      <span class="regla"></span>
-    </div>
-
-    <div class="bloque">
-      <ul class="cambios">
-        <li>
-          <span class="que">Dónde</span>
-          <span class="valores suelto">
-            Perfil → Tu cuenta → <strong>Borrar mi cuenta</strong>.
-          </span>
-        </li>
-        <li>
-          <span class="que">Qué se borra</span>
-          <span class="valores suelto">
-            El acceso, tu nombre y avatar en cada torneo, tu sitio en todos ellos, los
-            duelos que creaste y todo lo guardado en el móvil.
-          </span>
-        </li>
-        <li>
-          <span class="que">Qué se queda</span>
-          <span class="valores suelto">
-            Los puntos de las jornadas ya jugadas, <strong>sin tu nombre</strong>.
-          </span>
-        </li>
-      </ul>
-
-      <div class="comentario">
-        <span>Comentario</span>
-        <p>
-          Esos puntos no se pueden borrar, y es a propósito: un resultado no se toca una
-          vez publicado, que es lo mismo que impide limpiarse una mala jornada. Además
-          forman parte del histórico de los demás del torneo.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <section data-tipo="arreglo">
-    <div class="titulo">
-      <span class="ficha"></span>
-      <h2>Blueshell</h2>
-      <span class="regla"></span>
-    </div>
-
-    <div class="bloque">
-      <ul class="cambios">
-        <li>
-          <span class="que">Balas con palabras que no existen</span>
-          <span class="valores suelto">
-            Ya no obligan a nada. Se ignoran y la jornada sigue.
-          </span>
-        </li>
-      </ul>
-
-      <div class="comentario">
-        <span>Comentario</span>
-        <p>
-          Una bala con una palabra inventada dejaba a su víctima sin poder terminar: el
-          juego se la exigía y luego la rechazaba por no estar en la lista. La bala sigue
-          viéndose en la clasificación — el rastro de quien lo intente no se borra.
-        </p>
-      </div>
-    </div>
-  </section>
-
   <p class="cierre">
-    <strong>Palabra Torneo 26.12.</strong> Una al mes. Elige bien a quién quieres
-    arruinarle el martes.
+    <strong>Palabra Torneo 26.13.</strong> Menos avisos tapando y más tablero. Que para
+    eso se juega.
   </p>
 
 </div>
