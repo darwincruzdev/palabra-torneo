@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Texto } from './Texto';
 import { LONGITUD, MAX_INTENTOS } from '../game/constantes';
 import { evaluar } from '../game/evaluar';
 import { espaciado } from '../tema';
@@ -21,6 +22,8 @@ type Props = {
   /** Espacio libre medido en pantalla; el tablero se ajusta a él. */
   ancho: number;
   alto: number;
+  /** Corona junto a la primera fila: la de la penalización del líder. */
+  corona?: boolean;
 };
 
 export function Tablero({
@@ -33,6 +36,7 @@ export function Tablero({
   onCasilla,
   ancho,
   alto,
+  corona,
 }: Props) {
   const sacudida = useRef(new Animated.Value(0)).current;
 
@@ -53,7 +57,8 @@ export function Tablero({
   // La casilla se ajusta a lo que quede libre: el tablero encoge cuando se
   // abre el panel de resultado en vez de comerse la cabecera.
   const hueco = espaciado.sm;
-  const porAncho = (ancho - hueco * (LONGITUD - 1)) / LONGITUD;
+  const margenCorona = corona ? 26 : 0;
+  const porAncho = (ancho - margenCorona - hueco * (LONGITUD - 1)) / LONGITUD;
   const porAlto = (alto - hueco * (MAX_INTENTOS - 1)) / MAX_INTENTOS;
   const lado = Math.max(28, Math.floor(Math.min(porAncho, porAlto)));
 
@@ -76,6 +81,9 @@ export function Tablero({
               { gap: hueco, transform: [{ translateX: desplazamiento }] },
             ]}
           >
+            {corona && (
+              <Texto style={estilos.corona}>{fila === 0 ? '👑' : ''}</Texto>
+            )}
             {Array.from({ length: LONGITUD }, (_, col) => {
               const letra = enviada
                 ? (intentos[fila][col] ?? '')
@@ -128,5 +136,11 @@ const estilos = StyleSheet.create({
   },
   fila: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  corona: {
+    width: 22,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

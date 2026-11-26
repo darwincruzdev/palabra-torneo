@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Texto } from './Texto';
 import type { Marca } from '../tipos';
-import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
+import { colores, espaciado, fuentes, oscurecer, radio, texto as escala } from '../tema';
 import { useFactorTexto } from '../estado/escala';
 
 export const TECLA_ENTER = 'ENTER';
@@ -68,6 +68,8 @@ export function Teclado({ estado, onTecla, deshabilitado, destello }: Props) {
                     flex: especial ? 1.5 : 1,
                     height: altoTecla,
                     backgroundColor: marca ? FONDO[marca] : colores.tecla,
+                    borderBottomWidth: 3,
+                    borderBottomColor: oscurecer(marca ? FONDO[marca] : colores.tecla),
                     opacity: pressed || iluminada ? 0.65 : deshabilitado ? 0.5 : 1,
                   },
                   iluminada && estilos.iluminada,

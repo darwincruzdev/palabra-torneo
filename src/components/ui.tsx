@@ -168,7 +168,7 @@ const estilos = StyleSheet.create({
   },
   tarjeta: {
     backgroundColor: colores.superficie,
-    borderRadius: radio.md,
+    borderRadius: radio.tarjeta,
     borderWidth: 1,
     borderColor: colores.borde,
     padding: espaciado.md,

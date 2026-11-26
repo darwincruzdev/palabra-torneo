@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
 import type { Marca } from '../tipos';
-import { colores, fuentes, radio } from '../tema';
+import { colores, fuentes, oscurecer, radio } from '../tema';
 
 type Props = {
   letra: string;
@@ -91,7 +91,13 @@ export function Casilla({ letra, marca, indice, animar, activa, lado }: Props) {
               : letra
                 ? colores.textoSuave
                 : colores.bordeCasilla,
-          backgroundColor: pintada ? FONDO[colorVisible] : 'transparent',
+          borderBottomWidth: 4,
+          borderBottomColor: pintada
+            ? oscurecer(FONDO[colorVisible])
+            : activa
+              ? colores.acento
+              : colores.borde,
+          backgroundColor: pintada ? FONDO[colorVisible] : colores.superficie,
           transform: [{ rotateX }, { scale: pop }],
         },
       ]}
