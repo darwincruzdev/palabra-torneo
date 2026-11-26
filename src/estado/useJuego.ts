@@ -13,7 +13,7 @@ import { estadoTeclado, patronCompartible, puntosDe } from '../game/evaluar';
 import { fechaJuego, msHastaProximaJornada } from '../game/fecha';
 import { esAceptada, solucionDe } from '../game/palabras';
 import { solucionParaMi } from '../game/ulti';
-import { borrarEn, escribirEn, filaVacia, texto } from '../game/fila';
+import { borrarEn, escribirEn, filaVacia, rellenarFila, texto } from '../game/fila';
 import { normalizar } from '../game/normalizar';
 import { anotarEnHistorial, cargarPartida, guardarPartida } from '../almacen/local';
 import type { Obligacion, PartidaLocal } from '../tipos';
@@ -281,6 +281,16 @@ export function useJuego() {
     });
   }, [jugando]);
 
+  /** Escribe una palabra entera en la fila, sin enviarla. */
+  const rellenar = useCallback(
+    (palabra: string) => {
+      if (!jugando) return;
+      const escrito = rellenarFila(normalizar(palabra));
+      setFila({ letras: escrito.fila, cursor: escrito.cursor });
+    },
+    [jugando]
+  );
+
   const enviar = useCallback(async () => {
     if (!partida || partida.estado !== 'jugando') return;
     if (publicada) {
@@ -436,6 +446,7 @@ export function useJuego() {
     puntos: partida ? puntosDe(partida.intentos.length, partida.estado === 'ganada') : 0,
     escribir,
     borrar,
+    rellenar,
     enviar,
     mostrarAviso,
   };

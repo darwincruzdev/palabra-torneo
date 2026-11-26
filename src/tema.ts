@@ -42,7 +42,32 @@ export const colores = {
   oro: '#F3C64B',
   plata: '#C6CEDA',
   bronce: '#C98A4B',
+
+  /**
+   * Turquesa del escudo y ámbar de la penalización del líder.
+   *
+   * No son el verde ni el ámbar del tablero: el escudo es interfaz, y la
+   * penalización se anuncia antes de jugar, no es una letra presente.
+   */
+  escudo: '#3FB8A4',
+  penalizacion: '#E7B84A',
 } as const;
+
+/**
+ * Oscurece un color hex para el canto de una ficha.
+ *
+ * Las fichas del icono tienen una cara y un canto más oscuro. El mismo gesto
+ * se repite en casillas, teclas y emblemas.
+ */
+export function oscurecer(hex: string, factor = 0.62): string {
+  const limpio = hex.replace('#', '');
+  if (limpio.length !== 6) return hex;
+  const canal = (inicio: number) =>
+    Math.max(0, Math.min(255, Math.round(parseInt(limpio.slice(inicio, inicio + 2), 16) * factor)))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${canal(0)}${canal(2)}${canal(4)}`;
+}
 
 /**
  * Dos familias con trabajos distintos: la condensada para titulares, cifras y
@@ -92,6 +117,8 @@ export const espaciado = {
 export const radio = {
   sm: 4,
   md: 10,
+  /** Tarjetas de la app: el mismo radio en todas las pantallas. */
+  tarjeta: 16,
   lg: 18,
   pastilla: 999,
 } as const;

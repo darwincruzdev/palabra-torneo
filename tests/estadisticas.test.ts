@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { fusionarHistorial, misPartidas } from '../src/game/estadisticas';
+import { fusionarHistorial, misPartidas, rachas, resumenPersonal } from '../src/game/estadisticas';
 import { AVATAR_POR_DEFECTO } from '../src/game/avatares';
 import type { DiaTorneo, PartidaHecha, ResultadoDia } from '../src/tipos';
 
@@ -88,5 +88,75 @@ describe('fusionar lo del móvil con lo del servidor', () => {
 
   it('sin nada que fusionar, lista vacía', () => {
     assert.deepEqual(fusionarHistorial([], []), []);
+  });
+});
+
+describe('rachas de días con acierto', () => {
+  const gano = (fecha: string) => ({ fecha, acertada: true });
+  const fallo = (fecha: string) => ({ fecha, acertada: false });
+
+  it('sin partidas no hay racha', () => {
+    assert.deepEqual(rachas([], '2026-11-26'), { actual: 0, mejor: 0 });
+  });
+
+  it('varios aciertos el mismo día cuentan como un solo día', () => {
+    const r = rachas([gano('2026-11-26'), gano('2026-11-26'), gano('2026-11-25')], '2026-11-26');
+    assert.equal(r.actual, 2);
+    assert.equal(r.mejor, 2);
+  });
+
+  it('hoy sin jugar no rompe la racha de ayer', () => {
+    const r = rachas([gano('2026-11-24'), gano('2026-11-25')], '2026-11-26');
+    assert.equal(r.actual, 2);
+  });
+
+  it('un día de por medio sí la rompe', () => {
+    const r = rachas([gano('2026-11-23'), gano('2026-11-25')], '2026-11-26');
+    assert.equal(r.actual, 1);
+    assert.equal(r.mejor, 1);
+  });
+
+  it('fallar hoy pone la racha actual a cero y conserva la mejor', () => {
+    const r = rachas(
+      [gano('2026-11-23'), gano('2026-11-24'), gano('2026-11-25'), fallo('2026-11-26')],
+      '2026-11-26'
+    );
+    assert.equal(r.actual, 0);
+    assert.equal(r.mejor, 3);
+  });
+
+  it('un día jugado sin acertar corta, y luego se puede empezar otra', () => {
+    const r = rachas(
+      [gano('2026-11-20'), fallo('2026-11-21'), gano('2026-11-22'), gano('2026-11-23')],
+      '2026-11-26'
+    );
+    assert.equal(r.actual, 0, 'el último acierto no llega a ayer');
+    assert.equal(r.mejor, 2);
+  });
+
+  it('el orden de entrada no importa', () => {
+    const desorden = [gano('2026-11-26'), gano('2026-11-24'), gano('2026-11-25')];
+    assert.equal(rachas(desorden, '2026-11-26').actual, 3);
+  });
+});
+
+describe('resumen personal', () => {
+  it('cuenta jugadas, porcentaje, reparto y racha', () => {
+    const resumen = resumenPersonal(
+      [
+        { fecha: '2026-11-25', acertada: true, puntos: 7, intentos: 1 },
+        { fecha: '2026-11-26', acertada: true, puntos: 4, intentos: 3 },
+        { fecha: '2026-11-26', acertada: false, puntos: 0, intentos: 6 },
+      ],
+      '2026-11-26'
+    );
+    assert.equal(resumen.jugadas, 3);
+    assert.equal(resumen.aciertos, 2);
+    assert.equal(resumen.puntos, 11);
+    assert.equal(resumen.porcentaje, 67);
+    assert.equal(resumen.reparto[0], 1);
+    assert.equal(resumen.reparto[2], 1);
+    assert.equal(resumen.racha, 2);
+    assert.equal(resumen.mejorRacha, 2);
   });
 });

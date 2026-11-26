@@ -5,6 +5,7 @@ import {
   escribirEn,
   filaCompleta,
   filaVacia,
+  rellenarFila,
   siguienteHueco,
   texto,
 } from '../src/game/fila';
@@ -109,5 +110,24 @@ describe('enviar la fila', () => {
   it('una fila llena sí', () => {
     assert.equal(texto(desde('pulso')), 'pulso');
     assert.ok(filaCompleta(desde('pulso')));
+  });
+});
+
+describe('rellenar la fila de golpe', () => {
+  it('escribe la palabra y deja el cursor en la última letra', () => {
+    const { fila, cursor } = rellenarFila('pelee');
+    assert.deepEqual(fila, ['p', 'e', 'l', 'e', 'e']);
+    assert.equal(cursor, 4);
+  });
+
+  it('no se pasa de cinco letras', () => {
+    const { fila } = rellenarFila('peleeextra');
+    assert.equal(texto(fila), 'pelee');
+  });
+
+  it('una palabra corta deja el cursor en el hueco siguiente', () => {
+    const { fila, cursor } = rellenarFila('sol');
+    assert.deepEqual(fila, ['s', 'o', 'l', '', '']);
+    assert.equal(cursor, 3);
   });
 });

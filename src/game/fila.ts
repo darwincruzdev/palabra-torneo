@@ -36,6 +36,23 @@ export function siguienteHueco(fila: Fila, desde: number): number {
   return Math.min(desde + 1, fila.length - 1);
 }
 
+/**
+ * Rellena la fila de golpe con una palabra.
+ *
+ * Sirve para los botones de penalización: tocar "PELEE" escribe las cinco
+ * letras, y el cursor se queda en la última por si hay que corregir una.
+ * No envía la palabra: eso sigue siendo un paso aparte.
+ */
+export function rellenarFila(palabra: string): { fila: Fila; cursor: number } {
+  const letras = [...palabra].slice(0, LONGITUD);
+  const fila = filaVacia();
+  letras.forEach((letra, i) => {
+    fila[i] = letra;
+  });
+  const cursor = letras.length >= LONGITUD ? LONGITUD - 1 : letras.length;
+  return { fila, cursor };
+}
+
 /** Escribe una letra en la posición del cursor y devuelve dónde queda éste. */
 export function escribirEn(
   fila: Fila,

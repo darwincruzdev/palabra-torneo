@@ -35,6 +35,14 @@ export function ultimoDiaDelMes(mes: string): string {
   return ultimo.toISOString().slice(0, 10);
 }
 
+/** El mes anterior: "2026-01" -> "2025-12". */
+export function mesAnterior(mes: string): string {
+  const [ano, numero] = mes.split('-').map(Number);
+  return numero === 1
+    ? `${ano - 1}-12`
+    : `${ano}-${String(numero - 1).padStart(2, '0')}`;
+}
+
 /** El mes siguiente: "2026-12" -> "2027-01". */
 export function mesSiguiente(mes: string): string {
   const [ano, numero] = mes.split('-').map(Number);

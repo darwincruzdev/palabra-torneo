@@ -54,6 +54,15 @@ export function msHastaProximaJornada(momento: Date = new Date()): number {
   return alto - momento.getTime();
 }
 
+/** "2026-11-26" -> "jueves 26 nov", para la cabecera. */
+export function fechaCorta(fecha: string): string {
+  const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const [ano, mes, dia] = fecha.split('-').map(Number);
+  const semana = new Date(Date.UTC(ano, mes - 1, dia)).getUTCDay();
+  return `${dias[semana]} ${dia} ${meses[mes - 1]}`;
+}
+
 /** "2026-08-14" -> "14 de agosto de 2026" */
 export function fechaLarga(fecha: string): string {
   const meses = [
