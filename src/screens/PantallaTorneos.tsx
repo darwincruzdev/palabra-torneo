@@ -1,45 +1,42 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
-import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
+import { Emblema } from '../components/Emblema';
+import { CasillasCodigo } from '../components/CasillasCodigo';
+import { EscanerQr } from '../components/EscanerQr';
+import { Boton, Sutil } from '../components/ui';
 import { clasificacion, liderDestacado } from '../game/clasificacion';
 import { fechaJuego } from '../game/fecha';
+import { faltaPorJugar } from '../game/pendientes';
 import { useApp } from '../estado/AppContext';
-import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
+import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
 type Props = {
-  verClasificacion: (torneoId: string) => void;
-  /** Código que llegó por un enlace de invitación, para rellenar el campo. */
+  alJugar: (torneoId: string) => void;
+  alVerTabla: (torneoId: string) => void;
   codigoEntrante?: string | null;
   codigoConsumido?: () => void;
 };
 
-export function PantallaTorneos({
-  verClasificacion,
-  codigoEntrante,
-  codigoConsumido,
-}: Props) {
-  const { hayFirebase, torneos, jornadas, uid, activo, elegirTorneo, crearTorneo, unirsePorCodigo } =
+/** La lista de torneos. Es la única forma de cambiar el de la cabecera. */
+export function PantallaTorneos({ alJugar, alVerTabla, codigoEntrante, codigoConsumido }: Props) {
+  const { hayFirebase, torneos, jornadas, uid, torneoCabecera, elegirTorneo, crearTorneo, unirsePorCodigo, penalizadoEn } =
     useApp();
+  const [creando, setCreando] = useState(false);
+  const [uniendo, setUniendo] = useState(false);
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<'crear' | 'unirse' | null>(null);
-
+  const [escaner, setEscaner] = useState(false);
   const hoy = fechaJuego();
 
-  // Si se ha abierto la app desde una invitación, el código ya viene puesto.
   useEffect(() => {
     if (codigoEntrante) {
       setCodigo(codigoEntrante);
+      setUniendo(true);
       codigoConsumido?.();
     }
   }, [codigoEntrante, codigoConsumido]);
@@ -54,8 +51,9 @@ export function PantallaTorneos({
     try {
       const torneo = await crearTorneo(nombreNuevo);
       setNombreNuevo('');
-      setExito(`Torneo "${torneo.nombre}" creado. Ya puedes invitar a los tuyos.`);
-      verClasificacion(torneo.id);
+      setCreando(false);
+      setExito(`Torneo «${torneo.nombre}» creado.`);
+      alJugar(torneo.id);
     } catch (e) {
       setError(mensajeDeError(e));
     } finally {
@@ -63,21 +61,23 @@ export function PantallaTorneos({
     }
   }
 
-  async function pulsarUnirse() {
-    if (codigo.trim().length !== 6) {
+  async function pulsarUnirse(forzado?: string) {
+    const usado = (forzado ?? codigo).trim();
+    if (usado.length !== 6) {
       setError('El código tiene 6 caracteres');
       return;
     }
     setError(null);
     setOcupado('unirse');
     try {
-      const torneo = await unirsePorCodigo(codigo);
+      const torneo = await unirsePorCodigo(usado);
       if (!torneo) {
         setError('No existe ningún torneo con ese código');
         return;
       }
       setCodigo('');
-      setExito(`Ya estás en "${torneo.nombre}".`);
+      setExito(`Ya estás en «${torneo.nombre}».`);
+      alVerTabla(torneo.id);
     } catch (e) {
       setError(mensajeDeError(e));
     } finally {
@@ -88,122 +88,181 @@ export function PantallaTorneos({
   if (!hayFirebase) {
     return (
       <ScrollView contentContainerStyle={estilos.contenido}>
-        <Tarjeta>
-          <Titulo>Torneos sin configurar</Titulo>
-          <Sutil>
-            Para competir con los tuyos hace falta conectar la app a un proyecto de
-            Firebase. Copia el fichero .env.example a .env, pega ahí los datos de tu
-            proyecto y vuelve a arrancar. Está explicado paso a paso en el README.
-          </Sutil>
-        </Tarjeta>
-        <Sutil>Mientras tanto puedes jugar La diaria con normalidad.</Sutil>
+        <Sutil>
+          Para competir hace falta conectar Firebase. Mientras tanto puedes jugar La diaria.
+          Está explicado en el README.
+        </Sutil>
       </ScrollView>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
-      <Titulo>Mis torneos</Titulo>
       {torneos.length === 0 && (
-        <Sutil>
-          Todavía no estás en ninguno. Crea uno y reparte el enlace, o entra con el código
-          que te hayan pasado.
-        </Sutil>
+        <Sutil>Todavía no estás en ninguno. Crea uno o entra con un código.</Sutil>
       )}
 
       {torneos.map((torneo) => {
         const filas = clasificacion(torneo, jornadas[torneo.id] ?? []);
-        const miFila = filas.find((f) => f.uid === uid);
         const puesto = filas.findIndex((f) => f.uid === uid) + 1;
-        const lidero = liderDestacado(clasificacion(torneo, jornadas[torneo.id] ?? [], { hasta: hoy })) === uid;
-        const esActivo = activo.id === torneo.id;
+        const mio = filas.find((f) => f.uid === uid);
+        const falta = faltaPorJugar(jornadas[torneo.id] ?? [], uid, hoy);
+        const resultadoHoy = (jornadas[torneo.id] ?? []).find((d) => d.fecha === hoy)?.resultados?.[
+          uid ?? ''
+        ];
+        const activo = torneoCabecera?.id === torneo.id;
+        const lidero =
+          liderDestacado(clasificacion(torneo, jornadas[torneo.id] ?? [], { hasta: hoy })) === uid &&
+          penalizadoEn(torneo.id);
 
         return (
-          <Tarjeta key={torneo.id} estilo={esActivo ? estilos.tarjetaActiva : undefined}>
-            <Pressable onPress={() => verClasificacion(torneo.id)}>
-              <View style={estilos.filaTorneo}>
-                <View style={{ flex: 1 }}>
-                  <Texto style={estilos.nombreTorneo}>{torneo.nombre}</Texto>
-                  <Texto style={estilos.datosTorneo}>
-                    {torneo.miembros.length}{' '}
-                    {torneo.miembros.length === 1 ? 'jugador' : 'jugadores'} · código{' '}
-                    {torneo.codigo}
+          <Pressable
+            key={torneo.id}
+            onPress={() => elegirTorneo(torneo.id)}
+            accessibilityRole="button"
+            style={[estilos.tarjeta, activo && estilos.activa]}
+          >
+            <View style={estilos.fila}>
+              <Emblema nombre={torneo.nombre} id={torneo.id} lado={40} />
+              <View style={{ flex: 1 }}>
+                <View style={estilos.linea}>
+                  <Texto style={estilos.nombre} numberOfLines={1}>
+                    {torneo.nombre}
+                  </Texto>
+                  {activo && <Texto style={estilos.chapa}>Activo</Texto>}
+                </View>
+                <View style={estilos.caras}>
+                  {filas.slice(0, 6).map((fila) => (
+                    <Avatar key={fila.uid} avatar={fila.avatar} lado={18} />
+                  ))}
+                  <Texto style={estilos.meta}>
+                    {torneo.miembros.length} jugadores
                   </Texto>
                 </View>
-                <View style={estilos.marcador}>
-                  <Texto style={estilos.puntosTorneo}>{miFila?.puntos ?? 0}</Texto>
-                  <Texto style={estilos.datosTorneo}>{puesto > 0 ? `${puesto}º` : '—'}</Texto>
-                </View>
               </View>
-
-              <View style={estilos.caras}>
-                {filas.slice(0, 6).map((fila) => (
-                  <Avatar key={fila.uid} avatar={fila.avatar} lado={26} />
-                ))}
-                {filas.length > 6 && (
-                  <Texto style={estilos.masJugadores}>+{filas.length - 6}</Texto>
-                )}
-              </View>
-
-              {lidero && (
-                <Texto style={estilos.avisoLider}>
-                  Lideras en solitario: aquí juegas con palabra impuesta.
+              <View style={estilos.marcador}>
+                <Texto style={estilos.puntos}>{mio?.puntos ?? 0}</Texto>
+                <Texto style={estilos.meta}>
+                  {puesto > 0 ? `${puesto}.º de ${filas.length}` : '—'}
                 </Texto>
-              )}
-            </Pressable>
+              </View>
+            </View>
 
-            {!esActivo && (
-              <Pressable onPress={() => elegirTorneo(torneo.id)} style={estilos.botonJugar}>
-                <Texto style={estilos.textoJugar}>Jugar la palabra de este torneo</Texto>
-              </Pressable>
-            )}
-            {esActivo && <Texto style={estilos.marcaActivo}>Es el torneo que estás jugando</Texto>}
-          </Tarjeta>
+            <View style={estilos.estado}>
+              <Texto style={falta ? estilos.falta : estilos.hecha} numberOfLines={1}>
+                {falta
+                  ? `Te falta la de hoy${lidero ? ' · 👑 abres con impuesta' : ''}`
+                  : resultadoHoy
+                    ? `Hoy: ${resultadoHoy.acertada ? `${resultadoHoy.intentos}/6` : 'X/6'} · +${resultadoHoy.puntos}`
+                    : 'Hoy jugada'}
+              </Texto>
+              {falta ? (
+                <Pressable
+                  onPress={() => {
+                    elegirTorneo(torneo.id);
+                    alJugar(torneo.id);
+                  }}
+                  hitSlop={8}
+                >
+                  <Texto style={estilos.accion}>Jugar ›</Texto>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    elegirTorneo(torneo.id);
+                    alVerTabla(torneo.id);
+                  }}
+                  hitSlop={8}
+                >
+                  <Texto style={estilos.accion}>Ver tabla ›</Texto>
+                </Pressable>
+              )}
+            </View>
+          </Pressable>
         );
       })}
 
-      <View style={estilos.separador} />
+      <View style={estilos.acciones}>
+        <Pressable
+          onPress={() => {
+            setCreando((v) => !v);
+            setUniendo(false);
+          }}
+          style={estilos.accionGrande}
+          accessibilityRole="button"
+        >
+          <Texto style={estilos.mas}>+</Texto>
+          <Texto style={estilos.accionTitulo}>Crear torneo</Texto>
+          <Texto style={estilos.meta}>Con palabra propia y tus normas</Texto>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            setUniendo((v) => !v);
+            setCreando(false);
+          }}
+          style={estilos.accionGrande}
+          accessibilityRole="button"
+        >
+          <Texto style={estilos.mas}>⧉</Texto>
+          <Texto style={estilos.accionTitulo}>Unirme</Texto>
+          <Texto style={estilos.meta}>Con código, enlace o QR</Texto>
+        </Pressable>
+      </View>
 
-      <Titulo>Crear un torneo</Titulo>
-      <Sutil>Tendrá su propia palabra diaria, distinta de la de cualquier otro torneo.</Sutil>
-      <TextInput
-        value={nombreNuevo}
-        onChangeText={setNombreNuevo}
-        placeholder="Familia Cruz, Los del curro..."
-        placeholderTextColor={colores.textoSuave}
-        style={estilos.campo}
-        maxLength={30}
-      />
-      <Boton
-        titulo="Crear"
-        onPress={pulsarCrear}
-        cargando={ocupado === 'crear'}
-        deshabilitado={ocupado !== null}
-      />
+      {creando && (
+        <>
+          <TextInput
+            value={nombreNuevo}
+            onChangeText={setNombreNuevo}
+            placeholder="Familia Cruz, Los del curro..."
+            placeholderTextColor={colores.textoSuave}
+            style={estilos.campo}
+            maxLength={30}
+          />
+          <Boton
+            titulo="Crear"
+            onPress={pulsarCrear}
+            cargando={ocupado === 'crear'}
+            deshabilitado={ocupado !== null}
+          />
+        </>
+      )}
 
-      <View style={estilos.separador} />
-
-      <Titulo>Entrar con un código</Titulo>
-      <TextInput
-        value={codigo}
-        onChangeText={(texto) => setCodigo(texto.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-        placeholder="ABC123"
-        placeholderTextColor={colores.textoSuave}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        maxLength={6}
-        style={[estilos.campo, estilos.campoCodigo]}
-      />
-      <Boton
-        titulo="Unirme"
-        variante="secundario"
-        onPress={pulsarUnirse}
-        cargando={ocupado === 'unirse'}
-        deshabilitado={ocupado !== null}
-      />
+      {uniendo && (
+        <>
+          <Texto style={estilos.rotulo}>Código de invitación</Texto>
+          <CasillasCodigo valor={codigo} onChange={setCodigo} />
+          <View style={estilos.filaBotones}>
+            <Boton
+              titulo="Unirme"
+              onPress={() => pulsarUnirse()}
+              cargando={ocupado === 'unirse'}
+              deshabilitado={ocupado !== null}
+              estilo={{ flex: 1 }}
+            />
+            <Boton
+              titulo="Escanear"
+              variante="secundario"
+              onPress={() => setEscaner(true)}
+              estilo={{ flex: 1 }}
+            />
+          </View>
+        </>
+      )}
 
       {error && <Texto style={estilos.error}>{error}</Texto>}
       {exito && <Texto style={estilos.exito}>{exito}</Texto>}
+
+      <EscanerQr
+        visible={escaner}
+        cerrar={() => setEscaner(false)}
+        alLeer={(leido) => {
+          setEscaner(false);
+          setCodigo(leido);
+          setUniendo(true);
+          pulsarUnirse(leido);
+        }}
+      />
     </ScrollView>
   );
 }
@@ -220,108 +279,82 @@ function mensajeDeError(e: unknown): string {
 }
 
 const estilos = StyleSheet.create({
-  contenido: {
-    padding: espaciado.lg,
+  contenido: { padding: espaciado.lg, gap: espaciado.sm, paddingBottom: espaciado.xl * 2 },
+  tarjeta: {
+    backgroundColor: colores.superficie,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    padding: espaciado.md,
     gap: espaciado.sm,
-    paddingBottom: espaciado.xl * 2,
   },
-  tarjetaActiva: {
-    borderColor: colores.correcta,
-  },
-  filaTorneo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espaciado.md,
-  },
-  nombreTorneo: {
+  activa: { borderColor: colores.acento },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: espaciado.sm },
+  linea: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nombre: {
     color: colores.texto,
     fontFamily: fuentes.cuerpoFuerte,
     fontSize: escala.medio,
+    flexShrink: 1,
   },
-  datosTorneo: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.micro,
-    marginTop: 2,
+  chapa: {
+    color: colores.fondo,
+    backgroundColor: colores.acento,
+    fontFamily: fuentes.titular,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+    overflow: 'hidden',
+    textTransform: 'uppercase',
   },
-  marcador: {
-    alignItems: 'flex-end',
-  },
-  puntosTorneo: {
-    color: colores.oro,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.grande,
-  },
-  caras: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: espaciado.sm,
-  },
-  masJugadores: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.micro,
-    marginLeft: 2,
-  },
-  avisoLider: {
-    marginTop: espaciado.sm,
-    color: colores.presente,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.micro,
-  },
-  botonJugar: {
-    marginTop: espaciado.md,
-    paddingVertical: 10,
-    borderRadius: radio.sm,
+  caras: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+  meta: { color: colores.textoSuave, fontFamily: fuentes.cuerpo, fontSize: escala.micro },
+  marcador: { alignItems: 'flex-end' },
+  puntos: { color: colores.texto, fontFamily: fuentes.titularNegro, fontSize: escala.grande },
+  estado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  falta: { color: colores.penalizacion, fontFamily: fuentes.cuerpo, fontSize: escala.pequeno, flex: 1 },
+  hecha: { color: colores.correcta, fontFamily: fuentes.cuerpo, fontSize: escala.pequeno, flex: 1 },
+  accion: { color: colores.acento, fontFamily: fuentes.cuerpoFuerte, fontSize: escala.pequeno },
+  acciones: { flexDirection: 'row', gap: espaciado.sm, marginTop: espaciado.sm },
+  accionGrande: {
+    flex: 1,
+    backgroundColor: colores.superficie,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colores.borde,
-    alignItems: 'center',
+    padding: espaciado.md,
+    minHeight: 110,
+    justifyContent: 'flex-end',
   },
-  textoJugar: {
-    color: colores.acento,
-    fontFamily: fuentes.cuerpoFuerte,
-    fontSize: escala.pequeno,
+  mas: { color: colores.correcta, fontFamily: fuentes.titularNegro, fontSize: 28 },
+  accionTitulo: {
+    color: colores.texto,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.normal,
+    textTransform: 'uppercase',
+    marginTop: 4,
   },
-  marcaActivo: {
-    marginTop: espaciado.md,
-    color: colores.correcta,
-    fontFamily: fuentes.cuerpoFuerte,
+  rotulo: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.titular,
     fontSize: escala.micro,
-    textAlign: 'center',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginTop: espaciado.sm,
   },
-  separador: {
-    height: 1,
-    backgroundColor: colores.borde,
-    marginVertical: espaciado.md,
-  },
+  filaBotones: { flexDirection: 'row', gap: espaciado.sm },
   campo: {
     backgroundColor: colores.superficie,
     borderWidth: 1,
     borderColor: colores.borde,
-    borderRadius: radio.md,
+    borderRadius: 12,
     paddingHorizontal: espaciado.md,
     paddingVertical: 12,
     color: colores.texto,
     fontFamily: fuentes.cuerpo,
     fontSize: escala.normal,
-    marginBottom: espaciado.sm,
   },
-  campoCodigo: {
-    fontFamily: fuentes.titularNegro,
-    letterSpacing: 6,
-    textAlign: 'center',
-  },
-  error: {
-    color: colores.peligro,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    marginTop: espaciado.sm,
-  },
-  exito: {
-    color: colores.correcta,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    marginTop: espaciado.sm,
-  },
+  error: { color: colores.peligro, fontFamily: fuentes.cuerpo, fontSize: escala.pequeno },
+  exito: { color: colores.correcta, fontFamily: fuentes.cuerpo, fontSize: escala.pequeno },
 });

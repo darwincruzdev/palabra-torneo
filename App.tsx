@@ -1,49 +1,58 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Texto } from './src/components/Texto';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import {
   DarkTheme,
   NavigationContainer,
+  NavigatorScreenParams,
   createNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ProveedorApp, useApp } from './src/estado/AppContext';
 import { useTipografia } from './src/tipografia';
 import { codigoDesdeUrl } from './src/game/invitacion';
+import { cargarCodigoPendiente, guardarCodigoPendiente } from './src/almacen/local';
+import { MAQUETA_ACTIVA } from './src/maqueta/datos';
+import { BarraPestanas } from './src/components/BarraPestanas';
 import { PantallaAcceso } from './src/screens/PantallaAcceso';
 import { PantallaBienvenida } from './src/screens/PantallaBienvenida';
-import { PantallaModo } from './src/screens/PantallaModo';
+import { PantallaInicio } from './src/screens/PantallaInicio';
+import { PantallaTabla } from './src/screens/PantallaTabla';
 import { PantallaJuego } from './src/screens/PantallaJuego';
+import { PantallaHistorial } from './src/screens/PantallaHistorial';
+import { PantallaPerfil } from './src/screens/PantallaPerfil';
 import { PantallaArcade } from './src/screens/PantallaArcade';
 import { PantallaTorneos } from './src/screens/PantallaTorneos';
-import { PantallaClasificacion } from './src/screens/PantallaClasificacion';
-import { PantallaHistorial } from './src/screens/PantallaHistorial';
+import { PantallaAjustesTorneo } from './src/screens/PantallaAjustesTorneo';
+import { PantallaNormas } from './src/screens/PantallaNormas';
 import { PantallaDuelos } from './src/screens/PantallaDuelos';
 import { PantallaDuelo } from './src/screens/PantallaDuelo';
-import { PantallaPerfil } from './src/screens/PantallaPerfil';
 import { ANCHO_COLUMNA, colores, espaciado, fuentes, texto } from './src/tema';
 
-export type RutasApp = {
-  Modo: undefined;
-  Juego: undefined;
-  Arcade: undefined;
-  Torneos: undefined;
-  Clasificacion: { torneoId: string };
-  Historial: { torneoId: string };
-  Duelos: undefined;
-  Duelo: { dueloId: string };
+export type RutasPestanas = {
+  Inicio: undefined;
+  Tabla: undefined;
+  Jugar: undefined;
+  Jornadas: undefined;
   Perfil: undefined;
 };
 
+export type RutasApp = {
+  Principal: NavigatorScreenParams<RutasPestanas> | undefined;
+  Torneos: undefined;
+  Ajustes: { torneoId: string };
+  Normas: undefined;
+  Arcade: undefined;
+  Duelos: undefined;
+  Duelo: { dueloId: string };
+};
+
 const Pila = createNativeStackNavigator<RutasApp>();
+const Pestanas = createBottomTabNavigator<RutasPestanas>();
 const navegacion = createNavigationContainerRef<RutasApp>();
 
 const temaNavegacion = {
@@ -54,41 +63,91 @@ const temaNavegacion = {
     card: colores.fondo,
     text: colores.texto,
     border: colores.borde,
-    primary: colores.correcta,
+    primary: colores.acento,
   },
 };
+
+type VistaMaqueta = { ver: string | null; hoja: string | null };
+
+function leerVista(url: string | null): VistaMaqueta {
+  if (!url) return { ver: null, hoja: null };
+  try {
+    const params = new URL(url).searchParams;
+    return { ver: params.get('ver'), hoja: params.get('hoja') };
+  } catch {
+    return { ver: null, hoja: null };
+  }
+}
 
 /**
  * Decide qué enseñar: la entrada con Google, un rato de carga mientras se
  * recupera la sesión, o la app.
  */
 function Raiz() {
-  const { sesion, hayFirebase, perfilConfigurado } = useApp();
+  const { sesion, hayFirebase, perfilConfigurado, elegirTorneo } = useApp();
   const [codigoEntrante, setCodigoEntrante] = useState<string | null>(null);
+  const [sinCuenta, setSinCuenta] = useState(false);
+  const [vista, setVista] = useState<VistaMaqueta>({ ver: null, hoja: null });
 
-  // Invitaciones: tanto si la app estaba cerrada (getInitialURL) como si ya
-  // estaba abierta (addEventListener).
   useEffect(() => {
-    Linking.getInitialURL().then((url) => {
-      const codigo = codigoDesdeUrl(url);
+    Linking.getInitialURL().then(async (url) => {
+      if (MAQUETA_ACTIVA) setVista(leerVista(url));
+      const codigo = codigoDesdeUrl(url) ?? (await cargarCodigoPendiente());
       if (codigo) setCodigoEntrante(codigo);
     });
     const suscripcion = Linking.addEventListener('url', ({ url }) => {
       const codigo = codigoDesdeUrl(url);
-      if (codigo) setCodigoEntrante(codigo);
+      if (codigo) {
+        setCodigoEntrante(codigo);
+        guardarCodigoPendiente(codigo);
+      }
     });
     return () => suscripcion.remove();
   }, []);
 
-  const consumirCodigo = useCallback(() => setCodigoEntrante(null), []);
+  const guardarCodigo = useCallback((codigo: string) => {
+    setCodigoEntrante(codigo);
+    guardarCodigoPendiente(codigo);
+  }, []);
 
-  // Llegar por una invitación abre directamente la pantalla donde se entra.
+  const consumirCodigo = useCallback(() => {
+    setCodigoEntrante(null);
+    guardarCodigoPendiente(null);
+  }, []);
+
   useEffect(() => {
     if (!codigoEntrante || !sesion.usuario) return;
     if (navegacion.isReady()) navegacion.navigate('Torneos');
   }, [codigoEntrante, sesion.usuario]);
 
-  if (hayFirebase && sesion.cargando && !sesion.usuario) {
+  // La maqueta abre una pantalla concreta para poder fotografiarla.
+  useEffect(() => {
+    if (!MAQUETA_ACTIVA || !vista.ver || vista.ver === 'acceso') return;
+    let vivo = true;
+    const ir = () => {
+      if (!vivo) return;
+      if (!navegacion.isReady()) {
+        setTimeout(ir, 40);
+        return;
+      }
+      const ver = vista.ver;
+      if (ver === 'torneos') navegacion.navigate('Torneos');
+      else if (ver === 'ajustes') navegacion.navigate('Ajustes', { torneoId: 'familia-cruz' });
+      else if (ver === 'normas') navegacion.navigate('Normas');
+      else if (ver === 'duelos') navegacion.navigate('Duelos');
+      else if (ver === 'arcade') navegacion.navigate('Arcade');
+      else if (ver === 'tabla') navegacion.navigate('Principal', { screen: 'Tabla' });
+      else if (ver === 'jugar') navegacion.navigate('Principal', { screen: 'Jugar' });
+      else if (ver === 'jornadas') navegacion.navigate('Principal', { screen: 'Jornadas' });
+      else if (ver === 'perfil') navegacion.navigate('Principal', { screen: 'Perfil' });
+    };
+    ir();
+    return () => {
+      vivo = false;
+    };
+  }, [vista.ver, sesion.usuario]);
+
+  if (hayFirebase && sesion.cargando && !sesion.usuario && !sinCuenta) {
     return (
       <View style={{ flex: 1, backgroundColor: colores.fondo, justifyContent: 'center' }}>
         <ActivityIndicator color={colores.correcta} size="large" />
@@ -96,13 +155,10 @@ function Raiz() {
     );
   }
 
-  // Sin Firebase configurado se puede jugar igual, en modo libre.
-  if (hayFirebase && !sesion.usuario) {
-    return <PantallaAcceso />;
+  if ((hayFirebase && !sesion.usuario && !sinCuenta) || vista.ver === 'acceso') {
+    return <PantallaAcceso onCodigo={guardarCodigo} onSinCuenta={() => setSinCuenta(true)} />;
   }
 
-  // Nadie entra al juego sin haber elegido nombre y avatar: es lo que verán
-  // los demás en la clasificación.
   if (hayFirebase && perfilConfigurado === false) {
     return <PantallaBienvenida />;
   }
@@ -121,15 +177,6 @@ function Raiz() {
             textTransform: 'uppercase',
           },
           contentStyle: { backgroundColor: colores.fondo },
-          /**
-           * La flecha de volver, dibujada por nosotros.
-           *
-           * La que trae React Navigation es un PNG con `opacity: 0` que se tiñe
-           * con un filtro SVG, y donde ese filtro no se aplica —los navegadores
-           * de móvil— no se ve absolutamente nada: el botón sigue ahí y se puede
-           * pulsar, pero es transparente. Un carácter de texto no tiene ese
-           * problema, y además es el mismo gesto que ya usa la pantalla de juego.
-           */
           headerLeft: ({ canGoBack }) =>
             canGoBack ? (
               <Pressable
@@ -144,82 +191,105 @@ function Raiz() {
             ) : null,
         })}
       >
-        <Pila.Screen name="Modo" options={{ headerShown: false }}>
-          {({ navigation }) => (
-            <PantallaModo
-              irAJugar={() => navigation.navigate('Juego')}
-              irATorneos={() => navigation.navigate('Torneos')}
-              irADuelos={() => navigation.navigate('Duelos')}
-              irAArcade={() => navigation.navigate('Arcade')}
-              irAPerfil={() => navigation.navigate('Perfil')}
-            />
+        <Pila.Screen name="Principal" options={{ headerShown: false }}>
+          {() => (
+            <Pestanas.Navigator
+              tabBar={(props) => <BarraPestanas {...props} />}
+              screenOptions={{ headerShown: false }}
+            >
+              <Pestanas.Screen name="Inicio">
+                {({ navigation }) => (
+                  <PantallaInicio
+                    irAJugar={() => navigation.navigate('Jugar')}
+                    irATabla={() => navigation.navigate('Tabla')}
+                    irAJornadas={() => navigation.navigate('Jornadas')}
+                    irATorneos={() => navigation.getParent()?.navigate('Torneos')}
+                    irADuelos={() => navigation.getParent()?.navigate('Duelos')}
+                    irAArcade={() => navigation.getParent()?.navigate('Arcade')}
+                    irAAjustes={(torneoId) =>
+                      navigation.getParent()?.navigate('Ajustes', { torneoId })
+                    }
+                    arsenalInicial={vista.hoja === 'arsenal'}
+                  />
+                )}
+              </Pestanas.Screen>
+              <Pestanas.Screen name="Tabla">
+                {({ navigation }) => (
+                  <PantallaTabla
+                    irATorneos={() => navigation.getParent()?.navigate('Torneos')}
+                    irAAjustes={(torneoId) =>
+                      navigation.getParent()?.navigate('Ajustes', { torneoId })
+                    }
+                    invitarInicial={vista.hoja === 'invitar'}
+                  />
+                )}
+              </Pestanas.Screen>
+              <Pestanas.Screen name="Jugar">
+                {({ navigation }) => (
+                  <PantallaJuego
+                    irATorneos={() => navigation.getParent()?.navigate('Torneos')}
+                    irATabla={() => navigation.navigate('Tabla')}
+                  />
+                )}
+              </Pestanas.Screen>
+              <Pestanas.Screen name="Jornadas">
+                {({ navigation }) => (
+                  <PantallaHistorial
+                    irATorneos={() => navigation.getParent()?.navigate('Torneos')}
+                  />
+                )}
+              </Pestanas.Screen>
+              <Pestanas.Screen name="Perfil">
+                {({ navigation }) => (
+                  <PantallaPerfil
+                    irANormas={() => navigation.getParent()?.navigate('Normas')}
+                    irATorneo={(torneoId) => {
+                      elegirTorneo(torneoId);
+                      navigation.navigate('Tabla');
+                    }}
+                  />
+                )}
+              </Pestanas.Screen>
+            </Pestanas.Navigator>
           )}
         </Pila.Screen>
 
-        <Pila.Screen name="Juego" options={{ headerShown: false }}>
-          {({ navigation }) => (
-            <PantallaJuego
-              volver={() =>
-                navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Modo')
-              }
-              irATorneos={() => navigation.navigate('Torneos')}
-              irAClasificacion={(torneoId) =>
-                navigation.navigate('Clasificacion', { torneoId })
-              }
-              irAPerfil={() => navigation.navigate('Perfil')}
-            />
-          )}
-        </Pila.Screen>
-
-        <Pila.Screen name="Arcade" options={{ headerShown: false }}>
-          {({ navigation }) => (
-            <PantallaArcade
-              volver={() =>
-                navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Modo')
-              }
-            />
-          )}
-        </Pila.Screen>
-
-        <Pila.Screen name="Torneos" options={{ title: 'Torneos' }}>
+        <Pila.Screen name="Torneos" options={{ title: 'Mis torneos' }}>
           {({ navigation }) => (
             <PantallaTorneos
-              verClasificacion={(torneoId) =>
-                navigation.navigate('Clasificacion', { torneoId })
-              }
+              alJugar={(torneoId) => {
+                navigation.navigate('Principal', { screen: 'Jugar' });
+                void torneoId;
+              }}
+              alVerTabla={() => navigation.navigate('Principal', { screen: 'Tabla' })}
               codigoEntrante={codigoEntrante}
               codigoConsumido={consumirCodigo}
             />
           )}
         </Pila.Screen>
 
-        <Pila.Screen name="Clasificacion" options={{ title: 'Clasificación' }}>
+        <Pila.Screen name="Ajustes" options={{ title: 'Ajustes del torneo' }}>
           {({ navigation, route }) => (
-            <PantallaClasificacion
+            <PantallaAjustesTorneo
               torneoId={route.params.torneoId}
               volver={() => navigation.goBack()}
-              irAJugar={() => navigation.navigate('Juego')}
-              irAHistorial={() =>
-                navigation.navigate('Historial', { torneoId: route.params.torneoId })
-              }
             />
           )}
         </Pila.Screen>
 
-        <Pila.Screen name="Historial" options={{ title: 'Jornadas' }}>
-          {({ navigation, route }) => (
-            <PantallaHistorial
-              torneoId={route.params.torneoId}
-              volver={() => navigation.goBack()}
+        <Pila.Screen name="Normas" component={PantallaNormas} options={{ title: 'Cómo se juega' }} />
+
+        <Pila.Screen name="Arcade" options={{ headerShown: false }}>
+          {({ navigation }) => (
+            <PantallaArcade
+              volver={() => navigation.navigate('Principal', { screen: 'Inicio' })}
             />
           )}
         </Pila.Screen>
 
         <Pila.Screen name="Duelos" options={{ title: 'Duelo' }}>
           {({ navigation }) => (
-            <PantallaDuelos
-              irAlDuelo={(dueloId) => navigation.replace('Duelo', { dueloId })}
-            />
+            <PantallaDuelos irAlDuelo={(dueloId) => navigation.replace('Duelo', { dueloId })} />
           )}
         </Pila.Screen>
 
@@ -227,30 +297,16 @@ function Raiz() {
           {({ navigation, route }) => (
             <PantallaDuelo
               dueloId={route.params.dueloId}
-              volver={() => navigation.navigate('Modo')}
-              // `replace` y no `navigate`: la revancha es otro duelo, y hay que
-              // entrar con la pantalla recién montada. Con `navigate` se
-              // quedaría el estado de la partida anterior a medio camino.
+              volver={() => navigation.navigate('Principal', { screen: 'Inicio' })}
               irAOtroDuelo={(otro) => navigation.replace('Duelo', { dueloId: otro })}
             />
           )}
         </Pila.Screen>
-
-        <Pila.Screen
-          name="Perfil"
-          component={PantallaPerfil}
-          options={{ title: 'Perfil y reglas' }}
-        />
       </Pila.Navigator>
     </NavigationContainer>
   );
 }
 
-/**
- * En un monitor la app se queda en una columna centrada del ancho de un móvil.
- * Estirada a 1920 píxeles el tablero queda perdido en el centro y el teclado
- * ocupa toda la pantalla.
- */
 function Columna({ children }: { children: React.ReactNode }) {
   return (
     <View style={estilos.fondo}>
@@ -260,8 +316,6 @@ function Columna({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  // Sin las fuentes cargadas la app se dibujaría un instante con la letra del
-  // sistema y saltaría de golpe a la buena, que se ve fatal.
   const tipografiaLista = useTipografia();
 
   if (!tipografiaLista) {
@@ -281,24 +335,13 @@ export default function App() {
 }
 
 const estilos = StyleSheet.create({
-  volver: {
-    paddingRight: espaciado.md,
-    paddingVertical: espaciado.xs,
-  },
+  volver: { paddingRight: espaciado.md, paddingVertical: espaciado.xs },
   flechaVolver: {
     color: colores.texto,
     fontFamily: fuentes.cuerpoFuerte,
     fontSize: texto.grande,
     lineHeight: texto.grande + 4,
   },
-  fondo: {
-    flex: 1,
-    backgroundColor: colores.fondo,
-    alignItems: 'center',
-  },
-  columna: {
-    flex: 1,
-    width: '100%',
-    maxWidth: ANCHO_COLUMNA,
-  },
+  fondo: { flex: 1, backgroundColor: colores.fondo, alignItems: 'center' },
+  columna: { flex: 1, width: '100%', maxWidth: ANCHO_COLUMNA },
 });

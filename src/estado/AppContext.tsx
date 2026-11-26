@@ -69,6 +69,7 @@ import { borrarMisDuelos } from '../firebase/duelos';
 import { useSesionGoogle, type EstadoSesion } from '../firebase/sesion';
 import { FACTOR_LETRA_GRANDE, ProveedorEscala } from './escala';
 import * as datos from '../firebase/datos';
+import { construirMaqueta, MAQUETA_ACTIVA, UID_MAQUETA } from '../maqueta/datos';
 
 export const TORNEO_LIBRE: TorneoActivo = {
   tipo: 'libre',
@@ -99,6 +100,12 @@ type Estado = {
   misPartidasPublicadas: PartidaHecha[];
   /** El torneo cuya palabra se está jugando ahora mismo. */
   activo: TorneoActivo;
+  /**
+   * El torneo que enseña la cabecera en Inicio, Tabla y Jornadas.
+   *
+   * La diaria no lo sustituye: jugar sin competir no te cambia de grupo.
+   */
+  torneoCabecera: Torneo | null;
   elegirTorneo: (torneoId: string) => void;
   /** ¿Lidero en solitario este torneo? Entonces hoy juego con palabra impuesta. */
   penalizadoEn: (torneoId: string) => boolean;
@@ -208,7 +215,7 @@ const Contexto = createContext<Estado | null>(null);
 
 export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const sesion = useSesionGoogle();
-  const uid = sesion.usuario?.uid ?? null;
+  const uid = sesion.usuario?.uid ?? (MAQUETA_ACTIVA ? UID_MAQUETA : null);
   const [recordArcade, setRecordArcade] = useState<RecordArcade | null>(null);
 
   const [nombre, setNombre] = useState('');
@@ -233,6 +240,13 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
    */
   const [partidasViejas, setPartidasViejas] = useState<Record<string, PartidaHecha[]>>({});
   const [activoId, setActivoId] = useState<string>(TORNEO_LIBRE.id);
+  /**
+   * El último torneo de verdad que se eligió.
+   *
+   * `activoId` puede ser La diaria. La cabecera no: si no, jugar una palabra
+   * suelta te sacaría del grupo en el que estabas.
+   */
+  const [cabeceraId, setCabeceraId] = useState<string | null>(null);
   const [configurado, setConfigurado] = useState<boolean | null>(null);
   const [letraGrande, setLetraGrande] = useState(false);
 
@@ -240,6 +254,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   // diga el servidor, que es lo que ven los demás.
   useEffect(() => {
     cargarPerfilLocal().then((guardado) => {
+      if (MAQUETA_ACTIVA) return;
       if (!guardado) return;
       setNombre(guardado.nombre);
       setAvatar(normalizarAvatar(guardado.avatar));
@@ -247,6 +262,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       if (guardado.configurado) setConfigurado(true);
     });
     cargarTorneoActivo().then((id) => {
+      if (MAQUETA_ACTIVA) return;
       if (id) setActivoId(id);
     });
     cargarRecordArcade().then((guardado) => {
@@ -286,14 +302,30 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       .catch(() => setConfigurado(false));
   }, [uid, sesion.usuario]);
 
+  // Datos inventados para las capturas. No tocan Firebase ni salen en una build normal.
+  useEffect(() => {
+    if (!MAQUETA_ACTIVA || sesion.usuario) return;
+    const inventados = construirMaqueta(fechaJuego());
+    setNombre(inventados.nombre);
+    setAvatar(inventados.avatar);
+    setConfigurado(true);
+    setTorneos(inventados.torneos);
+    setJornadas(inventados.jornadas);
+    setResumenes(inventados.resumenes);
+    setActivoId(inventados.activoId);
+    setRecordArcade(inventados.record);
+  }, [sesion.usuario]);
+
   // Mis torneos.
   useEffect(() => {
+    // La maqueta trae sus propios torneos y no debe pisarlos con la red.
+    if (MAQUETA_ACTIVA && !sesion.usuario) return;
     if (!uid || !datos.hayFirebase) {
       setTorneos([]);
       return;
     }
     return datos.observarMisTorneos(uid, setTorneos);
-  }, [uid]);
+  }, [uid, sesion.usuario]);
 
   const hoy = fechaJuego();
 
@@ -306,6 +338,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
    */
   useEffect(() => {
     if (!datos.hayFirebase) return;
+    if (MAQUETA_ACTIVA && !sesion.usuario) return;
     const mes = mesDe(hoy);
     const desde = primerDiaDelMes(mes);
     const finDeMes = ultimoDiaDelMes(mes);
@@ -318,7 +351,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       )
     );
     return () => cancelaciones.forEach((cancelar) => cancelar());
-  }, [torneos, hoy]);
+  }, [torneos, hoy, sesion.usuario]);
 
   const activo: TorneoActivo = useMemo(() => {
     const torneo = torneos.find((t) => t.id === activoId);
@@ -348,6 +381,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const cargarResumenes = useCallback(
     async (torneoId: string) => {
       if (!datos.hayFirebase) return;
+      if (MAQUETA_ACTIVA && !sesion.usuario) return;
       if (cargandoResumenes.current.has(torneoId)) return;
       const torneo = torneos.find((t) => t.id === torneoId);
       if (!torneo) return;
@@ -372,7 +406,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         cargandoResumenes.current.delete(torneoId);
       }
     },
-    [torneos, hoy, uid]
+    [torneos, hoy, uid, sesion.usuario]
   );
 
   /** Lo del mes en curso llega en vivo; lo viejo, de lo que se haya cargado. */
@@ -627,7 +661,20 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const elegirTorneo = useCallback((torneoId: string) => {
     setActivoId(torneoId);
     guardarTorneoActivo(torneoId);
+    if (torneoId !== TORNEO_LIBRE.id) setCabeceraId(torneoId);
   }, []);
+
+  // Al recuperar el torneo guardado, la cabecera tiene que seguirle.
+  useEffect(() => {
+    if (activoId !== TORNEO_LIBRE.id) setCabeceraId(activoId);
+  }, [activoId]);
+
+  const torneoCabecera = useMemo(() => {
+    const elegido = cabeceraId ? torneos.find((t) => t.id === cabeceraId) : undefined;
+    if (elegido) return elegido;
+    if (activo.tipo === 'torneo') return activo.torneo;
+    return torneos[0] ?? null;
+  }, [torneos, cabeceraId, activo]);
 
   const cambiarPerfil = useCallback(
     async (nuevoNombre: string, nuevoAvatar: Avatar) => {
@@ -799,6 +846,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     cargarResumenes,
     misPartidasPublicadas,
     activo,
+    torneoCabecera,
     elegirTorneo,
     penalizadoEn,
     ultimoEn,

@@ -188,6 +188,25 @@ export function guardarRecordArcadeLocal(record: RecordArcade): Promise<void> {
   return escribirJson(CLAVE_ARCADE, record);
 }
 
+/* ------------------------------------------------- código antes de entrar */
+
+const CLAVE_CODIGO = 'pt:codigo-pendiente';
+
+/**
+ * Código escrito en la pantalla de acceso, antes de tener cuenta.
+ *
+ * El de un enlace ya se resuelve al abrir la app. Éste es el que se teclea a
+ * mano: hay que guardarlo porque el login de Google puede recargar la página.
+ */
+export function cargarCodigoPendiente(): Promise<string | null> {
+  return leerJson<string>(CLAVE_CODIGO);
+}
+
+export function guardarCodigoPendiente(codigo: string | null): Promise<void> {
+  if (!codigo) return AsyncStorage.removeItem(CLAVE_CODIGO).catch(() => {});
+  return escribirJson(CLAVE_CODIGO, codigo);
+}
+
 /* ------------------------------------------------------------ borrar todo */
 
 /** Prefijo de todo lo que guarda la app en este aparato. */

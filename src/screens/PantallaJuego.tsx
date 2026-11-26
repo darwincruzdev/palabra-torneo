@@ -1,87 +1,67 @@
 import React, { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { Texto } from '../components/Texto';
 import { useIsFocused } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Aviso } from '../components/Aviso';
-import { Avatar } from '../components/Avatar';
-import { SelectorTorneo } from '../components/SelectorTorneo';
+import { Chip } from '../components/Chip';
+import { Ficha } from '../components/Ficha';
 import { Tablero } from '../components/Tablero';
 import { TECLA_BORRAR, TECLA_ENTER, Teclado } from '../components/Teclado';
+import { BotonCabecera, CabeceraTorneo } from '../components/CabeceraTorneo';
+import { Emblema } from '../components/Emblema';
+import { IconoTrofeo } from '../components/Iconos';
 import { Boton } from '../components/ui';
-import { PUNTOS_POR_INTENTO } from '../game/constantes';
-import { fechaLarga } from '../game/fecha';
+import { PALABRAS_PENALIZACION, PUNTOS_POR_INTENTO } from '../game/constantes';
+import { clasificacion, liderDestacado } from '../game/clasificacion';
+import { fechaCorta, fechaJuego } from '../game/fecha';
 import { numeroJornada } from '../game/palabras';
 import { patronCompartible } from '../game/evaluar';
+import { faltaPorJugar } from '../game/pendientes';
 import { TORNEO_LIBRE, useApp } from '../estado/AppContext';
 import { useJuego } from '../estado/useJuego';
 import { useTecladoFisico } from '../estado/useTecladoFisico';
 import { useCuentaAtras } from '../estado/useCuentaAtras';
-import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
+import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
 type Props = {
-  volver: () => void;
   irATorneos: () => void;
-  irAClasificacion: (torneoId: string) => void;
-  irAPerfil: () => void;
+  irATabla: () => void;
 };
 
-export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil }: Props) {
-  const insets = useSafeAreaInsets();
+/**
+ * El tablero, con la misma cabecera y la barra de pestañas debajo.
+ *
+ * Los avisos son chips de una línea. Si toca abrir con penalización, las cinco
+ * palabras son botones: tocar una la escribe, no la envía.
+ */
+export function PantallaJuego({ irATorneos, irATabla }: Props) {
   const juego = useJuego();
-  const { activo, avatar, torneos, jornadas, uid, elegirTorneo } = useApp();
-  const [selectorAbierto, setSelectorAbierto] = useState(false);
-
-  // El hueco del tablero se mide en pantalla en vez de calcularse a ojo: así
-  // encaja igual con el teclado abierto que con el panel de resultado.
+  const { activo, torneos, jornadas, uid, elegirTorneo } = useApp();
+  const [detalle, setDetalle] = useState<{ id: string; texto: string } | null>(null);
   const [hueco, setHueco] = useState({ ancho: 300, alto: 380 });
+  const cuentaAtras = useCuentaAtras();
+  const enfocada = useIsFocused();
 
   const terminada = juego.estado !== 'jugando';
-  /**
-   * La jornada ya consta puntuada en el torneo y esta partida no la tiene.
-   *
-   * Si la partida local sí está terminada se enseña el final de siempre, que
-   * además tiene el tablero con las letras de verdad; esto es sólo para cuando
-   * se entra desde otro sitio con la jornada ya hecha.
-   */
   const yaHecha = juego.publicada && !terminada ? juego.publicada : null;
   const esLibre = activo.id === TORNEO_LIBRE.id;
-  const cuentaAtras = useCuentaAtras();
+  const mostrarFinal = terminada || yaHecha !== null;
 
-  const resultadosDeHoy =
-    activo.tipo === 'torneo'
-      ? (jornadas[activo.id] ?? []).find((d) => d.fecha === juego.fecha)?.resultados
-      : undefined;
-
-  /** Otro torneo donde todavía no he jugado hoy, para encadenar partidas. */
-  const siguientePendiente = torneos.find((t) => {
-    if (t.id === activo.id || !uid) return false;
-    const dia = (jornadas[t.id] ?? []).find((d) => d.fecha === juego.fecha);
-    return !dia?.resultados?.[uid];
-  });
-
-  // En el ordenador se juega con el teclado de verdad, no a base de clics.
-  //
-  // `enfocada` es imprescindible: la navegación deja esta pantalla montada al
-  // abrir otra encima, y sin la comprobación seguiría comiéndose las teclas
-  // mientras juegas un duelo.
-  const enfocada = useIsFocused();
-  const destello = useTecladoFisico({
-    escribir: juego.escribir,
-    borrar: juego.borrar,
-    enviar: juego.enviar,
-    activo: !terminada && !yaHecha && enfocada,
-  });
   const jornada =
     activo.tipo === 'torneo'
       ? numeroJornada(juego.fecha, activo.torneo.fechaInicio)
       : numeroJornada(juego.fecha);
+
+  const siguiente = torneos.find(
+    (t) => t.id !== activo.id && faltaPorJugar(jornadas[t.id] ?? [], uid, juego.fecha)
+  );
+
+  const destello = useTecladoFisico({
+    escribir: juego.escribir,
+    borrar: juego.borrar,
+    enviar: juego.enviar,
+    activo: !mostrarFinal && enfocada,
+  });
 
   function pulsar(tecla: string) {
     if (tecla === TECLA_ENTER) juego.enviar();
@@ -89,632 +69,531 @@ export function PantallaJuego({ volver, irATorneos, irAClasificacion, irAPerfil 
     else juego.escribir(tecla);
   }
 
-  async function compartir() {
-    const patron = patronCompartible(juego.intentos, juego.solucion);
+  function alternar(id: string, texto: string) {
+    setDetalle((actual) => (actual?.id === id ? null : { id, texto }));
+  }
+
+  const vale =
+    juego.intentos.length < PUNTOS_POR_INTENTO.length
+      ? PUNTOS_POR_INTENTO[juego.intentos.length]
+      : 0;
+  const abriendo =
+    !mostrarFinal && juego.obligacion?.motivo === 'lider' && juego.intentos.length === 0;
+  const borrador = juego.borrador.join('');
+
+  async function compartir(resultado: { intentos: number; acertada: boolean; puntos: number; patron: string }) {
     const cabecera =
       `${activo.nombre} · jornada ${jornada} — ` +
-      `${juego.estado === 'ganada' ? `${juego.intentos.length}/6` : 'X/6'} · ${juego.puntos} pts`;
+      `${resultado.acertada ? `${resultado.intentos}/6` : 'X/6'} · ${resultado.puntos} pts`;
     try {
-      await Share.share({ message: `${cabecera}\n\n${patron}` });
+      await Share.share({ message: `${cabecera}\n\n${resultado.patron}` });
     } catch {
-      // El usuario canceló el diálogo de compartir.
+      // El usuario canceló el diálogo.
     }
   }
 
+  const resultadoLocal = terminada
+    ? {
+        intentos: juego.intentos.length,
+        acertada: juego.estado === 'ganada',
+        puntos: juego.puntos,
+        patron: patronCompartible(juego.intentos, juego.solucion),
+        palabra: juego.solucion,
+      }
+    : yaHecha
+      ? {
+          intentos: yaHecha.intentos,
+          acertada: yaHecha.acertada,
+          puntos: yaHecha.puntos,
+          patron: yaHecha.patron,
+          palabra: juego.solucion,
+        }
+      : null;
+
   return (
-    <View style={[estilos.pantalla, { paddingTop: insets.top }]}>
-      <View style={estilos.cabecera}>
-        <Pressable
-          onPress={volver}
-          hitSlop={12}
-          accessibilityLabel="Volver"
-          accessibilityRole="button"
-        >
-          <Texto style={estilos.icono}>←</Texto>
-        </Pressable>
+    <View style={estilos.pantalla}>
+      <CabeceraTorneo
+        nombre={activo.nombre}
+        torneoId={activo.tipo === 'torneo' ? activo.id : null}
+        detalle={
+          esLibre
+            ? 'La diaria · esta partida no puntúa'
+            : `Jornada ${jornada} · ${fechaCorta(juego.fecha)}`
+        }
+        onPress={irATorneos}
+        derecha={
+          !esLibre ? (
+            <BotonCabecera etiqueta="Ver la tabla" onPress={irATabla}>
+              <IconoTrofeo color={colores.oro} tamano={16} />
+            </BotonCabecera>
+          ) : undefined
+        }
+      />
 
-        <Pressable
-          onPress={() => setSelectorAbierto(true)}
-          style={estilos.centro}
-          accessibilityRole="button"
-          accessibilityLabel={`Torneo activo: ${activo.nombre}. Tocar para cambiar`}
-        >
-          <Texto style={estilos.nombreTorneo} numberOfLines={1}>
-            {activo.nombre} <Texto style={estilos.flecha}>▾</Texto>
-          </Texto>
-          <Texto style={estilos.subtitulo}>
-            Jornada {jornada} · {fechaLarga(juego.fecha)}
-          </Texto>
-        </Pressable>
+      {!mostrarFinal && (
+        <View style={estilos.avisos}>
+          {abriendo && (
+            <View style={estilos.penalizacion}>
+              <Texto style={estilos.textoPenalizacion}>
+                👑 Lideras en solitario · toca una para abrir
+              </Texto>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.botonesPalabra}>
+                {juego.obligacion!.palabras.map((palabra) => {
+                  const marcada = borrador === palabra;
+                  return (
+                    <Pressable
+                      key={palabra}
+                      onPress={() => juego.rellenar(palabra)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Abrir con ${palabra}`}
+                      style={[estilos.botonPalabra, marcada && estilos.botonPalabraMarcado]}
+                    >
+                      <Texto style={estilos.letraPalabra}>{palabra.toUpperCase()}</Texto>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
-        <Pressable
-          onPress={irAPerfil}
-          hitSlop={12}
-          accessibilityLabel="Perfil y reglas"
-          accessibilityRole="button"
-        >
-          <Avatar avatar={avatar} lado={30} />
-        </Pressable>
-      </View>
-
-      {esLibre && (
-        <Pressable onPress={() => setSelectorAbierto(true)} style={estilos.bandaLibre}>
-          <Texto style={estilos.textoLibre}>
-            Estás en La diaria: esta partida no puntúa. Toca para elegir un torneo.
-          </Texto>
-        </Pressable>
-      )}
-
-      {/*
-        Las franjas de aquí abajo desaparecen en cuanto la partida termina.
-        Todas dicen qué hacer mientras juegas —la letra de regalo, la palabra
-        impuesta, las balas que vienen—, y al acabar no sirven para nada salvo
-        para robarle sitio al tablero: con el panel de resultado ocupando media
-        pantalla, dos de estas franjas dejaban la jugada recortada y sin poder
-        repasarla, que es justo lo que uno quiere mirar al terminar.
-      */}
-
-      {/* La ulti de hoy. Que se sepa quién la puso es media gracia del asunto;
-          la palabra, a quien no la eligió, evidentemente no se le dice. */}
-      {juego.ulti && !yaHecha && !terminada && (
-        <View style={estilos.bandaUlti}>
-          <Texto style={estilos.textoUlti}>
-            {juego.ulti.autor === uid ? (
-              <>
-                Hoy el torneo juega tu{' '}
-                <Texto style={estilos.nombreUlti}>
-                  {juego.ulti.palabra.toUpperCase()}
-                </Texto>
-                . A ti te toca la normal: sin ventaja.
-              </>
-            ) : (
-              <>
-                <Texto style={estilos.nombreUlti}>
-                  {activo.tipo === 'torneo'
-                    ? (activo.torneo.perfiles?.[juego.ulti.autor]?.nombre ?? 'Alguien')
-                    : 'Alguien'}
-                </Texto>{' '}
-                ha gastado su ulti: hoy no juegas la palabra del día, sino la que ha
-                elegido.
-              </>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.chips}>
+            {!abriendo && juego.penalizado && (
+              <Chip
+                etiqueta="Penalización"
+                color={colores.penalizacion}
+                activo={detalle?.id === 'penalizacion'}
+                onPress={() =>
+                  alternar(
+                    'penalizacion',
+                    `Penalización: hoy abres con ${PALABRAS_PENALIZACION.map((p) => p.toUpperCase()).join(', ')}.`
+                  )
+                }
+              />
             )}
-          </Texto>
-        </View>
-      )}
+            {juego.obligacion?.motivo === 'blueshell' && (
+              <Chip
+                etiqueta={`Blueshell · ${juego.obligacion.palabras[0].toUpperCase()}`}
+                color={colores.acento}
+                onPress={() =>
+                  alternar(
+                    'bala',
+                    `Blueshell de ${juego.autorObligacion}: la palabra ${
+                      juego.obligacion!.indice + 1
+                    }.ª tiene que ser ${juego.obligacion!.palabras[0].toUpperCase()}.`
+                  )
+                }
+              />
+            )}
+            {juego.balasPendientes > 0 && juego.obligacion?.motivo !== 'blueshell' && (
+              <Chip
+                etiqueta={
+                  juego.balasPendientes === 1 ? '1 blueshell' : `${juego.balasPendientes} blueshells`
+                }
+                color={colores.acento}
+                onPress={() =>
+                  alternar(
+                    'pendientes',
+                    'Te han lanzado blueshells. Te impondrán las palabras siguientes, salvo que gastes el escudo.'
+                  )
+                }
+              />
+            )}
+            {juego.ulti && (
+              <Chip
+                etiqueta={juego.ulti.autor === uid ? 'Tu ulti' : 'Ulti'}
+                color={colores.peligro}
+                onPress={() =>
+                  alternar(
+                    'ulti',
+                    juego.ulti!.autor === uid
+                      ? `Hoy el torneo juega tu ${juego.ulti!.palabra.toUpperCase()}. A ti te toca la normal.`
+                      : 'Alguien ha gastado su ulti: hoy no juegas la palabra del día, sino la que ha elegido.'
+                  )
+                }
+              />
+            )}
+            {juego.pista && (
+              <Chip
+                etiqueta={`Pista ${juego.pista.toUpperCase()}`}
+                color={colores.correcta}
+                onPress={() =>
+                  alternar(
+                    'pista',
+                    `Vas último, así que va una ayuda: la palabra lleva una ${juego.pista!.toUpperCase()}.`
+                  )
+                }
+              />
+            )}
+            <Chip
+              etiqueta={`Vale ${vale} pts`}
+              color={colores.oro}
+              onPress={() =>
+                alternar(
+                  'puntos',
+                  `Si la aciertas en este intento sumas ${vale}. ${PUNTOS_POR_INTENTO.map(
+                    (p, i) => `${i + 1}.º ${p}`
+                  ).join(' · ')} · fallo 0.`
+                )
+              }
+            />
+          </ScrollView>
 
-      {/* Una mano para quien se está descolgando. Se enseña toda la partida:
-          es una letra, no una cuenta atrás. */}
-      {juego.pista && !yaHecha && !terminada && (
-        <View style={estilos.bandaPista}>
-          <Texto style={estilos.textoPista}>
-            Vas último, así que va una ayuda: la palabra lleva una{' '}
-            <Texto style={estilos.letraPista}>{juego.pista.toUpperCase()}</Texto>
-          </Texto>
-        </View>
-      )}
+          {detalle && <Texto style={estilos.detalle}>{detalle.texto}</Texto>}
 
-      {/* La palabra impuesta del intento en curso, venga de ir primero o de que
-          te hayan disparado. El tablero no distingue: sólo obedece. */}
-      {juego.obligacion && juego.obligacion.motivo === 'lider' && !terminada && (
-        <View style={estilos.bandaPenalizacion}>
-          <Texto style={estilos.textoPenalizacion}>
-            Lideras {activo.nombre} en solitario. Abre con una de estas:
-          </Texto>
-          <Texto style={estilos.palabrasPenalizacion}>
-            {juego.obligacion.palabras.map((p) => p.toUpperCase()).join(' · ')}
-          </Texto>
-        </View>
-      )}
-
-      {juego.obligacion && juego.obligacion.motivo === 'blueshell' && !terminada && (
-        <View style={estilos.bandaBlueshell}>
-          <Texto style={estilos.textoBlueshell}>
-            Blueshell de {juego.autorObligacion}. Tu palabra {juego.obligacion.indice + 1}.ª
-            tiene que ser:
-          </Texto>
-          <Texto style={estilos.palabrasPenalizacion}>
-            {juego.obligacion.palabras[0].toUpperCase()}
-          </Texto>
-        </View>
-      )}
-
-      {/* Avisar de las que están por venir, para que nadie se lleve la sorpresa
-          al segundo intento con la protección ya sin usar. */}
-      {juego.balasPendientes > 0 && juego.obligacion?.motivo !== 'blueshell' && !terminada && (
-        <View style={estilos.bandaBlueshell}>
-          <Texto style={estilos.textoBlueshell}>
-            {juego.balasPendientes === 1
-              ? 'Te han lanzado una blueshell: te impondrá la palabra 2.ª.'
-              : `Te han lanzado ${juego.balasPendientes} blueshells: te impondrán las palabras siguientes.`}
-          </Texto>
-        </View>
-      )}
-
-      {juego.puedeProtegerse && (
-        <Pressable
-          onPress={juego.protegerse}
-          accessibilityRole="button"
-          style={({ pressed }) => [estilos.escudo, pressed && { opacity: 0.7 }]}
-        >
-          <Texto style={estilos.textoEscudo}>
-            Gastar mi protección y anular{' '}
-            {juego.balasPendientes === 1 ? 'la blueshell' : 'las blueshells'} de hoy
-          </Texto>
-        </Pressable>
-      )}
-
-      {/* Jornada ya publicada desde otro navegador. La partida se guarda en cada
-          móvil por separado, así que aquí el tablero saldría en blanco y
-          tentaría a repetirla; el servidor la rechazaría igual. */}
-      {yaHecha && (
-        <ScrollView contentContainerStyle={estilos.contenidoHecha}>
-          <Texto style={estilos.tituloHecha}>Jornada hecha</Texto>
-          <Texto style={estilos.textoHecha}>
-            Ya jugaste esta palabra en {activo.nombre}, desde este u otro navegador. Se
-            juega una vez y cuenta la primera.
-          </Texto>
-
-          <View style={estilos.marcadorHecha}>
-            <View style={estilos.datoHecha}>
-              <Texto style={estilos.cifraHecha}>
-                {yaHecha.acertada ? `${yaHecha.intentos}/6` : 'X/6'}
+          {juego.puedeProtegerse && (
+            <Pressable
+              onPress={juego.protegerse}
+              accessibilityRole="button"
+              style={({ pressed }) => [estilos.escudo, pressed && { opacity: 0.7 }]}
+            >
+              <Texto style={estilos.textoEscudo}>
+                Gastar escudo y anular {juego.balasPendientes === 1 ? 'la blueshell' : 'las blueshells'}
               </Texto>
-              <Texto style={estilos.etiquetaHecha}>intentos</Texto>
-            </View>
-            <View style={estilos.datoHecha}>
-              <Texto style={[estilos.cifraHecha, { color: colores.oro }]}>
-                {yaHecha.puntos}
-              </Texto>
-              <Texto style={estilos.etiquetaHecha}>
-                {yaHecha.puntos === 1 ? 'punto' : 'puntos'}
-              </Texto>
-            </View>
-          </View>
-
-          {!!yaHecha.patron && <Texto style={estilos.patronHecha}>{yaHecha.patron}</Texto>}
-
-          <Boton
-            titulo="Ver la clasificación"
-            onPress={() => irAClasificacion(activo.id)}
-          />
-          <Boton titulo="Volver" variante="secundario" onPress={volver} />
-        </ScrollView>
+            </Pressable>
+          )}
+        </View>
       )}
 
-      {/* El aviso vive en su propia franja, encima del tablero: antes se
-          superponía y tapaba la primera fila al terminar la partida. */}
-      {!yaHecha && (
       <View style={estilos.franjaAviso}>
         <Aviso mensaje={juego.aviso} />
       </View>
-      )}
 
-      {!yaHecha && (
       <View
         style={estilos.zonaTablero}
         onLayout={({ nativeEvent }) =>
           setHueco({
-            ancho: Math.min(nativeEvent.layout.width, 340),
+            ancho: Math.min(nativeEvent.layout.width, 360),
             alto: nativeEvent.layout.height,
           })
         }
       >
-        <Tablero
-          intentos={juego.intentos}
-          borrador={juego.borrador}
-          cursor={juego.cursor}
-          solucion={juego.solucion}
-          filaAnimada={juego.filaAnimada}
-          temblor={juego.temblor}
-          onCasilla={juego.irACasilla}
-          ancho={hueco.ancho}
-          alto={hueco.alto}
-        />
+        {yaHecha && !terminada ? (
+          <Texto style={estilos.patronHecha}>{yaHecha.patron || 'Ya jugaste esta jornada.'}</Texto>
+        ) : (
+          <Tablero
+            intentos={juego.intentos}
+            borrador={juego.borrador}
+            cursor={juego.cursor}
+            solucion={juego.solucion}
+            filaAnimada={juego.filaAnimada}
+            temblor={juego.temblor}
+            onCasilla={juego.irACasilla}
+            ancho={hueco.ancho}
+            alto={hueco.alto}
+            corona={juego.penalizado}
+          />
+        )}
       </View>
-      )}
 
-      {yaHecha ? null : terminada ? (
-        <ScrollView
-          style={estilos.panelFinal}
-          contentContainerStyle={[
-            estilos.contenidoFinal,
-            { paddingBottom: insets.bottom + espaciado.md },
-          ]}
-        >
-          <Texto style={estilos.tituloFinal}>
-            {juego.estado === 'ganada'
-              ? `¡Acertada en ${juego.intentos.length}!`
-              : 'Hoy no ha podido ser'}
-          </Texto>
-          <Texto style={estilos.palabraFinal}>{juego.solucion.toUpperCase()}</Texto>
-
-          {/* La franja de la ulti se va al terminar, así que el porqué de una
-              palabra rara se cuenta aquí, donde ya no le quita sitio a nada. */}
-          {juego.ulti && (
-            <Texto style={estilos.pieUlti}>
-              {juego.ulti.autor === uid
-                ? 'Tu ulti: el resto del torneo ha jugado otra.'
-                : `La puso ${
-                    activo.tipo === 'torneo'
-                      ? (activo.torneo.perfiles?.[juego.ulti.autor]?.nombre ?? 'alguien')
-                      : 'alguien'
-                  } con su ulti.`}
-            </Texto>
-          )}
-
-          {!esLibre && (
-            <View style={estilos.marcadorFinal}>
-              <Texto style={estilos.puntosFinal}>{juego.puntos}</Texto>
-              <Texto style={estilos.etiquetaPuntos}>
-                {juego.puntos === 1 ? 'punto' : 'puntos'} en {activo.nombre}
-              </Texto>
-            </View>
-          )}
-
-          {esLibre && (
-            <Texto style={estilos.avisoLibre}>
-              En La diaria no hay puntos. Entra en un torneo para competir.
-            </Texto>
-          )}
-
-          <Texto style={estilos.cuentaAtras}>Palabra nueva {cuentaAtras}</Texto>
-
-          {/* Quién ha jugado ya hoy en este torneo, para no tener que ir a
-              mirarlo a la clasificación. */}
-          {activo.tipo === 'torneo' && (
-            <View style={estilos.listaHoy}>
-              {activo.torneo.miembros.map((miembro) => {
-                const jugado = resultadosDeHoy?.[miembro];
-                const perfil = activo.torneo.perfiles?.[miembro];
-                return (
-                  <View key={miembro} style={estilos.filaHoy}>
-                    <Texto style={estilos.nombreHoy} numberOfLines={1}>
-                      {perfil?.nombre ?? 'Jugador'}
-                    </Texto>
-                    <Texto style={jugado ? estilos.jugado : estilos.pendiente}>
-                      {jugado
-                        ? `${jugado.acertada ? `${jugado.intentos}/6` : 'X/6'} · ${jugado.puntos} pts`
-                        : 'sin jugar'}
-                    </Texto>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          <View style={estilos.botonesFinal}>
-            <Boton titulo="Compartir" onPress={compartir} estilo={{ flex: 1 }} />
-            <Boton
-              titulo={esLibre ? 'Torneos' : 'Clasificación'}
-              variante="secundario"
-              onPress={() => (esLibre ? irATorneos() : irAClasificacion(activo.id))}
-              estilo={{ flex: 1 }}
-            />
-          </View>
-
-          {siguientePendiente && (
-            <Boton
-              titulo={`Jugar en ${siguientePendiente.nombre}`}
-              variante="secundario"
-              onPress={() => elegirTorneo(siguientePendiente.id)}
-            />
-          )}
-
-          <Texto style={estilos.leyenda}>
-            {PUNTOS_POR_INTENTO.map((p, i) => `${i + 1}º = ${p}`).join('  ·  ')}  ·  fallo = 0
-          </Texto>
-        </ScrollView>
+      {mostrarFinal && resultadoLocal ? (
+        <Resultado
+          nombreTorneo={activo.nombre}
+          esLibre={esLibre}
+          resultado={resultadoLocal}
+          ultiPropia={juego.ulti?.autor === uid}
+          filas={
+            activo.tipo === 'torneo' ? clasificacion(activo.torneo, jornadas[activo.id] ?? []) : []
+          }
+          liderAntes={
+            activo.tipo === 'torneo'
+              ? liderDestacado(
+                  clasificacion(activo.torneo, jornadas[activo.id] ?? [], { hasta: fechaJuego() })
+                )
+              : null
+          }
+          uid={uid}
+          cuentaAtras={cuentaAtras}
+          siguiente={siguiente}
+          onCompartir={() => compartir(resultadoLocal)}
+          onTabla={irATabla}
+          onSiguiente={
+            siguiente
+              ? () => {
+                  elegirTorneo(siguiente.id);
+                }
+              : undefined
+          }
+          yaPublicada={Boolean(yaHecha)}
+        />
       ) : (
         <Teclado estado={juego.teclado} onTecla={pulsar} destello={destello} />
       )}
+    </View>
+  );
+}
 
-      {!terminada && <View style={{ height: insets.bottom }} />}
+function Resultado({
+  nombreTorneo,
+  esLibre,
+  resultado,
+  ultiPropia,
+  filas,
+  liderAntes,
+  uid,
+  cuentaAtras,
+  siguiente,
+  onCompartir,
+  onTabla,
+  onSiguiente,
+  yaPublicada,
+}: {
+  nombreTorneo: string;
+  esLibre: boolean;
+  resultado: { intentos: number; acertada: boolean; puntos: number; patron: string; palabra: string };
+  ultiPropia: boolean;
+  filas: { uid: string; nombre: string; puntos: number }[];
+  liderAntes: string | null;
+  uid: string | null;
+  cuentaAtras: string;
+  siguiente?: { id: string; nombre: string };
+  onCompartir: () => void;
+  onTabla: () => void;
+  onSiguiente?: () => void;
+  yaPublicada: boolean;
+}) {
+  const top = filas.slice(0, 3);
+  const liderAhora = filas[0]?.uid ?? null;
+  return (
+    <View style={estilos.hoja}>
+      <View style={estilos.asa} />
+      <Texto style={estilos.rotuloFinal}>
+        {yaPublicada ? 'Jornada hecha' : resultado.acertada ? 'Acertada' : 'Sin acertar'}
+      </Texto>
+      <View style={estilos.filaFinal}>
+        <View style={{ flex: 1 }}>
+          <Texto style={estilos.grito}>
+            {resultado.acertada ? `¡En ${resultado.intentos} intentos!` : 'Hoy no ha podido ser'}
+          </Texto>
+          <View style={estilos.letras}>
+            {resultado.palabra.toUpperCase().split('').map((letra, i) => (
+              <Ficha key={i} letra={letra} lado={36} color={resultado.acertada ? colores.correcta : colores.ausente} />
+            ))}
+          </View>
+        </View>
+        {!esLibre && (
+          <View style={estilos.puntosCaja}>
+            <Texto style={estilos.puntosMas}>+{resultado.puntos}</Texto>
+            <Texto style={estilos.puntosEtiqueta}>puntos</Texto>
+          </View>
+        )}
+      </View>
 
-      <SelectorTorneo
-        visible={selectorAbierto}
-        cerrar={() => setSelectorAbierto(false)}
-        irATorneos={irATorneos}
-      />
+      {ultiPropia && (
+        <Texto style={estilos.nota}>Tu ulti: el resto del torneo ha jugado otra.</Texto>
+      )}
+
+      {top.length > 0 && (
+        <View style={estilos.top}>
+          {top.map((fila, i) => {
+            const nota =
+              fila.uid === uid
+                ? liderAhora === uid
+                  ? liderAntes === uid
+                    ? 'sigues líder'
+                    : 'nuevo líder'
+                  : ''
+                : '';
+            return (
+              <View key={fila.uid} style={estilos.filaTop}>
+                <Texto style={estilos.puesto}>{i + 1}</Texto>
+                <Texto style={estilos.nombreTop} numberOfLines={1}>
+                  {fila.nombre}
+                  {nota ? ` · ${nota}` : ''}
+                </Texto>
+                <Texto style={estilos.puntosTop}>{fila.puntos}</Texto>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      <View style={estilos.botones}>
+        <Boton titulo="Compartir" onPress={onCompartir} estilo={{ flex: 1 }} />
+        {!esLibre && (
+          <Boton titulo="Ver tabla" variante="secundario" onPress={onTabla} estilo={{ flex: 1 }} />
+        )}
+      </View>
+
+      {siguiente && onSiguiente && (
+        <Pressable onPress={onSiguiente} accessibilityRole="button" style={estilos.siguiente}>
+          <Emblema nombre={siguiente.nombre} id={siguiente.id} lado={28} />
+          <Texto style={estilos.siguienteTexto} numberOfLines={1}>
+            {siguiente.nombre} te espera
+          </Texto>
+          <Texto style={estilos.siguienteIr}>Jugar ahora ›</Texto>
+        </Pressable>
+      )}
+
+      <Texto style={estilos.cuenta}>
+        {esLibre ? `En ${nombreTorneo} no hay puntos. ` : ''}Palabra nueva {cuentaAtras}
+      </Texto>
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  contenidoHecha: {
-    padding: espaciado.lg,
-    gap: espaciado.md,
-    alignItems: 'center',
-  },
-  tituloHecha: {
-    color: colores.texto,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.titulo,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  textoHecha: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    lineHeight: 20,
-    textAlign: 'center',
-    maxWidth: 340,
-  },
-  marcadorHecha: {
-    flexDirection: 'row',
-    gap: espaciado.xl,
-    marginVertical: espaciado.md,
-  },
-  datoHecha: {
-    alignItems: 'center',
-  },
-  cifraHecha: {
-    color: colores.texto,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.cifra,
-  },
-  etiquetaHecha: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.titular,
-    fontSize: escala.micro,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-  },
-  patronHecha: {
-    fontSize: escala.medio,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginBottom: espaciado.sm,
-  },
-  pantalla: {
-    flex: 1,
-    backgroundColor: colores.fondo,
-  },
-  cabecera: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: espaciado.md,
-    paddingVertical: espaciado.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colores.borde,
-    gap: espaciado.sm,
-  },
-  icono: {
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.grande,
-    color: colores.texto,
-  },
-  centro: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  nombreTorneo: {
-    color: colores.texto,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.grande,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  flecha: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-  },
-  subtitulo: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    marginTop: 3,
-  },
-  franjaAviso: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: espaciado.md,
-    paddingTop: espaciado.sm,
-  },
-  bandaLibre: {
-    backgroundColor: 'rgba(90, 169, 230, 0.12)',
-    borderBottomWidth: 1,
-    borderBottomColor: colores.acento,
-    paddingHorizontal: espaciado.md,
-    paddingVertical: espaciado.sm,
-  },
-  textoLibre: {
-    color: colores.acento,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  bandaPenalizacion: {
-    backgroundColor: 'rgba(226, 163, 3, 0.12)',
-    borderBottomWidth: 1,
-    borderBottomColor: colores.presente,
-    paddingHorizontal: espaciado.md,
-    paddingVertical: espaciado.sm,
-  },
+  pantalla: { flex: 1, backgroundColor: colores.fondo },
+  avisos: { paddingTop: espaciado.sm, gap: espaciado.xs },
+  penalizacion: { paddingHorizontal: espaciado.md, gap: 6 },
   textoPenalizacion: {
-    color: colores.presente,
-    fontFamily: fuentes.cuerpo,
+    color: colores.penalizacion,
+    fontFamily: fuentes.cuerpoFuerte,
     fontSize: escala.pequeno,
-    lineHeight: 20,
     textAlign: 'center',
   },
-  pieUlti: {
-    color: colores.peligro,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.micro,
-    textAlign: 'center',
-    marginTop: -espaciado.xs,
+  botonesPalabra: { gap: 6, paddingVertical: 2 },
+  botonPalabra: {
+    backgroundColor: colores.elevado,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  bandaUlti: {
-    backgroundColor: 'rgba(228, 82, 63, 0.14)',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colores.peligro,
-    paddingHorizontal: espaciado.lg,
-    paddingVertical: espaciado.sm,
+  botonPalabraMarcado: {
+    backgroundColor: colores.penalizacion,
+    borderColor: colores.penalizacion,
   },
-  textoUlti: {
+  letraPalabra: {
+    color: colores.texto,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.pequeno,
+    letterSpacing: 1,
+  },
+  chips: { gap: 6, paddingHorizontal: espaciado.md },
+  detalle: {
     color: colores.textoSuave,
     fontFamily: fuentes.cuerpo,
     fontSize: escala.pequeno,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  nombreUlti: {
-    color: colores.peligro,
-    fontFamily: fuentes.cuerpoFuerte,
-  },
-  bandaPista: {
-    backgroundColor: 'rgba(61, 163, 93, 0.12)',
-    borderBottomWidth: 1,
-    borderBottomColor: colores.correcta,
+    lineHeight: 18,
     paddingHorizontal: espaciado.md,
-    paddingVertical: espaciado.sm,
-  },
-  textoPista: {
-    color: colores.correcta,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  letraPista: {
-    fontFamily: fuentes.ficha,
-    fontSize: escala.medio,
-  },
-  bandaBlueshell: {
-    backgroundColor: 'rgba(40, 200, 224, 0.12)',
-    borderBottomWidth: 1,
-    borderBottomColor: colores.acento,
-    paddingHorizontal: espaciado.md,
-    paddingVertical: espaciado.sm,
-  },
-  textoBlueshell: {
-    color: colores.acento,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    textAlign: 'center',
   },
   escudo: {
     marginHorizontal: espaciado.md,
-    marginTop: espaciado.sm,
-    paddingVertical: 10,
-    borderRadius: radio.sm,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colores.acento,
+    borderColor: colores.escudo,
     alignItems: 'center',
   },
   textoEscudo: {
-    color: colores.acento,
+    color: colores.escudo,
     fontFamily: fuentes.cuerpoFuerte,
     fontSize: escala.pequeno,
   },
-  palabrasPenalizacion: {
-    color: colores.texto,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.normal,
-    letterSpacing: 0.8,
-    textAlign: 'center',
-    marginTop: 5,
+  franjaAviso: {
+    minHeight: 28,
+    justifyContent: 'center',
+    paddingHorizontal: espaciado.md,
   },
   zonaTablero: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: espaciado.md,
-    paddingHorizontal: espaciado.lg,
+    paddingHorizontal: espaciado.md,
     overflow: 'hidden',
   },
-  panelFinal: {
-    maxHeight: '52%',
-    borderTopWidth: 1,
-    borderTopColor: colores.borde,
+  patronHecha: {
+    fontSize: escala.medio,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  hoja: {
     backgroundColor: colores.superficie,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    padding: espaciado.md,
+    gap: espaciado.sm,
+    maxHeight: '52%',
   },
-  contenidoFinal: {
-    padding: espaciado.lg,
-    gap: espaciado.md,
+  asa: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colores.borde,
   },
-  tituloFinal: {
+  rotuloFinal: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.titular,
+    fontSize: escala.micro,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  filaFinal: { flexDirection: 'row', alignItems: 'center', gap: espaciado.md },
+  grito: {
     color: colores.texto,
     fontFamily: fuentes.titularNegro,
     fontSize: escala.grande,
-    textAlign: 'center',
+    textTransform: 'uppercase',
   },
-  palabraFinal: {
-    color: colores.correcta,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.titulo,
-    letterSpacing: 6,
-    textAlign: 'center',
-  },
-  marcadorFinal: {
+  letras: { flexDirection: 'row', gap: 4, marginTop: 6 },
+  puntosCaja: {
+    backgroundColor: colores.oro,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     alignItems: 'center',
   },
-  puntosFinal: {
-    color: colores.oro,
+  puntosMas: {
+    color: colores.fondo,
     fontFamily: fuentes.titularNegro,
-    fontSize: escala.cifra,
-    lineHeight: 48,
+    fontSize: escala.grande,
   },
-  etiquetaPuntos: {
-    color: colores.textoSuave,
+  puntosEtiqueta: {
+    color: colores.fondo,
+    fontFamily: fuentes.titular,
+    fontSize: escala.micro,
+    textTransform: 'uppercase',
+  },
+  nota: {
+    color: colores.peligro,
     fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    textAlign: 'center',
+    fontSize: escala.micro,
   },
-  avisoLibre: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    lineHeight: 20,
-    textAlign: 'center',
+  top: { gap: 4 },
+  filaTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  puesto: {
+    color: colores.textoTenue,
+    fontFamily: fuentes.titularNegro,
+    width: 16,
   },
-  cuentaAtras: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    textAlign: 'center',
-  },
-  listaHoy: {
-    backgroundColor: colores.fondo,
-    borderRadius: radio.md,
-    borderWidth: 1,
-    borderColor: colores.borde,
-    paddingHorizontal: espaciado.md,
-    paddingVertical: espaciado.sm,
-    gap: 6,
-  },
-  filaHoy: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: espaciado.sm,
-  },
-  nombreHoy: {
+  nombreTop: {
+    flex: 1,
     color: colores.texto,
     fontFamily: fuentes.cuerpo,
     fontSize: escala.pequeno,
-    flex: 1,
   },
-  jugado: {
-    color: colores.correcta,
+  puntosTop: {
+    color: colores.texto,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.normal,
+  },
+  botones: { flexDirection: 'row', gap: espaciado.sm },
+  siguiente: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaciado.sm,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    borderRadius: 12,
+    padding: espaciado.sm,
+  },
+  siguienteTexto: {
+    flex: 1,
+    color: colores.texto,
+    fontFamily: fuentes.cuerpo,
+    fontSize: escala.pequeno,
+  },
+  siguienteIr: {
+    color: colores.acento,
     fontFamily: fuentes.cuerpoFuerte,
     fontSize: escala.pequeno,
   },
-  pendiente: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    fontStyle: 'italic',
-  },
-  botonesFinal: {
-    flexDirection: 'row',
-    gap: espaciado.sm,
-  },
-  leyenda: {
-    color: colores.textoSuave,
+  cuenta: {
+    color: colores.textoTenue,
     fontFamily: fuentes.cuerpo,
     fontSize: escala.micro,
     textAlign: 'center',

@@ -1,44 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  Switch,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import * as Linking from 'expo-linking';
 import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
+import { Emblema } from '../components/Emblema';
 import { SelectorAvatar } from '../components/SelectorAvatar';
-import { Boton, Sutil, Tarjeta, Titulo } from '../components/ui';
-import { Desplegable } from '../components/Desplegable';
+import { Boton, Sutil, Tarjeta } from '../components/ui';
 import { Confirmacion } from '../components/Confirmacion';
-import * as Linking from 'expo-linking';
-import { BLUESHELLS_POR_MES, MAX_VOCALES_AL_ABRIR } from '../game/reglas';
-import {
-  PALABRAS_POR_RONDA,
-  SEGUNDOS_NULO,
-  SEGUNDOS_PLENO,
-  TOTAL_MAXIMO,
-  reloj,
-  totalDe,
-} from '../game/arcade';
-import {
-  MAX_INTENTOS,
-  NOTAS_DEL_PARCHE,
-  VERSION_PARCHE,
-  PALABRAS_PENALIZACION,
-  PUNTOS_POR_INTENTO,
-} from '../game/constantes';
-import { todosLosAvatares, type Avatar as DatosAvatar } from '../game/avatares';
-import { cargarHistorial, type EntradaHistorial } from '../almacen/local';
-import { fusionarHistorial } from '../game/estadisticas';
-import { sumarDias } from '../game/fecha';
-import { totalAceptadas, totalSoluciones } from '../game/palabras';
+import { IconoLapiz } from '../components/Iconos';
+import { NOTAS_DEL_PARCHE, VERSION_PARCHE } from '../game/constantes';
+import { clasificacion, trofeosDeResumenes, trofeosPorJugador } from '../game/clasificacion';
+import { fusionarHistorial, resumenPersonal } from '../game/estadisticas';
+import { fechaJuego } from '../game/fecha';
+import { cargarHistorial } from '../almacen/local';
+import { type Avatar as DatosAvatar } from '../game/avatares';
 import { useApp } from '../estado/AppContext';
-import { colores, espaciado, fuentes, radio, texto as escala } from '../tema';
+import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
-export function PantallaPerfil() {
+type Props = {
+  irANormas: () => void;
+  irATorneo: (torneoId: string) => void;
+};
+
+/** Tus números, tus torneos y la cuenta. Las normas viven en su propia pantalla. */
+export function PantallaPerfil({ irANormas, irATorneo }: Props) {
   const {
     nombre,
     avatar,
@@ -48,73 +33,58 @@ export function PantallaPerfil() {
     letraGrande,
     cambiarLetraGrande,
     torneos,
+    jornadas,
     misPartidasPublicadas,
+    resumenes,
     cargarResumenes,
     uid,
     borrarCuenta,
-    recordArcade,
   } = useApp();
+  const [editando, setEditando] = useState(false);
   const [borradorNombre, setBorradorNombre] = useState(nombre);
   const [borradorAvatar, setBorradorAvatar] = useState<DatosAvatar>(avatar);
-  const [guardado, setGuardado] = useState(false);
-  const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
+  const [historial, setHistorial] = useState<Awaited<ReturnType<typeof cargarHistorial>>>([]);
   const [preguntando, setPreguntando] = useState(false);
   const [borrando, setBorrando] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
+  const hoy = fechaJuego();
 
   useEffect(() => setBorradorNombre(nombre), [nombre]);
   useEffect(() => setBorradorAvatar(avatar), [avatar]);
   useEffect(() => {
     cargarHistorial().then(setHistorial);
   }, []);
-
-  /**
-   * Las estadísticas necesitan el historial completo, así que esta pantalla sí
-   * lo pide. Es la única, y se abre de vez en cuando: el resto de la app sigue
-   * sin descargarlo.
-   */
   useEffect(() => {
     for (const torneo of torneos) cargarResumenes(torneo.id);
   }, [torneos, cargarResumenes]);
 
-  /**
-   * Lo guardado en este móvil más lo que consta en el servidor.
-   *
-   * Hacen falta los dos: el modo libre sólo existe aquí, y las partidas de
-   * torneo jugadas desde otro aparato sólo están allí.
-   */
   const completo = useMemo(
     () => fusionarHistorial(historial, misPartidasPublicadas),
     [historial, misPartidasPublicadas]
   );
+  const stats = useMemo(() => resumenPersonal(completo, hoy), [completo, hoy]);
 
-  const stats = useMemo(() => calcularEstadisticas(completo), [completo]);
-  const opciones = useMemo(() => todosLosAvatares(), []);
+  const desde = useMemo(() => {
+    const fechas = completo.map((p) => p.fecha).sort();
+    if (fechas.length === 0) return null;
+    const [ano, mes] = fechas[0].split('-');
+    const nombres = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    return `${nombres[Number(mes) - 1]} ${ano}`;
+  }, [completo]);
 
   const cambiado =
     borradorNombre !== nombre ||
     borradorAvatar.color !== avatar.color ||
     borradorAvatar.patron !== avatar.patron;
 
-  async function guardar() {
-    await cambiarPerfil(borradorNombre, borradorAvatar);
-    setGuardado(true);
-    setTimeout(() => setGuardado(false), 1600);
-  }
-
-  /** Los que fundé yo: al irme se quedan sin nadie que pueda tocar sus normas. */
-  const mios = useMemo(
-    () => torneos.filter((t) => t.propietario === uid),
-    [torneos, uid]
-  );
-
+  const mios = torneos.filter((t) => t.propietario === uid);
   const aviso = [
     `Se borran tu nombre, tu avatar, tus ajustes y el historial de este aparato, y sales de ${
       torneos.length === 1 ? 'tu torneo' : `tus ${torneos.length} torneos`
     }.`,
-    'Los puntos de las jornadas que ya jugaste se quedan en la clasificación, pero sin tu nombre. No se pueden borrar: es lo mismo que impide que nadie se limpie una mala jornada.',
+    'Los puntos de las jornadas ya jugadas se quedan en la clasificación, pero sin tu nombre.',
     mios.length > 0 &&
-      `Fundaste ${mios.map((t) => t.nombre).join(', ')}. Al irte nadie podrá volver a cambiar sus normas, aunque los demás puedan seguir jugando.`,
+      `Fundaste ${mios.map((t) => t.nombre).join(', ')}. Al irte nadie podrá cambiar sus normas.`,
     'No tiene vuelta atrás.',
   ]
     .filter(Boolean)
@@ -125,336 +95,157 @@ export function PantallaPerfil() {
     setBorrando(true);
     const error = await borrarCuenta();
     setBorrando(false);
-    // Si sale bien no hay nada que enseñar: la sesión se cae y la app vuelve
-    // sola a la pantalla de acceso.
     setFallo(error);
   }
 
+  const maximo = Math.max(1, ...stats.reparto);
+
   return (
     <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
-      <View style={estilos.cabeceraPerfil}>
-        <Avatar avatar={borradorAvatar} lado={72} />
+      <View style={estilos.cabecera}>
+        <Avatar avatar={avatar} lado={64} />
         <View style={{ flex: 1 }}>
-          <Texto style={estilos.nombreGrande}>{borradorNombre || 'Sin nombre'}</Texto>
-          {sesion.usuario?.email && (
-            <Texto style={estilos.correo}>{sesion.usuario.email}</Texto>
-          )}
+          <Texto style={estilos.nombre}>{nombre || 'Sin nombre'}</Texto>
+          <Texto style={estilos.meta}>
+            {torneos.length} {torneos.length === 1 ? 'torneo' : 'torneos'}
+            {desde ? ` · desde ${desde}` : ''}
+          </Texto>
         </View>
+        <Pressable
+          onPress={() => setEditando((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel="Editar perfil"
+          style={estilos.lapiz}
+        >
+          <IconoLapiz color={colores.texto} />
+        </Pressable>
       </View>
 
-      <Titulo>Tu nombre</Titulo>
-      <Sutil>Es el que ven los demás en la clasificación del torneo.</Sutil>
-      <TextInput
-        value={borradorNombre}
-        onChangeText={setBorradorNombre}
-        placeholder="Darwin"
-        placeholderTextColor={colores.textoSuave}
-        maxLength={20}
-        style={estilos.campo}
-      />
-
-      <Titulo>Tu avatar</Titulo>
-      <Sutil>Lo dibuja la app, no hace falta subir ninguna foto.</Sutil>
-      <SelectorAvatar elegido={borradorAvatar} onElegir={setBorradorAvatar} plegable />
-
-      <Boton
-        titulo={guardado ? 'Guardado' : 'Guardar perfil'}
-        onPress={guardar}
-        deshabilitado={borradorNombre.trim().length === 0 || !cambiado}
-      />
-      {!hayFirebase && (
-        <Sutil>Firebase no está configurado: de momento esto sólo se guarda en el móvil.</Sutil>
+      {editando && (
+        <Tarjeta>
+          <TextInput
+            value={borradorNombre}
+            onChangeText={setBorradorNombre}
+            placeholder="Tu nombre"
+            placeholderTextColor={colores.textoSuave}
+            maxLength={20}
+            style={estilos.campo}
+          />
+          <SelectorAvatar elegido={borradorAvatar} onElegir={setBorradorAvatar} plegable />
+          <Boton
+            titulo="Guardar perfil"
+            onPress={() => {
+              cambiarPerfil(borradorNombre, borradorAvatar).then(() => setEditando(false));
+            }}
+            deshabilitado={borradorNombre.trim().length === 0 || !cambiado}
+          />
+          {!hayFirebase && <Sutil>Sin Firebase, esto sólo se guarda en el móvil.</Sutil>}
+        </Tarjeta>
       )}
 
-      <Texto style={estilos.seccion}>Cómo se ve</Texto>
-      <Tarjeta>
-        <View style={estilos.ajuste}>
-          <View style={{ flex: 1 }}>
-            <Texto style={estilos.tituloAjuste}>Letra grande</Texto>
-            <Texto style={estilos.descripcionAjuste}>
-              Agranda el texto de toda la app y da algo más de alto a las teclas. Se
-              guarda con tu cuenta, así que te acompaña a cualquier aparato.
-            </Texto>
-          </View>
-          <Switch
-            value={letraGrande}
-            onValueChange={cambiarLetraGrande}
-            trackColor={{ true: colores.correcta, false: colores.borde }}
-            thumbColor={colores.texto}
-          />
-        </View>
-      </Tarjeta>
+      <View style={estilos.cifras}>
+        <Cifra valor={stats.jugadas} etiqueta="jugadas" />
+        <Cifra valor={`${stats.porcentaje}%`} etiqueta="aciertos" />
+        <Cifra valor={stats.racha} etiqueta="racha" />
+        <Cifra valor={stats.mejorRacha} etiqueta="mejor racha" />
+      </View>
 
-      <Texto style={estilos.seccion}>Tus estadísticas</Texto>
-      <Sutil>
-        Suman todas tus partidas, de todos los torneos. Las de torneo se recuperan de tu
-        cuenta, así que te acompañan aunque cambies de móvil.
-      </Sutil>
       <Tarjeta>
-        <View style={estilos.filaStats}>
-          <Dato valor={stats.jugadas} etiqueta="jugadas" />
-          <Dato valor={`${stats.porcentaje}%`} etiqueta="aciertos" />
-          <Dato valor={stats.racha} etiqueta="racha" />
-          <Dato valor={stats.mejorRacha} etiqueta="mejor racha" />
+        <View style={estilos.filaTitulo}>
+          <Texto style={estilos.rotulo}>En cuántos intentos</Texto>
+          <Texto style={estilos.meta}>
+            media {stats.media === null ? '—' : stats.media.toFixed(1).replace('.', ',')}
+          </Texto>
         </View>
-        <View style={estilos.separador} />
-        <Sutil>Reparto de intentos</Sutil>
-        <View style={{ marginTop: espaciado.sm, gap: 6 }}>
-          {stats.reparto.map((cuenta, i) => {
-            const maximo = Math.max(1, ...stats.reparto);
-            return (
-              <View key={i} style={estilos.filaBarra}>
-                <Texto style={estilos.numeroIntento}>{i + 1}</Texto>
-                <View
-                  style={[
-                    estilos.barra,
-                    {
-                      width: `${Math.max(6, (cuenta / maximo) * 100)}%`,
-                      backgroundColor: cuenta > 0 ? colores.correcta : colores.borde,
-                    },
-                  ]}
-                >
-                  <Texto style={estilos.cuentaBarra}>{cuenta}</Texto>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-        <View style={estilos.separador} />
-        <View style={estilos.filaStats}>
-          <Dato valor={stats.puntos} etiqueta="puntos acumulados" />
-          <Dato
-            valor={stats.media === null ? '—' : stats.media.toFixed(2)}
-            etiqueta="puntos por jornada"
-          />
-        </View>
-        <View style={estilos.separador} />
-        <Sutil>Tu mejor ronda de arcade</Sutil>
-        {recordArcade ? (
-          <View style={[estilos.filaStats, { marginTop: espaciado.sm }]}>
-            <Dato
-              valor={`${totalDe(recordArcade)}/${TOTAL_MAXIMO}`}
-              etiqueta="puntos"
-            />
-            <Dato valor={reloj(recordArcade.segundos)} etiqueta="tiempo" />
-            <Dato
-              valor={`${recordArcade.acertadas}/${PALABRAS_POR_RONDA}`}
-              etiqueta="acertadas"
-            />
-          </View>
-        ) : (
-          <Sutil>
-            Todavía ninguna. Son {PALABRAS_POR_RONDA} palabras seguidas contra el reloj.
-          </Sutil>
-        )}
-      </Tarjeta>
-
-      <Texto style={estilos.seccion}>Cómo se juega</Texto>
-      <Tarjeta>
-        <Sutil>
-          Cada torneo tiene su propia palabra secreta de cinco letras al día, distinta de
-          la de los demás torneos, y {MAX_INTENTOS} intentos para acertarla. Al enviar una
-          palabra, cada letra se pinta:
-        </Sutil>
-        <View style={{ gap: 8, marginTop: espaciado.md }}>
-          <Leyenda color={colores.correcta} texto="La letra está y va en esa posición." />
-          <Leyenda
-            color={colores.presente}
-            texto="La letra está en la palabra, pero en otro sitio."
-          />
-          <Leyenda
-            color={colores.ausente}
-            texto="La letra no está. En el teclado se apaga, pero puedes seguir usándola."
-          />
-        </View>
-        <View style={estilos.separador} />
-        <Sutil>
-          Se escribe sin tildes y la Ñ tiene su tecla. Valen{' '}
-          {totalAceptadas.toLocaleString('es-ES')} palabras distintas como intento, y la
-          solución sale siempre de un grupo de {totalSoluciones.toLocaleString('es-ES')}{' '}
-          palabras de uso corriente.
-        </Sutil>
-      </Tarjeta>
-
-      <Texto style={estilos.seccion}>Las tres formas de jugar</Texto>
-      <Tarjeta>
-        <Sutil>
-          <Texto style={estilos.tituloAjuste}>El torneo.</Texto> Una palabra al día por
-          torneo, con clasificación, normas de la casa y trofeo a fin de mes. Es donde
-          se compite.
-        </Sutil>
-        <Sutil>
-          <Texto style={estilos.tituloAjuste}>La diaria.</Texto> La palabra del día, a
-          secas, la misma para todo el que juegue sin torneo. No puntúa y no la ve nadie.
-        </Sutil>
-        <Sutil>
-          <Texto style={estilos.tituloAjuste}>El arcade.</Texto>{' '}
-          {PALABRAS_POR_RONDA} palabras seguidas con el reloj corriendo, las veces que
-          quieras. De cada ronda queda la mejor marca, y la tuya se puede mirar desde la
-          clasificación tocando tu nombre, igual que tú puedes mirar la de los demás. Si
-          te sales a media ronda, se pierde.
-        </Sutil>
-        <Sutil>
-          Cada palabra vale sus puntos de siempre, multiplicados por diez: 70 al primer
-          intento, 10 al sexto. Y el tiempo suma aparte, de {SEGUNDOS_PLENO / 60} minutos
-          para abajo hasta {SEGUNDOS_NULO / 60}, donde ya no da nada.
-        </Sutil>
-        <Sutil>
-          Lo que suma el reloj llega a 9 y ni un punto más, y eso no es un número al
-          azar: la palabra más barata vale 10, así que correr no puede pagar nunca una
-          palabra. Acertar una más gana siempre, se tarde lo que se tarde — y dentro de
-          eso, ir rápido puntúa de verdad.
-        </Sutil>
-      </Tarjeta>
-
-      <Texto style={estilos.seccion}>Puntuación del torneo</Texto>
-      <Tarjeta>
-        {PUNTOS_POR_INTENTO.map((puntos, i) => (
-          <View key={i} style={estilos.filaPuntos}>
-            <Texto style={estilos.textoPuntos}>
-              Acertar al {i + 1}
-              {i === 0 ? 'er' : 'º'} intento
-            </Texto>
-            <Texto style={estilos.valorPuntos}>{puntos}</Texto>
+        {stats.reparto.map((cuenta, i) => (
+          <View key={i} style={estilos.barraFila}>
+            <Texto style={estilos.numero}>{i + 1}</Texto>
+            <View
+              style={[
+                estilos.barra,
+                {
+                  width: `${Math.max(8, (cuenta / maximo) * 100)}%`,
+                  backgroundColor: cuenta > 0 ? colores.correcta : colores.borde,
+                },
+              ]}
+            >
+              <Texto style={estilos.cuenta}>{cuenta}</Texto>
+            </View>
           </View>
         ))}
-        <View style={estilos.filaPuntos}>
-          <Texto style={estilos.textoPuntos}>No acertar</Texto>
-          <Texto style={[estilos.valorPuntos, { color: colores.textoSuave }]}>0</Texto>
+        <View style={estilos.barraFila}>
+          <Texto style={estilos.numero}>X</Texto>
+          <View style={[estilos.barra, { width: '12%', backgroundColor: colores.ausente }]}>
+            <Texto style={estilos.cuenta}>{stats.jugadas - stats.aciertos}</Texto>
+          </View>
         </View>
       </Tarjeta>
 
-      <Texto style={estilos.seccion}>Las normas de la casa</Texto>
-      <Sutil>
-        Cada torneo enciende las que quiera desde su clasificación. Toca una para leerla.
-      </Sutil>
-      <View style={{ height: espaciado.sm }} />
+      {torneos.length > 0 && (
+        <>
+          <Texto style={estilos.rotulo}>Tus torneos</Texto>
+          {torneos.map((torneo) => {
+            const filas = clasificacion(torneo, jornadas[torneo.id] ?? []);
+            const puesto = filas.findIndex((f) => f.uid === uid) + 1;
+            const puntos = filas.find((f) => f.uid === uid)?.puntos ?? 0;
+            const trofeos = trofeosPorJugador(trofeosDeResumenes(resumenes[torneo.id] ?? []))[uid ?? ''] ?? 0;
+            return (
+              <Pressable
+                key={torneo.id}
+                onPress={() => irATorneo(torneo.id)}
+                accessibilityRole="button"
+                style={estilos.torneo}
+              >
+                <Emblema nombre={torneo.nombre} id={torneo.id} lado={36} />
+                <Texto style={estilos.nombreTorneo} numberOfLines={1}>
+                  {torneo.nombre}
+                </Texto>
+                {trofeos > 0 && <Texto style={estilos.trofeo}>🏆×{trofeos}</Texto>}
+                <Texto style={estilos.puesto}>
+                  {puesto > 0 ? `${puesto}.º · ${puntos} pts` : `${puntos} pts`}
+                </Texto>
+              </Pressable>
+            );
+          })}
+        </>
+      )}
 
-      <Desplegable titulo="La regla del líder" resumen="Ir primero cuesta abrir con una de cinco palabras malas.">
-        <Sutil>
-          Quien termine una jornada primero en solitario — sin empatar a puntos con el
-          segundo — arranca la jornada siguiente obligado a usar una de estas cinco
-          palabras como primer intento:
-        </Sutil>
-        <Texto style={estilos.palabras}>
-          {PALABRAS_PENALIZACION.map((p) => p.toUpperCase()).join('\n')}
-        </Texto>
-        <Sutil>
-          Las cinco repiten letras, así que gastan un intento dando muy poca información.
-          Es el lastre por ir ganando. Si hay empate en lo alto de la tabla, nadie lleva
-          penalización. Se cuenta por separado en cada torneo.
-        </Sutil>
-      </Desplegable>
-
-      <Desplegable titulo="La temporada" resumen="Cada mes empieza de cero y reparte un trofeo.">
-        <Sutil>
-          Cada mes es una temporada. El día 1 la clasificación vuelve a cero para todos, y
-          quien va primero al cerrarse el mes se lleva un trofeo.
-        </Sutil>
-        <Sutil>
-          A final de año gana el torneo quien más trofeos haya juntado. No hace falta que
-          nadie cierre nada: se calcula del historial, así que las partidas viejas siguen
-          ahí y el palmarés se pone al día solo.
-        </Sutil>
-        <Sutil>
-          Las balas y los escudos también se recargan el día 1, con la temporada nueva.
-        </Sutil>
-      </Desplegable>
-
-      <Desplegable titulo="Faltar tiene precio" resumen="Saltarse una jornada cerrada resta un punto.">
-        <Sutil>
-          Saltarse una jornada resta un punto. Sólo cuentan las ya cerradas: la de hoy no
-          penaliza a nadie hasta que pasa la medianoche.
-        </Sutil>
-        <Sutil>
-          Se empieza a contar desde tu primera partida del mes, así que entrar tarde no te
-          cuesta las jornadas de antes, y las faltas no cruzan de una temporada a otra.
-          Cada torneo decide si juega con esta norma.
-        </Sutil>
-      </Desplegable>
-
-      <Desplegable titulo="Abrir la jornada" resumen="La primera palabra no puede llevar más de tres vocales.">
-        <Sutil>
-          La primera palabra del día no puede llevar más de {MAX_VOCALES_AL_ABRIR} vocales.
-          Con cuatro vocales y una consonante se barre medio abecedario de un tirón y la
-          apertura deja de ser una apuesta.
-        </Sutil>
-        <Sutil>
-          Sólo afecta al primer intento: del segundo en adelante valen todas, entre otras
-          cosas porque alguna de esas palabras puede ser la solución del día.
-        </Sutil>
-      </Desplegable>
-
-      <Desplegable titulo="Una mano al último" resumen="Al que va último se le chiva una letra.">
-        <Sutil>
-          A quien va último en solitario, el juego le chiva una letra de la palabra del
-          día. Sale la misma letra toda la jornada, así que recargar no da letras nuevas.
-        </Sutil>
-        <Sutil>
-          Se acaba en cuanto deja de ir último solo: si empata con el penúltimo, ya no hay
-          ayuda. Es para no descolgarse, no un premio por ir mal.
-        </Sutil>
-      </Desplegable>
-
-      <Desplegable titulo="La ulti" resumen="Una al mes: tú eliges la palabra que juegan los demás.">
-        <Sutil>
-          Una vez al mes puedes elegir la palabra que jugará mañana todo el torneo. Tú
-          no: a ti te toca la palabra normal de ese día, así que eliges el problema de
-          los demás y no el tuyo.
-        </Sutil>
-        <Sutil>
-          Tiene que ser una palabra de las que el juego usa como solución, no una rareza
-          del diccionario largo. Con una rareza el torneo entero sacaría cero, y eso no
-          es picar a nadie, es reventar la jornada.
-        </Sutil>
-        <Sutil>
-          Sólo cabe una ulti por jornada en todo el torneo: si dos la gastan a la vez,
-          vale la que llegue primero y la otra no se pone. Una vez puesta no se puede
-          cambiar ni quitar — media mañana después habría gente jugándola ya.
-        </Sutil>
-      </Desplegable>
-
-      <Desplegable titulo="La blueshell" resumen="Dos balas y dos escudos al mes para picar al líder.">
-        <Sutil>
-          Cada mes tienes {BLUESHELLS_POR_MES} balas y {BLUESHELLS_POR_MES} escudos, y
-          se recargan el día 1 junto con la clasificación. La bala se le tira a quien va
-          primero: al día siguiente estará obligado a usar de segundo intento la palabra
-          que hayas elegido tú.
-        </Sutil>
-        <Sutil>
-          Se pueden juntar varias contra la misma persona. Entonces le ocupan un intento
-          cada una, en el segundo, el tercero y así: cuatro balas dejan casi la jornada
-          escrita de antemano.
-        </Sutil>
-        <Sutil>
-          El escudo se gasta desde el tablero el día que te caen, y las anula todas de
-          golpe, tantas como te hayan tirado. Se dispara desde la clasificación del
-          torneo, y cada torneo decide si juega con esta norma o sin ella.
-        </Sutil>
-      </Desplegable>
-
-      <View style={{ height: espaciado.lg }} />
-      <Boton
-        titulo={`Notas del parche ${VERSION_PARCHE}`}
-        variante="secundario"
+      <Pressable onPress={irANormas} style={estilos.entrada} accessibilityRole="button">
+        <Texto style={estilos.entradaTexto}>Cómo se juega y normas</Texto>
+        <Texto style={estilos.flecha}>›</Texto>
+      </Pressable>
+      <Pressable
         onPress={() => Linking.openURL(NOTAS_DEL_PARCHE).catch(() => {})}
-      />
+        style={estilos.entrada}
+        accessibilityRole="button"
+      >
+        <Texto style={estilos.entradaTexto}>Novedades de la versión {VERSION_PARCHE}</Texto>
+        <Texto style={estilos.flecha}>›</Texto>
+      </Pressable>
+      <View style={estilos.entrada}>
+        <View style={{ flex: 1 }}>
+          <Texto style={estilos.entradaTexto}>Letra grande</Texto>
+          <Texto style={estilos.meta}>Agranda el texto de toda la app.</Texto>
+        </View>
+        <Switch
+          value={letraGrande}
+          onValueChange={cambiarLetraGrande}
+          trackColor={{ true: colores.correcta, false: colores.borde }}
+          thumbColor={colores.texto}
+        />
+      </View>
 
-      <Texto style={estilos.seccion}>Tu cuenta</Texto>
-      <View style={{ height: espaciado.xs }} />
-      <Boton titulo="Cerrar sesión" variante="secundario" onPress={() => sesion.salir()} />
+      {sesion.usuario && (
+        <Boton titulo="Cerrar sesión" variante="secundario" onPress={() => sesion.salir()} />
+      )}
 
-      <View style={{ height: espaciado.lg }} />
       <Tarjeta>
-        <Texto style={estilos.tituloAjuste}>Borrar mi cuenta</Texto>
+        <Texto style={estilos.entradaTexto}>Borrar mi cuenta</Texto>
         <Sutil>
-          Se va todo lo tuyo: el nombre, el avatar, los ajustes, lo guardado en este
-          aparato y tu sitio en los torneos. Los puntos de las jornadas ya jugadas se
-          quedan en la clasificación sin nombre, porque un resultado no se puede tocar
-          una vez escrito.
+          Se va tu nombre, el avatar y tu sitio en los torneos. Los puntos ya escritos se quedan,
+          sin nombre.
         </Sutil>
         {fallo && <Texto style={estilos.fallo}>{fallo}</Texto>}
-        <View style={{ height: espaciado.sm }} />
         <Boton
           titulo={borrando ? 'Borrando…' : 'Borrar mi cuenta'}
           variante="peligro"
@@ -476,213 +267,101 @@ export function PantallaPerfil() {
   );
 }
 
-function Dato({ valor, etiqueta }: { valor: string | number; etiqueta: string }) {
+function Cifra({ valor, etiqueta }: { valor: string | number; etiqueta: string }) {
   return (
-    <View style={estilos.dato}>
-      <Texto style={estilos.valorDato}>{valor}</Texto>
-      <Texto style={estilos.etiquetaDato}>{etiqueta}</Texto>
+    <View style={estilos.cifra}>
+      <Texto style={estilos.cifraValor}>{valor}</Texto>
+      <Texto style={estilos.cifraEtiqueta}>{etiqueta}</Texto>
     </View>
   );
-}
-
-function Leyenda({ color, texto }: { color: string; texto: string }) {
-  return (
-    <View style={estilos.filaLeyenda}>
-      <View style={[estilos.muestra, { backgroundColor: color }]} />
-      <Texto style={estilos.textoLeyenda}>{texto}</Texto>
-    </View>
-  );
-}
-
-function calcularEstadisticas(historial: EntradaHistorial[]) {
-  const jugadas = historial.length;
-  const aciertos = historial.filter((e) => e.acertada).length;
-  const puntos = historial.reduce((suma, e) => suma + e.puntos, 0);
-
-  const reparto = new Array(MAX_INTENTOS).fill(0) as number[];
-  for (const e of historial) {
-    if (e.acertada) reparto[e.intentos - 1] += 1;
-  }
-
-  // Racha: jornadas consecutivas acertadas hasta la última jugada. Un día sin
-  // jugar también corta la racha.
-  let mejorRacha = 0;
-  let seguidas = 0;
-  let fechaPrevia: string | null = null;
-  for (const e of historial) {
-    const consecutiva = fechaPrevia !== null && sumarDias(fechaPrevia, 1) === e.fecha;
-    seguidas = e.acertada ? (consecutiva ? seguidas + 1 : 1) : 0;
-    mejorRacha = Math.max(mejorRacha, seguidas);
-    fechaPrevia = e.fecha;
-  }
-
-  return {
-    jugadas,
-    aciertos,
-    puntos,
-    reparto,
-    racha: seguidas,
-    mejorRacha,
-    porcentaje: jugadas === 0 ? 0 : Math.round((aciertos / jugadas) * 100),
-    media: jugadas === 0 ? null : puntos / jugadas,
-  };
 }
 
 const estilos = StyleSheet.create({
-  ajuste: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espaciado.md,
-  },
-  tituloAjuste: {
-    color: colores.texto,
-    fontFamily: fuentes.cuerpoFuerte,
-    fontSize: escala.medio,
-  },
-  fallo: {
-    color: colores.peligro,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    lineHeight: 19,
-    marginTop: espaciado.sm,
-  },
-  descripcionAjuste: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    lineHeight: 19,
-    marginTop: 2,
-  },
-  contenido: {
-    padding: espaciado.lg,
-    gap: espaciado.sm,
-    paddingBottom: espaciado.xl * 2,
-  },
-  cabeceraPerfil: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espaciado.md,
-    marginBottom: espaciado.md,
-  },
-  nombreGrande: {
+  contenido: { padding: espaciado.lg, gap: espaciado.sm, paddingBottom: espaciado.xl * 2 },
+  cabecera: { flexDirection: 'row', alignItems: 'center', gap: espaciado.md, marginBottom: espaciado.sm },
+  nombre: {
     color: colores.texto,
     fontFamily: fuentes.titularNegro,
-    fontSize: escala.grande,
+    fontSize: escala.titulo,
+    textTransform: 'uppercase',
   },
-  correo: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.micro,
-    marginTop: 2,
-  },
-  campo: {
-    backgroundColor: colores.superficie,
+  meta: { color: colores.textoSuave, fontFamily: fuentes.cuerpo, fontSize: escala.micro, marginTop: 2 },
+  lapiz: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colores.borde,
-    borderRadius: radio.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  campo: {
+    backgroundColor: colores.fondo,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    borderRadius: 12,
     paddingHorizontal: espaciado.md,
     paddingVertical: 12,
     color: colores.texto,
     fontFamily: fuentes.cuerpo,
     fontSize: escala.normal,
-    marginVertical: espaciado.sm,
+    marginBottom: espaciado.sm,
   },
-  seccion: {
-    color: colores.texto,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.normal,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginTop: espaciado.lg,
-    marginBottom: espaciado.xs,
-  },
-  filaStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  dato: {
-    alignItems: 'center',
+  cifras: { flexDirection: 'row', gap: 6 },
+  cifra: {
     flex: 1,
+    backgroundColor: colores.superficie,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    alignItems: 'center',
+    paddingVertical: espaciado.md,
   },
-  valorDato: {
-    color: colores.texto,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.grande,
+  cifraValor: { color: colores.texto, fontFamily: fuentes.titularNegro, fontSize: escala.grande },
+  cifraEtiqueta: {
+    color: colores.textoSuave,
+    fontFamily: fuentes.titular,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    textAlign: 'center',
   },
-  etiquetaDato: {
+  filaTitulo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: espaciado.sm },
+  rotulo: {
     color: colores.textoSuave,
     fontFamily: fuentes.titular,
     fontSize: escala.micro,
-    letterSpacing: 1.6,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    textAlign: 'center',
-    marginTop: 2,
   },
-  separador: {
-    height: 1,
-    backgroundColor: colores.borde,
-    marginVertical: espaciado.md,
-  },
-  filaBarra: {
+  barraFila: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  numero: { color: colores.textoSuave, width: 12, fontFamily: fuentes.cuerpo, fontSize: escala.micro },
+  barra: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, minWidth: 24 },
+  cuenta: { color: colores.texto, fontFamily: fuentes.cuerpoFuerte, fontSize: escala.micro, textAlign: 'right' },
+  torneo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaciado.sm,
+    backgroundColor: colores.superficie,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    padding: espaciado.sm,
   },
-  numeroIntento: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.micro,
-    width: 12,
-  },
-  barra: {
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    alignItems: 'flex-end',
-  },
-  cuentaBarra: {
-    color: colores.texto,
-    fontFamily: fuentes.cuerpoFuerte,
-    fontSize: escala.micro,
-  },
-  filaLeyenda: {
+  nombreTorneo: { flex: 1, color: colores.texto, fontFamily: fuentes.cuerpoFuerte, fontSize: escala.normal },
+  trofeo: { fontSize: 12 },
+  puesto: { color: colores.textoSuave, fontFamily: fuentes.cuerpo, fontSize: escala.pequeno },
+  entrada: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaciado.sm,
+    backgroundColor: colores.superficie,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    padding: espaciado.md,
   },
-  muestra: {
-    width: 26,
-    height: 26,
-    borderRadius: radio.sm,
-  },
-  textoLeyenda: {
-    color: colores.textoSuave,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-    flex: 1,
-  },
-  filaPuntos: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 5,
-  },
-  textoPuntos: {
-    color: colores.texto,
-    fontFamily: fuentes.cuerpo,
-    fontSize: escala.pequeno,
-  },
-  valorPuntos: {
-    color: colores.oro,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.medio,
-  },
-  palabras: {
-    color: colores.presente,
-    fontFamily: fuentes.titularNegro,
-    fontSize: escala.normal,
-    letterSpacing: 3,
-    lineHeight: 26,
-    marginVertical: espaciado.md,
-  },
+  entradaTexto: { flex: 1, color: colores.texto, fontFamily: fuentes.cuerpoFuerte, fontSize: escala.normal },
+  flecha: { color: colores.textoTenue, fontSize: 22 },
+  fallo: { color: colores.peligro, fontFamily: fuentes.cuerpo, fontSize: escala.pequeno },
 });
