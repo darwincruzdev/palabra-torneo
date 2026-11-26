@@ -128,8 +128,10 @@ export function PantallaNormas() {
 
       <Desplegable titulo="La blueshell" resumen={`${BLUESHELLS_POR_MES} balas y ${BLUESHELLS_POR_MES} escudos al mes.`}>
         <Sutil>
-          La bala se le tira a quien va primero: al día siguiente usa tu palabra en el segundo
-          intento. Varias se acumulan. El escudo, desde el tablero, las anula todas de golpe.
+          La bala no se le tira a nadie en concreto: se la come quien termine primero la jornada
+          en la que disparas, y al día siguiente usa tu palabra en el segundo intento. Si acabas
+          primero tú, o si el primer puesto queda empatado, la bala se pierde. Varias se acumulan.
+          El escudo, desde el tablero, las anula todas de golpe.
         </Sutil>
       </Desplegable>
     </ScrollView>

@@ -198,22 +198,28 @@ service cloud.firestore {
           return !resource.data.get('ultis', {}).keys().hasAny([request.auth.uid]);
         }
 
-        // Una bala tiene que ir contra alguien del torneo y llevar algo que
-        // pueda ser una palabra.
+        // Una bala tiene que llevar algo que pueda ser una palabra y, si trae
+        // víctima escrita, que sea alguien del torneo.
+        //
+        // La víctima ya no se guarda: desde el parche del cierre de jornada la
+        // bala va "al que termine primero" y eso lo calcula cada móvil de la
+        // clasificación. Por eso el campo es opcional aquí — las balas viejas
+        // lo traen y se siguen respetando, las nuevas llegan sin él.
         //
         // El servidor no tiene el diccionario, así que no puede comprobar que
-        // exista de verdad —de eso se encarga la app, que ignora las balas con
-        // palabras inventadas—, pero sí puede cerrar lo burdo: disparar a un
-        // desconocido o meter cifras y símbolos donde va una palabra.
+        // la palabra exista de verdad —de eso se encarga la app, que ignora las
+        // balas con palabras inventadas—, pero sí puede cerrar lo burdo: meter
+        // cifras y símbolos donde va una palabra.
         //
         // El margen de 5 a 10 es a propósito: la Ñ ocupa dos bytes y no está
         // claro si aquí se cuenta por letras o por bytes. Pasarse de largo no
         // hace daño —la app filtra igual—; rechazar "aceña" sí lo haría.
         function balaCreible() {
-          return request.resource.data.blueshells[request.auth.uid].objetivo
-                   in datosTorneo(torneoId).miembros
-            && request.resource.data.blueshells[request.auth.uid].palabra
-                   .matches('^[a-zñ]{5,10}$');
+          return request.resource.data.blueshells[request.auth.uid].palabra
+                   .matches('^[a-zñ]{5,10}$')
+            && (!('objetivo' in request.resource.data.blueshells[request.auth.uid])
+                || request.resource.data.blueshells[request.auth.uid].objetivo
+                     in datosTorneo(torneoId).miembros);
         }
 
         // El resultado de una jornada se escribe una vez y no se toca más.

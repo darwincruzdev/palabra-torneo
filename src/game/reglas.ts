@@ -90,27 +90,16 @@ export function normalizarReglas(reglas: Partial<ReglasTorneo> | undefined | nul
 export type BlueshellLanzada = Blueshell & { autor: string };
 
 /**
- * Las blueshells que caen sobre alguien en una jornada, en el orden en que
- * obligan.
+ * Todas las balas de una jornada, tirara quien las tirara.
  *
- * Se ordenan por el día en que se lanzaron y, a igualdad, por el uid del autor.
- * Es un orden arbitrario pero idéntico en todos los móviles, que es lo que hace
+ * Quién se las come no se sabe aquí: las balas ya no guardan víctima y hay que
+ * resolverlas contra la clasificación. Eso vive en `balas.ts`, que es el que
+ * sabe de tablas; aquí sólo se leen y se ordenan.
+ *
+ * El orden es por día de lanzamiento y, a igualdad, por uid del autor. Es un
+ * orden arbitrario pero idéntico en todos los móviles, que es lo que hace
  * falta: si cada cliente las pusiera en otro orden, dos personas verían
  * palabras obligatorias distintas para el mismo intento.
- */
-export function blueshellsContra(dia: DiaTorneo | undefined, uid: string): BlueshellLanzada[] {
-  const lanzadas = Object.entries(dia?.blueshells ?? {})
-    .map(([autor, blueshell]) => ({ ...blueshell, autor }))
-    .filter((b) => b.objetivo === uid);
-
-  lanzadas.sort((a, b) =>
-    a.lanzada !== b.lanzada ? a.lanzada.localeCompare(b.lanzada) : a.autor.localeCompare(b.autor)
-  );
-  return lanzadas;
-}
-
-/**
- * Todas las balas de una jornada, tirara quien las tirara.
  *
  * Es lo que hace falta para que el grupo se entere: una blueshell lanzada a
  * escondidas no tiene ninguna gracia, y hasta ahora sólo la descubría quien la
@@ -130,18 +119,6 @@ export function todasLasBlueshells(dia: DiaTorneo | undefined): BlueshellLanzada
 /** ¿Gastó su protección en esta jornada? */
 export function estaProtegido(dia: DiaTorneo | undefined, uid: string): boolean {
   return dia?.protecciones?.[uid] === true;
-}
-
-/**
- * Las blueshells que de verdad obligan. La protección no para una: las para
- * todas las de esa jornada, por muchas que le hayan tirado.
- */
-export function blueshellsEfectivas(
-  dia: DiaTorneo | undefined,
-  uid: string
-): BlueshellLanzada[] {
-  if (estaProtegido(dia, uid)) return [];
-  return blueshellsContra(dia, uid);
 }
 
 /**
@@ -215,7 +192,11 @@ export function obligacionesDe(opciones: {
   reglas: ReglasTorneo;
   /** ¿Lidera en solitario y por tanto arrastra la penalización? */
   liderando: boolean;
-  blueshells: BlueshellLanzada[];
+  /**
+   * Las balas que ya le han caído, en orden. Quién sea la víctima se decide
+   * fuera: aquí sólo hace falta qué palabra obliga y quién la tiró.
+   */
+  blueshells: { palabra: string; autor: string }[];
 }): Obligacion[] {
   const { reglas, liderando, blueshells } = opciones;
   const obligaciones: Obligacion[] = [];
@@ -272,11 +253,16 @@ export function cumple(obligacion: Obligacion, intento: string): boolean {
   return obligacion.palabras.includes(intento);
 }
 
-/** El texto con el que se le cuenta al grupo que ha volado una bala. */
+/**
+ * El texto con el que se le cuenta al grupo que ha volado una bala.
+ *
+ * No nombra a nadie: cuando se manda, la jornada sigue abierta y la víctima
+ * todavía se está decidiendo. Esa es justamente la gracia, y conviene que el
+ * grupo lo lea así — el que va primero tiene toda la tarde para dejar de irlo.
+ */
 export function mensajeDeBlueshell(datos: {
   torneo: string;
   autor: string;
-  objetivo: string;
   palabra: string;
   enlace?: string;
 }): string {
@@ -284,12 +270,12 @@ export function mensajeDeBlueshell(datos: {
     `🔵 BLUESHELL en "${datos.torneo}"
 
 ` +
-    `${datos.autor} le ha tirado una bala a ${datos.objetivo}.
+    `${datos.autor} ha soltado una bala. Se la come quien termine primero hoy.
 ` +
-    `Mañana está obligado a usar ${datos.palabra.toUpperCase()} como segunda palabra.
+    `Mañana estará obligado a usar ${datos.palabra.toUpperCase()} como segunda palabra.
 
 ` +
-    'Le queda el escudo, si se atreve a gastarlo.';
+    'Le quedará el escudo, si se atreve a gastarlo.';
   return datos.enlace ? `${cuerpo}
 
 ${datos.enlace}` : cuerpo;

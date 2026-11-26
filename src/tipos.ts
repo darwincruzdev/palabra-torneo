@@ -31,12 +31,21 @@ export type ResultadoDia = {
  * rebuscar en la jornada anterior.
  */
 export type Blueshell = {
-  /** A quién se le tira. Sólo puede ser quien vaya primero. */
-  objetivo: string;
+  /**
+   * A quién se le tiró, sólo en las balas viejas.
+   *
+   * Hasta el parche del cierre de jornada la víctima se elegía al disparar y se
+   * guardaba aquí. Ahora no se guarda: se mira quién terminó primero la jornada
+   * en que se lanzó. Las que lo traigan se respetan tal cual, que sus partidas
+   * ya se jugaron así.
+   */
+  objetivo?: string;
   /** La palabra que se le obliga a poner, ya normalizada. */
   palabra: string;
-  /** Día en que se disparó, que es el que decide de qué ciclo se descuenta. */
+  /** Día en que se disparó, que es el que decide contra qué tabla se resuelve. */
   lanzada: string;
+  /** Mes de ese día. Se guarda escrito para que el dato se explique solo. */
+  mes?: string;
 };
 
 /** Documento torneos/{id}/dias/{fecha} */

@@ -40,8 +40,6 @@ import { esAceptada } from '../game/palabras';
 import { normalizar } from '../game/normalizar';
 import {
   balasQueLeQuedan,
-  blueshellsContra,
-  blueshellsEfectivas,
   escudosQueLeQuedan,
   estaProtegido,
   normalizarReglas,
@@ -49,6 +47,12 @@ import {
   todasLasBlueshells,
   type BlueshellLanzada,
 } from '../game/reglas';
+import {
+  balasContra,
+  balasDeLaJornada,
+  balasEfectivas,
+  type BalaResuelta,
+} from '../game/balas';
 import {
   mesDe,
   mesSiguiente,
@@ -126,13 +130,12 @@ type Estado = {
   blueshellsDe: (torneoId: string) => EstadoBlueshell;
   cambiarReglas: (torneoId: string, reglas: ReglasTorneo) => Promise<void>;
   /**
-   * Dispara contra quien va primero. La palabra golpea mañana. Devuelve a quién
-   * le ha caído y con qué, para poder contarlo al grupo.
+   * Dispara contra quien termine primero hoy. La palabra golpea mañana.
+   *
+   * No devuelve víctima porque todavía no la hay: se sabrá al cerrar la
+   * jornada. Devuelve la palabra, para poder contarlo al grupo.
    */
-  lanzarBlueshell: (
-    torneoId: string,
-    palabra: string
-  ) => Promise<{ objetivo: string; palabra: string }>;
+  lanzarBlueshell: (torneoId: string, palabra: string) => Promise<{ palabra: string }>;
   /** Gasta la protección de hoy: anula todas las balas recibidas. */
   usarProteccion: (torneoId: string) => Promise<void>;
   /** La foto de la ulti de un torneo para quien mira. */
@@ -188,13 +191,11 @@ export type EstadoUlti = {
 export type EstadoBlueshell = {
   /** La norma está encendida en este torneo. */
   activas: boolean;
-  /** A quién se puede disparar ahora mismo, o null si no hay líder destacado. */
-  lider: string | null;
   puedoLanzar: boolean;
   /** Por qué no puedo, en una frase, o null si sí puedo. */
   impedimento: string | null;
   /** Las que me caen hoy a mí, protección aparte. */
-  recibidas: BlueshellLanzada[];
+  recibidas: BalaResuelta[];
   /** Ya gasté hoy la protección. */
   protegido: boolean;
   puedoProteger: boolean;
@@ -204,10 +205,13 @@ export type EstadoBlueshell = {
   /** Cuándo se recarga todo: el día 1 del mes que viene. */
   recargaEl: string;
   /**
-   * Las balas de todo el mundo, para que el grupo se entere. Las de mañana
-   * están en el aire; las de hoy ya han caído.
+   * Las balas de todo el mundo, para que el grupo se entere.
+   *
+   * Las de hoy ya han caído y tienen víctima: se lanzaron ayer y la jornada de
+   * ayer está cerrada. Las de mañana se lanzaron hoy y están en el aire —
+   * todavía no se sabe quién terminará primero—, así que van sin resolver.
    */
-  enJuego: { hoy: BlueshellLanzada[]; manana: BlueshellLanzada[] };
+  enJuego: { hoy: BalaResuelta[]; manana: BlueshellLanzada[] };
 };
 
 const Contexto = createContext<Estado | null>(null);
@@ -465,8 +469,10 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       return obligacionesDe({
         reglas: normalizarReglas(torneo.reglas),
         liderando: liderDestacado(clasificacion(torneo, dias, { hasta: hoy })) === uid,
-        blueshells: blueshellsEfectivas(
+        blueshells: balasEfectivas(
           dias.find((d) => d.fecha === hoy),
+          torneo,
+          dias,
           uid
         ),
       });
@@ -485,7 +491,6 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       const torneo = torneos.find((t) => t.id === torneoId);
       const vacio: EstadoBlueshell = {
         activas: false,
-        lider: null,
         puedoLanzar: false,
         impedimento: null,
         recibidas: [],
@@ -501,26 +506,27 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       const activas = normalizarReglas(torneo.reglas).blueshells;
       const dias = jornadas[torneoId] ?? [];
       const diaHoy = dias.find((d) => d.fecha === hoy);
-      const lider = liderDestacado(clasificacion(torneo, dias));
-      const recibidas = blueshellsContra(diaHoy, uid);
+      const recibidas = balasContra(diaHoy, torneo, dias, uid);
       const protegido = estaProtegido(diaHoy, uid);
       const mes = mesDe(hoy);
       const balas = balasQueLeQuedan(dias, torneo.fechaInicio, mes, uid);
       const escudos = escudosQueLeQuedan(dias, torneo.fechaInicio, mes, uid);
 
+      /**
+       * Ya no hace falta que haya un líder para disparar.
+       *
+       * Antes se exigía uno destacado y que no fueras tú, porque la víctima se
+       * elegía en ese instante. Ahora la bala va "al que termine primero hoy",
+       * y eso no se sabe todavía: se puede disparar siempre que queden balas.
+       */
       const impedimento = !activas
         ? 'Este torneo juega sin blueshells.'
         : balas === 0
           ? 'Te has quedado sin balas este mes.'
-          : !lider
-            ? 'Ahora mismo no hay un líder en solitario al que disparar.'
-            : lider === uid
-              ? 'Vas primero: no puedes dispararte a ti mismo.'
-              : null;
+          : null;
 
       return {
         activas,
-        lider,
         puedoLanzar: activas && impedimento === null,
         impedimento,
         recibidas,
@@ -530,7 +536,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         escudos,
         recargaEl: primerDiaDelMes(mesSiguiente(mes)),
         enJuego: {
-          hoy: todasLasBlueshells(diaHoy),
+          hoy: balasDeLaJornada(diaHoy, torneo, dias),
           manana: todasLasBlueshells(dias.find((d) => d.fecha === sumarDias(hoy, 1))),
         },
       };
@@ -627,20 +633,26 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     async (torneoId: string, palabra: string) => {
       if (!uid) throw new Error('Hay que entrar con Google para disparar');
       const estado = blueshellsDe(torneoId);
-      if (!estado.puedoLanzar || !estado.lider) {
+      if (!estado.puedoLanzar) {
         throw new Error(estado.impedimento ?? 'Ahora no puedes disparar');
       }
       const limpia = normalizar(palabra);
       if (!esAceptada(limpia)) {
         throw new Error('Esa palabra no está en la lista, elige otra');
       }
-      // Golpea mañana: la bala es para la jornada siguiente, no para ésta.
+      /**
+       * Golpea mañana, pero la decide hoy.
+       *
+       * Va guardada en la jornada de mañana, que es cuando obliga, y lleva
+       * apuntado el día en que se disparó: con eso se resuelve contra el líder
+       * al cierre de hoy. No se guarda víctima, que todavía no la hay.
+       */
       await datos.lanzarBlueshell(torneoId, sumarDias(hoy, 1), uid, {
-        objetivo: estado.lider,
         palabra: limpia,
         lanzada: hoy,
+        mes: mesDe(hoy),
       });
-      return { objetivo: estado.lider, palabra: limpia };
+      return { palabra: limpia };
     },
     [uid, hoy, blueshellsDe]
   );

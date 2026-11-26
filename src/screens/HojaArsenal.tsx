@@ -39,8 +39,6 @@ export function HojaArsenal({ torneoId, visible, cerrar }: Props) {
   const grupo = torneo;
 
   const nombreDe = (id: string) => grupo.perfiles?.[id]?.nombre ?? 'alguien';
-  const nombreLider = balas.lider ? nombreDe(balas.lider) : null;
-  const manana = balas.enJuego.manana.find((b) => b.objetivo === uid);
 
   async function disparar() {
     if (confirmando !== 'bala') {
@@ -53,13 +51,12 @@ export function HojaArsenal({ torneoId, visible, cerrar }: Props) {
       const lanzada = await lanzarBlueshell(grupo.id, palabraBala);
       setPalabraBala('');
       setConfirmando(null);
-      setHecha(`Mañana ${nombreDe(lanzada.objetivo)} abre con tu palabra.`);
+      setHecha('Bala en el aire. Se la come quien termine primero hoy.');
       Linking.openURL(
         enlaceWhatsapp(
           mensajeDeBlueshell({
             torneo: grupo.nombre,
             autor: nombreDe(uid ?? ''),
-            objetivo: nombreDe(lanzada.objetivo),
             palabra: lanzada.palabra,
             enlace: enlaceDeLaApp() || undefined,
           })
@@ -102,9 +99,19 @@ export function HojaArsenal({ torneoId, visible, cerrar }: Props) {
     }
   }
 
+  /** Cómo acabó una bala ya resuelta: con víctima, o en nada. */
+  const destinoDe = (bala: (typeof balas.enJuego.hoy)[number]) => {
+    if (bala.objetivo) return nombreDe(bala.objetivo);
+    return bala.perdida === 'autor' ? 'nadie: quedó primero él' : 'nadie: primer puesto empatado';
+  };
+
   const historial = [
-    ...balas.enJuego.hoy.map((b) => `${nombreDe(b.autor)} → ${nombreDe(b.objetivo)} (hoy)`),
-    ...balas.enJuego.manana.map((b) => `${nombreDe(b.autor)} → ${nombreDe(b.objetivo)} (mañana)`),
+    ...balas.enJuego.hoy.map((b) => `${nombreDe(b.autor)} → ${destinoDe(b)} (hoy)`),
+    // Las de mañana se lanzaron hoy y la jornada sigue abierta: no hay víctima
+    // que enseñar todavía, y enseñar la de ahora sería mentir.
+    ...balas.enJuego.manana.map(
+      (b) => `${nombreDe(b.autor)} → quien termine primero hoy (mañana)`
+    ),
   ];
 
   return (
@@ -119,11 +126,12 @@ export function HojaArsenal({ torneoId, visible, cerrar }: Props) {
           <Texto style={estilos.queda}>
             Te quedan {balas.escudos} de {BLUESHELLS_POR_MES}
           </Texto>
-          {manana && (
+          {balas.enJuego.manana.length > 0 && (
             <Texto style={estilos.cuerpo}>
-              {nombreDe(manana.autor)} te ha lanzado una blueshell: mañana tu palabra
-              llevará la que haya elegido. El escudo se activa desde el tablero, al
-              empezar.
+              Hay {balas.enJuego.manana.length === 1 ? 'una bala' : `${balas.enJuego.manana.length} balas`}{' '}
+              en el aire para mañana. Se {balas.enJuego.manana.length === 1 ? 'la' : 'las'} come quien
+              termine primero hoy, así que si vas en cabeza te interesa mirar la tabla antes de
+              acostarte. El escudo se activa desde el tablero, al empezar.
             </Texto>
           )}
           {balas.recibidas.length > 0 && !balas.protegido && (
@@ -189,10 +197,13 @@ export function HojaArsenal({ torneoId, visible, cerrar }: Props) {
           <Texto style={estilos.queda}>
             {balas.balas} de {BLUESHELLS_POR_MES} · para imponerle una palabra al líder
           </Texto>
-          {balas.puedoLanzar && nombreLider ? (
+          {balas.puedoLanzar ? (
             <>
               <Texto style={estilos.cuerpo}>
-                Mañana {nombreLider} tendrá que usar esta palabra en el segundo intento.
+                Se la come <Texto style={estilos.fuerte}>quien termine primero hoy</Texto>, no
+                quien vaya primero ahora. Mañana tendrá que usar esta palabra en el segundo
+                intento. Si el primer puesto acaba empatado, o si acabas primero tú, la bala se
+                pierde.
               </Texto>
               <CasillasCodigo
                 valor={palabraBala}
@@ -205,7 +216,7 @@ export function HojaArsenal({ torneoId, visible, cerrar }: Props) {
               />
               <Boton
                 titulo={
-                  confirmando === 'bala' ? '¿Seguro? Toca otra vez' : `Lanzar a ${nombreLider}`
+                  confirmando === 'bala' ? '¿Seguro? Toca otra vez' : 'Lanzar al que gane hoy'
                 }
                 variante="secundario"
                 deshabilitado={palabraBala.length < 5 || ocupado}
@@ -265,6 +276,10 @@ const estilos = StyleSheet.create({
     fontSize: escala.pequeno,
     lineHeight: 20,
     marginBottom: espaciado.sm,
+  },
+  fuerte: {
+    fontFamily: fuentes.cuerpoFuerte,
+    color: colores.acento,
   },
   aviso: {
     color: colores.oro,

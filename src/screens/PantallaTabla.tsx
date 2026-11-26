@@ -31,7 +31,8 @@ import {
   mesSiguiente,
   primerDiaDelMes,
 } from '../game/temporada';
-import { blueshellsContra, estaProtegido } from '../game/reglas';
+import { estaProtegido } from '../game/reglas';
+import { balasContra } from '../game/balas';
 import { useApp } from '../estado/AppContext';
 import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
@@ -154,7 +155,9 @@ export function PantallaTabla({ torneoId, volver, irAAjustes, invitarInicial, ar
             {filas.map((fila, i) => {
               const hoySuyo = jornadaHoy?.resultados?.[fila.uid];
               const protegido = estaProtegido(jornadaHoy, fila.uid);
-              const recibidas = blueshellsContra(jornadaHoy, fila.uid).length;
+              const recibidas = torneo
+                ? balasContra(jornadaHoy, torneo, dias, fila.uid).length
+                : 0;
               return (
                 <Pressable
                   key={fila.uid}
