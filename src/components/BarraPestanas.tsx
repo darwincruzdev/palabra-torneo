@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Texto } from './Texto';
@@ -41,7 +42,13 @@ export function BarraPestanas({ state, navigation }: BottomTabBarProps) {
       target: state.routes[indice].key,
       canPreventDefault: true,
     });
-    if (!evento.defaultPrevented) navigation.navigate(nombre);
+    if (state.index === indice || evento.defaultPrevented) return;
+    // El destino tiene que ser este navegador de pestañas. Sin `target`,
+    // `navigate` sube al de arriba y «Jugar» no es una pantalla de esa pila.
+    navigation.dispatch({
+      ...CommonActions.navigate(nombre),
+      target: state.key,
+    });
   }
 
   return (

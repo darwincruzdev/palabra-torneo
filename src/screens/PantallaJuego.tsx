@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Pressable, Share, StyleSheet, View } from 'react-native';
 import { Texto } from '../components/Texto';
 import { useIsFocused } from '@react-navigation/native';
 import { Aviso } from '../components/Aviso';
@@ -137,7 +137,7 @@ export function PantallaJuego({ irATorneos, irATabla }: Props) {
               <Texto style={estilos.textoPenalizacion}>
                 👑 Lideras en solitario · toca una para abrir
               </Texto>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.botonesPalabra}>
+              <View style={estilos.botonesPalabra}>
                 {juego.obligacion!.palabras.map((palabra) => {
                   const marcada = borrador === palabra;
                   return (
@@ -152,11 +152,11 @@ export function PantallaJuego({ irATorneos, irATabla }: Props) {
                     </Pressable>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
           )}
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.chips}>
+          <View style={estilos.chips}>
             {!abriendo && juego.penalizado && (
               <Chip
                 etiqueta="Penalización"
@@ -236,7 +236,7 @@ export function PantallaJuego({ irATorneos, irATabla }: Props) {
                 )
               }
             />
-          </ScrollView>
+          </View>
 
           {detalle && <Texto style={estilos.detalle}>{detalle.texto}</Texto>}
 
@@ -441,7 +441,7 @@ const estilos = StyleSheet.create({
     fontSize: escala.pequeno,
     textAlign: 'center',
   },
-  botonesPalabra: { gap: 6, paddingVertical: 2 },
+  botonesPalabra: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
   botonPalabra: {
     backgroundColor: colores.elevado,
     borderRadius: 8,
@@ -460,7 +460,12 @@ const estilos = StyleSheet.create({
     fontSize: escala.pequeno,
     letterSpacing: 1,
   },
-  chips: { gap: 6, paddingHorizontal: espaciado.md },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingHorizontal: espaciado.md,
+  },
   detalle: {
     color: colores.textoSuave,
     fontFamily: fuentes.cuerpo,

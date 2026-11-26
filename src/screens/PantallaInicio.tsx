@@ -7,7 +7,6 @@ import { RejillaMini } from '../components/RejillaMini';
 import { Emblema } from '../components/Emblema';
 import { Seccion } from '../components/Seccion';
 import { BotonCabecera, CabeceraTorneo } from '../components/CabeceraTorneo';
-import { IconoEngranaje } from '../components/Iconos';
 import { AvisoInstalar } from '../components/AvisoInstalar';
 import { AvisoParche } from '../components/AvisoParche';
 import { Boton, Sutil, Tarjeta } from '../components/ui';
@@ -123,7 +122,7 @@ export function PantallaInicio({
         onPress={irATorneos}
         derecha={
           <BotonCabecera etiqueta="Ajustes del torneo" onPress={() => irAAjustes(torneo.id)}>
-            <IconoEngranaje color={colores.texto} tamano={16} />
+            <Texto style={{ color: colores.texto, fontSize: 16 }}>⚙</Texto>
           </BotonCabecera>
         }
       />
