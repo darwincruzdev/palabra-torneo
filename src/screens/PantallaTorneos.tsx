@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { Emblema } from '../components/Emblema';
+import { AvisoParche } from '../components/AvisoParche';
 import { CasillasCodigo } from '../components/CasillasCodigo';
 import { EscanerQr } from '../components/EscanerQr';
 import { Boton, Sutil } from '../components/ui';
@@ -106,6 +107,9 @@ export function PantallaTorneos({
       keyboardShouldPersistTaps="handled"
     >
       <Texto style={estilos.tituloLista}>Mis torneos</Texto>
+
+      {/* El aviso de novedades vivía en la pantalla de modos, que ya no existe. */}
+      <AvisoParche />
       {torneos.length === 0 && (
         <Sutil>
           {hayFirebase
