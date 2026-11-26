@@ -8,6 +8,7 @@ import { CabeceraTorneo } from '../components/CabeceraTorneo';
 import { Boton, Sutil, Tarjeta } from '../components/ui';
 import { fechaCorta, fechaJuego, fechaLarga } from '../game/fecha';
 import { numeroJornada, solucionDe } from '../game/palabras';
+import { colorDeTorneo } from '../game/emblema';
 import { rejillasVisibles } from '../game/pendientes';
 import { normalizarAvatar } from '../game/avatares';
 import { mesLargo } from '../game/temporada';
@@ -63,7 +64,8 @@ export function PantallaHistorial({ irATorneos }: Props) {
         nombre={torneo.nombre}
         torneoId={torneo.id}
         detalle={`Jornada ${numeroJornada(hoy, torneo.fechaInicio)} · ${fechaCorta(hoy)}`}
-        onPress={irATorneos}
+        volver={irATorneos}
+        color={colorDeTorneo(torneo.id)}
       />
       <ScrollView contentContainerStyle={estilos.contenido}>
         {dias.length === 0 && cerrados.length === 0 && (

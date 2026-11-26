@@ -19,6 +19,7 @@ import {
 } from '../game/clasificacion';
 import { PUNTOS_POR_FALTA, PUNTOS_POR_INTENTO } from '../game/constantes';
 import { fechaJuego, fechaLarga } from '../game/fecha';
+import { colorDeTorneo } from '../game/emblema';
 import { rejillasVisibles } from '../game/pendientes';
 import { numeroJornada } from '../game/palabras';
 import {
@@ -106,7 +107,8 @@ export function PantallaTabla({ irATorneos, irAAjustes, invitarInicial }: Props)
         nombre={torneo.nombre}
         torneoId={torneo.id}
         detalle={detalle}
-        onPress={irATorneos}
+        volver={irATorneos}
+        color={colorDeTorneo(torneo.id)}
         derecha={
           <>
             <BotonCabecera etiqueta="Invitar" onPress={() => setInvitar(true)}>

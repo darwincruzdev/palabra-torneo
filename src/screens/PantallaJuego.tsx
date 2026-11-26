@@ -16,6 +16,7 @@ import { clasificacion, liderDestacado } from '../game/clasificacion';
 import { fechaCorta, fechaJuego } from '../game/fecha';
 import { numeroJornada } from '../game/palabras';
 import { patronCompartible } from '../game/evaluar';
+import { colorDeTorneo } from '../game/emblema';
 import { faltaPorJugar } from '../game/pendientes';
 import { TORNEO_LIBRE, useApp } from '../estado/AppContext';
 import { useJuego } from '../estado/useJuego';
@@ -120,7 +121,8 @@ export function PantallaJuego({ irATorneos, irATabla }: Props) {
             ? 'La diaria · esta partida no puntúa'
             : `Jornada ${jornada} · ${fechaCorta(juego.fecha)}`
         }
-        onPress={irATorneos}
+        volver={irATorneos}
+        color={activo.tipo === 'torneo' ? colorDeTorneo(activo.id) : undefined}
         derecha={
           !esLibre ? (
             <BotonCabecera etiqueta="Ver la tabla" onPress={irATabla}>

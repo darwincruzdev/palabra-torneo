@@ -4,8 +4,9 @@ import { CommonActions } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Texto } from './Texto';
-import { IconoCalendario, IconoCasa, IconoJugar, IconoPersona, IconoTrofeo } from './Iconos';
+import { IconoCalendario, IconoCasa, IconoJugar, IconoTrofeo } from './Iconos';
 import { fechaJuego } from '../game/fecha';
+import { colorDeTorneo } from '../game/emblema';
 import { faltaPorJugar } from '../game/pendientes';
 import { useApp } from '../estado/AppContext';
 import { colores, espaciado, fuentes, oscurecer, texto as escala } from '../tema';
@@ -15,28 +16,24 @@ const ETIQUETA: Record<string, string> = {
   Tabla: 'Tabla',
   Jugar: 'Jugar',
   Jornadas: 'Jornadas',
-  Perfil: 'Perfil',
 };
 
 /**
- * Barra fija de cinco pestañas.
+ * Barra del torneo en el que ya se ha entrado.
  *
- * JUGAR va en el centro, en la ficha verde del icono, con la cuenta de torneos
- * que todavía no se han jugado hoy.
+ * El color de arriba es el del torneo. JUGAR abre la palabra de ese torneo,
+ * no elige otro. El punto rojo sale sólo si la de hoy, aquí, sigue pendiente.
  */
 export function BarraPestanas({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { torneos, jornadas, uid, torneoCabecera, activo, elegirTorneo } = useApp();
+  const { jornadas, uid, torneoCabecera } = useApp();
   const hoy = fechaJuego();
-  const pendientes = uid
-    ? torneos.filter((t) => faltaPorJugar(jornadas[t.id] ?? [], uid, hoy)).length
-    : 0;
+  const acento = torneoCabecera ? colorDeTorneo(torneoCabecera.id) : colores.acento;
+  const pendienteAqui = Boolean(
+    torneoCabecera && uid && faltaPorJugar(jornadas[torneoCabecera.id] ?? [], uid, hoy)
+  );
 
   function pulsar(nombre: string, indice: number) {
-    // JUGAR abre la palabra del torneo de la cabecera, no La diaria.
-    if (nombre === 'Jugar' && torneoCabecera && activo.tipo !== 'torneo') {
-      elegirTorneo(torneoCabecera.id);
-    }
     const evento = navigation.emit({
       type: 'tabPress',
       target: state.routes[indice].key,
@@ -52,26 +49,29 @@ export function BarraPestanas({ state, navigation }: BottomTabBarProps) {
   }
 
   return (
-    <View style={[estilos.barra, { paddingBottom: Math.max(insets.bottom, espaciado.sm) }]}>
+    <View
+      style={[
+        estilos.barra,
+        { paddingBottom: Math.max(insets.bottom, espaciado.sm), borderTopColor: acento },
+      ]}
+    >
       {state.routes.map((ruta, indice) => {
         const activa = state.index === indice;
-        const color = ruta.name === 'Jugar' ? colores.correcta : activa ? colores.acento : colores.textoTenue;
+        const color = ruta.name === 'Jugar' ? colores.correcta : activa ? acento : colores.textoTenue;
         if (ruta.name === 'Jugar') {
           return (
             <Pressable
               key={ruta.key}
               onPress={() => pulsar(ruta.name, indice)}
               accessibilityRole="button"
-              accessibilityLabel={
-                pendientes > 0 ? `Jugar, ${pendientes} pendientes` : 'Jugar'
-              }
+              accessibilityLabel={pendienteAqui ? 'Jugar, te falta la de hoy' : 'Jugar'}
               style={estilos.jugar}
             >
               <View style={estilos.ficha}>
                 <IconoJugar />
-                {pendientes > 0 && (
+                {pendienteAqui && (
                   <View style={estilos.badge}>
-                    <Texto style={estilos.badgeTexto}>{pendientes > 9 ? '9+' : pendientes}</Texto>
+                    <Texto style={estilos.badgeTexto}>1</Texto>
                   </View>
                 )}
               </View>
@@ -99,8 +99,7 @@ export function BarraPestanas({ state, navigation }: BottomTabBarProps) {
 function icono(nombre: string, color: string) {
   if (nombre === 'Inicio') return <IconoCasa color={color} />;
   if (nombre === 'Tabla') return <IconoTrofeo color={color} />;
-  if (nombre === 'Jornadas') return <IconoCalendario color={color} />;
-  return <IconoPersona color={color} />;
+  return <IconoCalendario color={color} />;
 }
 
 const estilos = StyleSheet.create({
@@ -108,8 +107,8 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: colores.fondo,
-    borderTopWidth: 1,
-    borderTopColor: colores.borde,
+    borderTopWidth: 3,
+    borderTopColor: colores.acento,
     paddingTop: espaciado.xs,
   },
   pestana: {

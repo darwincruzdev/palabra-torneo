@@ -61,7 +61,6 @@ import {
   cargarPerfilLocal,
   cargarRecordArcade,
   guardarRecordArcadeLocal,
-  cargarTorneoActivo,
   guardarPerfilLocal,
   guardarTorneoActivo,
 } from '../almacen/local';
@@ -261,10 +260,8 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       setLetraGrande(guardado.letraGrande === true);
       if (guardado.configurado) setConfigurado(true);
     });
-    cargarTorneoActivo().then((id) => {
-      if (MAQUETA_ACTIVA) return;
-      if (id) setActivoId(id);
-    });
+    // No se recupera el último torneo al abrir: la entrada es la lista, y se
+    // entra en uno solo cuando la persona lo elige.
     cargarRecordArcade().then((guardado) => {
       if (guardado) setRecordArcade((previa) => (esMejor(guardado, previa) ? guardado : previa));
     });
@@ -312,7 +309,6 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     setTorneos(inventados.torneos);
     setJornadas(inventados.jornadas);
     setResumenes(inventados.resumenes);
-    setActivoId(inventados.activoId);
     setRecordArcade(inventados.record);
   }, [sesion.usuario]);
 
@@ -670,11 +666,9 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   }, [activoId]);
 
   const torneoCabecera = useMemo(() => {
-    const elegido = cabeceraId ? torneos.find((t) => t.id === cabeceraId) : undefined;
-    if (elegido) return elegido;
-    if (activo.tipo === 'torneo') return activo.torneo;
-    return torneos[0] ?? null;
-  }, [torneos, cabeceraId, activo]);
+    if (!cabeceraId) return null;
+    return torneos.find((t) => t.id === cabeceraId) ?? null;
+  }, [torneos, cabeceraId]);
 
   const cambiarPerfil = useCallback(
     async (nuevoNombre: string, nuevoAvatar: Avatar) => {

@@ -18,6 +18,7 @@ import { codigoDesdeUrl } from './src/game/invitacion';
 import { cargarCodigoPendiente, guardarCodigoPendiente } from './src/almacen/local';
 import { MAQUETA_ACTIVA } from './src/maqueta/datos';
 import { BarraPestanas } from './src/components/BarraPestanas';
+import { IconoPersona } from './src/components/Iconos';
 import { PantallaAcceso } from './src/screens/PantallaAcceso';
 import { PantallaBienvenida } from './src/screens/PantallaBienvenida';
 import { PantallaInicio } from './src/screens/PantallaInicio';
@@ -38,12 +39,16 @@ export type RutasPestanas = {
   Tabla: undefined;
   Jugar: undefined;
   Jornadas: undefined;
-  Perfil: undefined;
 };
 
 export type RutasApp = {
-  Principal: NavigatorScreenParams<RutasPestanas> | undefined;
+  /** La entrada: se elige torneo antes de entrar en ninguno. */
   Torneos: undefined;
+  /** El espacio de un torneo ya elegido. */
+  Espacio: NavigatorScreenParams<RutasPestanas> | undefined;
+  /** La diaria, fuera de cualquier torneo. */
+  Diaria: undefined;
+  Perfil: undefined;
   Ajustes: { torneoId: string };
   Normas: undefined;
   Arcade: undefined;
@@ -131,21 +136,28 @@ function Raiz() {
         return;
       }
       const ver = vista.ver;
-      if (ver === 'torneos') navegacion.navigate('Torneos');
-      else if (ver === 'ajustes') navegacion.navigate('Ajustes', { torneoId: 'familia-cruz' });
-      else if (ver === 'normas') navegacion.navigate('Normas');
+      const pantalla =
+        ver === 'tabla' ? 'Tabla' : ver === 'jugar' ? 'Jugar' : ver === 'jornadas' ? 'Jornadas' : ver === 'inicio' ? 'Inicio' : null;
+      if (pantalla) {
+        elegirTorneo('familia-cruz');
+        navegacion.navigate('Espacio', { screen: pantalla });
+      } else if (ver === 'ajustes') {
+        elegirTorneo('familia-cruz');
+        navegacion.navigate('Ajustes', { torneoId: 'familia-cruz' });
+      } else if (ver === 'normas') navegacion.navigate('Normas');
       else if (ver === 'duelos') navegacion.navigate('Duelos');
       else if (ver === 'arcade') navegacion.navigate('Arcade');
-      else if (ver === 'tabla') navegacion.navigate('Principal', { screen: 'Tabla' });
-      else if (ver === 'jugar') navegacion.navigate('Principal', { screen: 'Jugar' });
-      else if (ver === 'jornadas') navegacion.navigate('Principal', { screen: 'Jornadas' });
-      else if (ver === 'perfil') navegacion.navigate('Principal', { screen: 'Perfil' });
+      else if (ver === 'perfil') navegacion.navigate('Perfil');
+      else if (ver === 'diaria') {
+        elegirTorneo('libre');
+        navegacion.navigate('Diaria');
+      }
     };
     ir();
     return () => {
       vivo = false;
     };
-  }, [vista.ver, sesion.usuario]);
+  }, [vista.ver, sesion.usuario, elegirTorneo]);
 
   if (hayFirebase && sesion.cargando && !sesion.usuario && !sinCuenta) {
     return (
@@ -191,79 +203,101 @@ function Raiz() {
             ) : null,
         })}
       >
-        <Pila.Screen name="Principal" options={{ headerShown: false }}>
-          {() => (
+        <Pila.Screen
+          name="Torneos"
+          options={({ navigation }) => ({
+            title: 'Mis torneos',
+            headerRight: () => (
+              <Pressable
+                onPress={() => navigation.navigate('Perfil')}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Perfil"
+                style={estilos.perfil}
+              >
+                <IconoPersona color={colores.texto} tamano={20} />
+              </Pressable>
+            ),
+          })}
+        >
+          {({ navigation }) => (
+            <PantallaTorneos
+              entrar={(torneoId) => {
+                elegirTorneo(torneoId);
+                navigation.navigate('Espacio', { screen: 'Inicio' });
+              }}
+              jugar={(torneoId) => {
+                elegirTorneo(torneoId);
+                navigation.navigate('Espacio', { screen: 'Jugar' });
+              }}
+              jugarDiaria={() => {
+                elegirTorneo('libre');
+                navigation.navigate('Diaria');
+              }}
+              irADuelos={() => navigation.navigate('Duelos')}
+              irAArcade={() => navigation.navigate('Arcade')}
+              codigoEntrante={codigoEntrante}
+              codigoConsumido={consumirCodigo}
+            />
+          )}
+        </Pila.Screen>
+
+        <Pila.Screen name="Espacio" options={{ headerShown: false }}>
+          {({ navigation }) => (
             <Pestanas.Navigator
               tabBar={(props) => <BarraPestanas {...props} />}
               screenOptions={{ headerShown: false }}
             >
               <Pestanas.Screen name="Inicio">
-                {({ navigation }) => (
+                {({ navigation: tabs }) => (
                   <PantallaInicio
-                    irAJugar={() => navigation.navigate('Jugar')}
-                    irATabla={() => navigation.navigate('Tabla')}
-                    irAJornadas={() => navigation.navigate('Jornadas')}
-                    irATorneos={() => navigation.getParent()?.navigate('Torneos')}
-                    irADuelos={() => navigation.getParent()?.navigate('Duelos')}
-                    irAArcade={() => navigation.getParent()?.navigate('Arcade')}
-                    irAAjustes={(torneoId) =>
-                      navigation.getParent()?.navigate('Ajustes', { torneoId })
-                    }
+                    irAJugar={() => tabs.navigate('Jugar')}
+                    irATabla={() => tabs.navigate('Tabla')}
+                    irAJornadas={() => tabs.navigate('Jornadas')}
+                    irATorneos={() => navigation.navigate('Torneos')}
+                    irAAjustes={(torneoId) => navigation.navigate('Ajustes', { torneoId })}
                     arsenalInicial={vista.hoja === 'arsenal'}
                   />
                 )}
               </Pestanas.Screen>
               <Pestanas.Screen name="Tabla">
-                {({ navigation }) => (
+                {() => (
                   <PantallaTabla
-                    irATorneos={() => navigation.getParent()?.navigate('Torneos')}
-                    irAAjustes={(torneoId) =>
-                      navigation.getParent()?.navigate('Ajustes', { torneoId })
-                    }
+                    irATorneos={() => navigation.navigate('Torneos')}
+                    irAAjustes={(torneoId) => navigation.navigate('Ajustes', { torneoId })}
                     invitarInicial={vista.hoja === 'invitar'}
                   />
                 )}
               </Pestanas.Screen>
               <Pestanas.Screen name="Jugar">
-                {({ navigation }) => (
+                {({ navigation: tabs }) => (
                   <PantallaJuego
-                    irATorneos={() => navigation.getParent()?.navigate('Torneos')}
-                    irATabla={() => navigation.navigate('Tabla')}
+                    irATorneos={() => navigation.navigate('Torneos')}
+                    irATabla={() => tabs.navigate('Tabla')}
                   />
                 )}
               </Pestanas.Screen>
               <Pestanas.Screen name="Jornadas">
-                {({ navigation }) => (
-                  <PantallaHistorial
-                    irATorneos={() => navigation.getParent()?.navigate('Torneos')}
-                  />
-                )}
-              </Pestanas.Screen>
-              <Pestanas.Screen name="Perfil">
-                {({ navigation }) => (
-                  <PantallaPerfil
-                    irANormas={() => navigation.getParent()?.navigate('Normas')}
-                    irATorneo={(torneoId) => {
-                      elegirTorneo(torneoId);
-                      navigation.navigate('Tabla');
-                    }}
-                  />
-                )}
+                {() => <PantallaHistorial irATorneos={() => navigation.navigate('Torneos')} />}
               </Pestanas.Screen>
             </Pestanas.Navigator>
           )}
         </Pila.Screen>
 
-        <Pila.Screen name="Torneos" options={{ title: 'Mis torneos' }}>
+        <Pila.Screen name="Diaria" options={{ headerShown: false }}>
           {({ navigation }) => (
-            <PantallaTorneos
-              alJugar={(torneoId) => {
-                navigation.navigate('Principal', { screen: 'Jugar' });
-                void torneoId;
+            <PantallaJuego irATorneos={() => navigation.goBack()} irATabla={() => navigation.goBack()} />
+          )}
+        </Pila.Screen>
+
+        <Pila.Screen name="Perfil" options={{ title: 'Perfil' }}>
+          {({ navigation }) => (
+            <PantallaPerfil
+              irANormas={() => navigation.navigate('Normas')}
+              irATorneo={(torneoId) => {
+                elegirTorneo(torneoId);
+                navigation.navigate('Espacio', { screen: 'Inicio' });
               }}
-              alVerTabla={() => navigation.navigate('Principal', { screen: 'Tabla' })}
-              codigoEntrante={codigoEntrante}
-              codigoConsumido={consumirCodigo}
             />
           )}
         </Pila.Screen>
@@ -282,7 +316,7 @@ function Raiz() {
         <Pila.Screen name="Arcade" options={{ headerShown: false }}>
           {({ navigation }) => (
             <PantallaArcade
-              volver={() => navigation.navigate('Principal', { screen: 'Inicio' })}
+              volver={() => navigation.navigate('Torneos')}
             />
           )}
         </Pila.Screen>
@@ -297,7 +331,7 @@ function Raiz() {
           {({ navigation, route }) => (
             <PantallaDuelo
               dueloId={route.params.dueloId}
-              volver={() => navigation.navigate('Principal', { screen: 'Inicio' })}
+              volver={() => navigation.navigate('Torneos')}
               irAOtroDuelo={(otro) => navigation.replace('Duelo', { dueloId: otro })}
             />
           )}
@@ -342,6 +376,7 @@ const estilos = StyleSheet.create({
     fontSize: texto.grande,
     lineHeight: texto.grande + 4,
   },
+  perfil: { paddingRight: espaciado.md, paddingLeft: espaciado.sm },
   fondo: { flex: 1, backgroundColor: colores.fondo, alignItems: 'center' },
   columna: { flex: 1, width: '100%', maxWidth: ANCHO_COLUMNA },
 });

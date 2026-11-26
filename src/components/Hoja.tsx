@@ -20,7 +20,7 @@ type Props = {
 export function Hoja({ visible, cerrar, titulo, children }: Props) {
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={cerrar}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={cerrar}>
       <View style={estilos.fondo}>
         <Pressable style={estilos.cerrar} onPress={cerrar} accessibilityLabel="Cerrar" />
         <View style={[estilos.hoja, { paddingBottom: Math.max(insets.bottom, espaciado.md) }]}>

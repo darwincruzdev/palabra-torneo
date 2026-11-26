@@ -10,30 +10,55 @@ type Props = {
   /** Id para el color del emblema. Sin id, no hay ficha: es La diaria o nadie. */
   torneoId?: string | null;
   detalle?: string;
+  /** Vuelve a Mis torneos. Es la forma de salir del torneo en el que estás. */
+  volver?: () => void;
+  /** Color del torneo: raya de la cabecera, para saber de un vistazo cuál es. */
+  color?: string;
   onPress?: () => void;
   derecha?: React.ReactNode;
 };
 
 /**
- * La cabecera de todas las pantallas del torneo.
+ * La cabecera de un torneo ya elegido.
  *
- * Tocar el nombre abre Mis torneos, que es la única forma de cambiar de grupo.
+ * El nombre va grande y la raya es del color del torneo. La flecha vuelve a
+ * la lista: desde dentro no se cambia de grupo sin salir.
  */
-export function CabeceraTorneo({ nombre, torneoId, detalle, onPress, derecha }: Props) {
+export function CabeceraTorneo({ nombre, torneoId, detalle, volver, color, onPress, derecha }: Props) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[estilos.barra, { paddingTop: insets.top + espaciado.xs }]}>
+    <View
+      style={[
+        estilos.barra,
+        {
+          paddingTop: insets.top + espaciado.xs,
+          borderBottomColor: color ?? colores.borde,
+          borderBottomWidth: color ? 3 : 1,
+        },
+      ]}
+    >
+      {volver ? (
+        <Pressable
+          onPress={volver}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Volver a mis torneos"
+          style={estilos.atras}
+        >
+          <Texto style={estilos.atrasTexto}>←</Texto>
+        </Pressable>
+      ) : null}
       <Pressable
         onPress={onPress}
         disabled={!onPress}
-        accessibilityRole="button"
-        accessibilityLabel={`Torneo activo: ${nombre}. Tocar para cambiar`}
+        accessibilityRole={onPress ? 'button' : undefined}
         style={estilos.identidad}
       >
-        {torneoId ? <Emblema nombre={nombre} id={torneoId} lado={36} /> : null}
+        {torneoId ? <Emblema nombre={nombre} id={torneoId} lado={40} /> : null}
         <View style={estilos.textos}>
           <Texto style={estilos.nombre} numberOfLines={1}>
-            {nombre} {onPress ? <Texto style={estilos.flecha}>▾</Texto> : ''}
+            {nombre}
+            {onPress ? <Texto style={estilos.flecha}> ▾</Texto> : ''}
           </Texto>
           {detalle ? (
             <Texto style={estilos.detalle} numberOfLines={1}>
@@ -80,6 +105,17 @@ const estilos = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colores.borde,
     backgroundColor: colores.fondo,
+  },
+  atras: {
+    width: 32,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  atrasTexto: {
+    color: colores.texto,
+    fontFamily: fuentes.cuerpoFuerte,
+    fontSize: escala.grande,
   },
   identidad: {
     flex: 1,

@@ -4,7 +4,6 @@ import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { Ficha } from '../components/Ficha';
 import { RejillaMini } from '../components/RejillaMini';
-import { Emblema } from '../components/Emblema';
 import { Seccion } from '../components/Seccion';
 import { BotonCabecera, CabeceraTorneo } from '../components/CabeceraTorneo';
 import { AvisoInstalar } from '../components/AvisoInstalar';
@@ -18,11 +17,10 @@ import { faltaPorJugar, rejillasVisibles } from '../game/pendientes';
 import { numeroJornada, solucionDe } from '../game/palabras';
 import { BLUESHELLS_POR_MES } from '../game/reglas';
 import { ULTIS_POR_MES } from '../game/ulti';
-import { PALABRAS_POR_DUELO } from '../game/duelo';
-import { PALABRAS_POR_RONDA, reloj, totalDe } from '../game/arcade';
+import { colorDeTorneo } from '../game/emblema';
 import { COLORES_AVATAR, normalizarAvatar } from '../game/avatares';
 import { mesDe, mesLargo } from '../game/temporada';
-import { TORNEO_LIBRE, useApp } from '../estado/AppContext';
+import { useApp } from '../estado/AppContext';
 import { useCuentaAtras } from '../estado/useCuentaAtras';
 import { colores, espaciado, fuentes, texto as escala } from '../tema';
 import type { DiaTorneo, Torneo } from '../tipos';
@@ -32,8 +30,6 @@ type Props = {
   irATorneos: () => void;
   irATabla: () => void;
   irAJornadas: () => void;
-  irADuelos: () => void;
-  irAArcade: () => void;
   irAAjustes: (torneoId: string) => void;
   /** Abre el arsenal nada más entrar. Sólo lo usa la maqueta de capturas. */
   arsenalInicial?: boolean;
@@ -45,8 +41,6 @@ export function PantallaInicio({
   irATorneos,
   irATabla,
   irAJornadas,
-  irADuelos,
-  irAArcade,
   irAAjustes,
   arsenalInicial,
 }: Props) {
@@ -59,7 +53,6 @@ export function PantallaInicio({
     elegirTorneo,
     blueshellsDe,
     ultisDe,
-    recordArcade,
   } = useApp();
   const [arsenal, setArsenal] = useState(Boolean(arsenalInicial));
   const hoy = fechaJuego();
@@ -73,26 +66,10 @@ export function PantallaInicio({
   if (!torneo) {
     return (
       <View style={estilos.pantalla}>
-        <CabeceraTorneo nombre="Sin torneo" detalle="Crea uno o únete" onPress={irATorneos} />
+        <CabeceraTorneo nombre="Sin torneo" detalle="Elige uno en la lista" volver={irATorneos} />
         <ScrollView contentContainerStyle={estilos.contenido}>
-          <AvisoParche />
-          <AvisoInstalar />
-          <Tarjeta acento={colores.correcta}>
-            <Texto style={estilos.tituloHoy}>Monta el tuyo</Texto>
-            <Sutil>
-              Una palabra al día, la misma para todo el grupo, con tabla y trofeo a fin de mes.
-            </Sutil>
-            <Boton titulo="Crear o unirme" onPress={irATorneos} />
-          </Tarjeta>
-          <OtrasFormas
-            record={recordArcade}
-            onDuelo={irADuelos}
-            onDiaria={() => {
-              elegirTorneo(TORNEO_LIBRE.id);
-              irAJugar();
-            }}
-            onArcade={irAArcade}
-          />
+          <Sutil>Desde Mis torneos se elige en cuál se entra.</Sutil>
+          <Boton titulo="Volver a mis torneos" onPress={irATorneos} />
         </ScrollView>
       </View>
     );
@@ -119,7 +96,8 @@ export function PantallaInicio({
         nombre={torneo.nombre}
         torneoId={torneo.id}
         detalle={`Jornada ${jornada} · ${fechaCorta(hoy)}`}
-        onPress={irATorneos}
+        volver={irATorneos}
+        color={colorDeTorneo(torneo.id)}
         derecha={
           <BotonCabecera etiqueta="Ajustes del torneo" onPress={() => irAAjustes(torneo.id)}>
             <Texto style={{ color: colores.texto, fontSize: 16 }}>⚙</Texto>
@@ -164,20 +142,12 @@ export function PantallaInicio({
           }}
         />
 
-        {otros[0] && (
-          <Pressable
-            onPress={() => {
-              elegirTorneo(otros[0].id);
-              irAJugar();
-            }}
-            accessibilityRole="button"
-            style={estilos.otro}
-          >
-            <Emblema nombre={otros[0].nombre} id={otros[0].id} lado={28} />
-            <Texto style={estilos.cuerpoFlex} numberOfLines={1}>
-              {otros[0].nombre} · también te falta
+        {otros.length > 0 && (
+          <Pressable onPress={irATorneos} accessibilityRole="button" style={estilos.otro}>
+            <Texto style={estilos.cuerpoFlex} numberOfLines={2}>
+              También te falta {otros.map((t) => t.nombre).join(' y ')}
             </Texto>
-            <Texto style={estilos.jugarOtro}>Jugar ›</Texto>
+            <Texto style={estilos.jugarOtro}>Elegir ›</Texto>
           </Pressable>
         )}
 
@@ -248,15 +218,6 @@ export function PantallaInicio({
           </View>
         </Pressable>
 
-        <OtrasFormas
-          record={recordArcade}
-          onDuelo={irADuelos}
-          onDiaria={() => {
-            elegirTorneo(TORNEO_LIBRE.id);
-            irAJugar();
-          }}
-          onArcade={irAArcade}
-        />
         <Texto style={estilos.pistaPuntos}>
           Puntos: {PUNTOS_POR_INTENTO.map((p, i) => `${i + 1}.º ${p}`).join(' · ')} · fallo 0
         </Texto>
@@ -339,57 +300,6 @@ function Contador({ valor, etiqueta, color }: { valor: string; etiqueta: string;
       <Texto style={[estilos.contadorValor, { color }]}>{valor}</Texto>
       <Texto style={estilos.contadorEtiqueta}>{etiqueta}</Texto>
     </View>
-  );
-}
-
-function OtrasFormas({
-  record,
-  onDuelo,
-  onDiaria,
-  onArcade,
-}: {
-  record: { puntos: number; segundos: number; acertadas: number; intentos: number; fecha: string } | null;
-  onDuelo: () => void;
-  onDiaria: () => void;
-  onArcade: () => void;
-}) {
-  return (
-    <>
-      <Seccion titulo="Otras formas de jugar" />
-      <View style={estilos.modos}>
-        <Modo titulo="Duelo" detalle={`${PALABRAS_POR_DUELO} en directo`} color={colores.peligro} onPress={onDuelo} />
-        <Modo titulo="La diaria" detalle="Sin puntos" color={colores.acento} onPress={onDiaria} />
-        <Modo
-          titulo="Arcade"
-          detalle={record ? `${totalDe(record)} · ${reloj(record.segundos)}` : `${PALABRAS_POR_RONDA} seguidas`}
-          color={colores.oro}
-          onPress={onArcade}
-        />
-      </View>
-    </>
-  );
-}
-
-function Modo({
-  titulo,
-  detalle,
-  color,
-  onPress,
-}: {
-  titulo: string;
-  detalle: string;
-  color: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      style={({ pressed }) => [estilos.modo, { borderColor: color, opacity: pressed ? 0.75 : 1 }]}
-    >
-      <Texto style={[estilos.modoTitulo, { color }]}>{titulo}</Texto>
-      <Texto style={estilos.modoDetalle}>{detalle}</Texto>
-    </Pressable>
   );
 }
 
