@@ -85,7 +85,9 @@ export function PantallaTorneos({ alJugar, alVerTabla, codigoEntrante, codigoCon
     }
   }
 
-  if (!hayFirebase) {
+  // Sin Firebase y sin torneos no hay lista que enseñar. La maqueta de capturas
+  // trae torneos inventados aunque no haya proyecto, y ésos sí se muestran.
+  if (!hayFirebase && torneos.length === 0) {
     return (
       <ScrollView contentContainerStyle={estilos.contenido}>
         <Sutil>

@@ -62,7 +62,7 @@ export function PantallaHistorial({ irATorneos }: Props) {
       <CabeceraTorneo
         nombre={torneo.nombre}
         torneoId={torneo.id}
-        detalle={`${dias.length} jornadas desde el ${fechaCorta(torneo.fechaInicio)}`}
+        detalle={`Jornada ${numeroJornada(hoy, torneo.fechaInicio)} · ${fechaCorta(hoy)}`}
         onPress={irATorneos}
       />
       <ScrollView contentContainerStyle={estilos.contenido}>
