@@ -4,34 +4,31 @@ import { CommonActions } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Texto } from './Texto';
-import { IconoCalendario, IconoCasa, IconoJugar, IconoTrofeo } from './Iconos';
+import { IconoCalendario, IconoJugar, IconoPersona, IconoTrofeo } from './Iconos';
 import { fechaJuego } from '../game/fecha';
-import { colorDeTorneo } from '../game/emblema';
 import { faltaPorJugar } from '../game/pendientes';
 import { useApp } from '../estado/AppContext';
-import { colores, espaciado, fuentes, oscurecer, texto as escala } from '../tema';
+import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
 const ETIQUETA: Record<string, string> = {
-  Inicio: 'Inicio',
-  Tabla: 'Tabla',
   Jugar: 'Jugar',
+  Tabla: 'Tabla',
   Jornadas: 'Jornadas',
+  Perfil: 'Perfil',
 };
 
 /**
- * Barra del torneo en el que ya se ha entrado.
+ * Barra de la app: Jugar (la lista de torneos), Tabla, Jornadas y Perfil.
  *
- * El color de arriba es el del torneo. JUGAR abre la palabra de ese torneo,
- * no elige otro. El punto rojo sale sólo si la de hoy, aquí, sigue pendiente.
+ * El punto de Jugar cuenta los torneos en los que hoy todavía no se ha jugado.
  */
 export function BarraPestanas({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { jornadas, uid, torneoCabecera } = useApp();
+  const { torneos, jornadas, uid } = useApp();
   const hoy = fechaJuego();
-  const acento = torneoCabecera ? colorDeTorneo(torneoCabecera.id) : colores.acento;
-  const pendienteAqui = Boolean(
-    torneoCabecera && uid && faltaPorJugar(jornadas[torneoCabecera.id] ?? [], uid, hoy)
-  );
+  const pendientes = uid
+    ? torneos.filter((t) => faltaPorJugar(jornadas[t.id] ?? [], uid, hoy)).length
+    : 0;
 
   function pulsar(nombre: string, indice: number) {
     const evento = navigation.emit({
@@ -49,46 +46,34 @@ export function BarraPestanas({ state, navigation }: BottomTabBarProps) {
   }
 
   return (
-    <View
-      style={[
-        estilos.barra,
-        { paddingBottom: Math.max(insets.bottom, espaciado.sm), borderTopColor: acento },
-      ]}
-    >
+    <View style={[estilos.barra, { paddingBottom: Math.max(insets.bottom, espaciado.sm) }]}>
       {state.routes.map((ruta, indice) => {
         const activa = state.index === indice;
-        const color = ruta.name === 'Jugar' ? colores.correcta : activa ? acento : colores.textoTenue;
-        if (ruta.name === 'Jugar') {
-          return (
-            <Pressable
-              key={ruta.key}
-              onPress={() => pulsar(ruta.name, indice)}
-              accessibilityRole="button"
-              accessibilityLabel={pendienteAqui ? 'Jugar, te falta la de hoy' : 'Jugar'}
-              style={estilos.jugar}
-            >
-              <View style={estilos.ficha}>
-                <IconoJugar />
-                {pendienteAqui && (
-                  <View style={estilos.badge}>
-                    <Texto style={estilos.badgeTexto}>1</Texto>
-                  </View>
-                )}
-              </View>
-              <Texto style={[estilos.etiqueta, { color }]}>JUGAR</Texto>
-            </Pressable>
-          );
-        }
+        const color = activa ? colores.acento : colores.textoTenue;
         return (
           <Pressable
             key={ruta.key}
             onPress={() => pulsar(ruta.name, indice)}
             accessibilityRole="button"
             accessibilityState={{ selected: activa }}
+            accessibilityLabel={
+              ruta.name === 'Jugar' && pendientes > 0
+                ? `Jugar, ${pendientes} pendientes`
+                : ETIQUETA[ruta.name]
+            }
             style={estilos.pestana}
           >
-            {icono(ruta.name, color)}
-            <Texto style={[estilos.etiqueta, { color }]}>{ETIQUETA[ruta.name]}</Texto>
+            <View>
+              {icono(ruta.name, ruta.name === 'Jugar' ? colores.correcta : color)}
+              {ruta.name === 'Jugar' && pendientes > 0 && (
+                <View style={estilos.badge}>
+                  <Texto style={estilos.badgeTexto}>{pendientes > 9 ? '9+' : pendientes}</Texto>
+                </View>
+              )}
+            </View>
+            <Texto style={[estilos.etiqueta, { color: ruta.name === 'Jugar' && activa ? colores.correcta : color }]}>
+              {ETIQUETA[ruta.name]}
+            </Texto>
           </Pressable>
         );
       })}
@@ -97,9 +82,10 @@ export function BarraPestanas({ state, navigation }: BottomTabBarProps) {
 }
 
 function icono(nombre: string, color: string) {
-  if (nombre === 'Inicio') return <IconoCasa color={color} />;
+  if (nombre === 'Jugar') return <IconoJugar tamano={22} />;
   if (nombre === 'Tabla') return <IconoTrofeo color={color} />;
-  return <IconoCalendario color={color} />;
+  if (nombre === 'Jornadas') return <IconoCalendario color={color} />;
+  return <IconoPersona color={color} />;
 }
 
 const estilos = StyleSheet.create({
@@ -107,30 +93,15 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: colores.fondo,
-    borderTopWidth: 3,
-    borderTopColor: colores.acento,
+    borderTopWidth: 1,
+    borderTopColor: colores.borde,
     paddingTop: espaciado.xs,
   },
   pestana: {
     flex: 1,
     alignItems: 'center',
     gap: 2,
-    paddingVertical: 4,
-  },
-  jugar: {
-    flex: 1,
-    alignItems: 'center',
-    marginTop: -18,
-  },
-  ficha: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: colores.correcta,
-    borderBottomWidth: 5,
-    borderBottomColor: oscurecer(colores.correcta),
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 6,
   },
   badge: {
     position: 'absolute',

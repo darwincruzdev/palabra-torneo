@@ -10,8 +10,9 @@ type Props = {
   /** Id para el color del emblema. Sin id, no hay ficha: es La diaria o nadie. */
   torneoId?: string | null;
   detalle?: string;
-  /** Vuelve a Mis torneos. Es la forma de salir del torneo en el que estás. */
+  /** Vuelve atrás: a la lista de torneos o al selector de esta pestaña. */
   volver?: () => void;
+  etiquetaVolver?: string;
   /** Color del torneo: raya de la cabecera, para saber de un vistazo cuál es. */
   color?: string;
   onPress?: () => void;
@@ -24,7 +25,16 @@ type Props = {
  * El nombre va grande y la raya es del color del torneo. La flecha vuelve a
  * la lista: desde dentro no se cambia de grupo sin salir.
  */
-export function CabeceraTorneo({ nombre, torneoId, detalle, volver, color, onPress, derecha }: Props) {
+export function CabeceraTorneo({
+  nombre,
+  torneoId,
+  detalle,
+  volver,
+  etiquetaVolver = 'Volver',
+  color,
+  onPress,
+  derecha,
+}: Props) {
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -42,7 +52,7 @@ export function CabeceraTorneo({ nombre, torneoId, detalle, volver, color, onPre
           onPress={volver}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Volver a mis torneos"
+          accessibilityLabel={etiquetaVolver}
           style={estilos.atras}
         >
           <Texto style={estilos.atrasTexto}>←</Texto>

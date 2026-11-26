@@ -5,7 +5,7 @@ import { Avatar } from '../components/Avatar';
 import { Ficha } from '../components/Ficha';
 import { RejillaMini } from '../components/RejillaMini';
 import { CabeceraTorneo } from '../components/CabeceraTorneo';
-import { Boton, Sutil, Tarjeta } from '../components/ui';
+import { Sutil, Tarjeta } from '../components/ui';
 import { fechaCorta, fechaJuego, fechaLarga } from '../game/fecha';
 import { numeroJornada, solucionDe } from '../game/palabras';
 import { colorDeTorneo } from '../game/emblema';
@@ -17,7 +17,8 @@ import { colores, espaciado, fuentes, texto as escala } from '../tema';
 import type { DiaTorneo, Torneo } from '../tipos';
 
 type Props = {
-  irATorneos: () => void;
+  torneoId: string;
+  volver?: () => void;
 };
 
 /**
@@ -25,10 +26,10 @@ type Props = {
  *
  * La de hoy no enseña la palabra ni las rejillas ajenas hasta que hayas jugado.
  */
-export function PantallaHistorial({ irATorneos }: Props) {
-  const { torneoCabecera, jornadas, uid, resumenes, cargarResumenes } = useApp();
+export function PantallaHistorial({ torneoId, volver }: Props) {
+  const { torneos, jornadas, uid, resumenes, cargarResumenes } = useApp();
   const [abierta, setAbierta] = useState<string | null>(null);
-  const torneo = torneoCabecera;
+  const torneo = torneos.find((t) => t.id === torneoId) ?? null;
   const hoy = fechaJuego();
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export function PantallaHistorial({ irATorneos }: Props) {
       <View style={estilos.vacio}>
         <Texto style={estilos.tituloVacio}>Sin jornadas</Texto>
         <Sutil>Cuando estés en un torneo, aquí queda la palabra de cada día.</Sutil>
-        <Boton titulo="Mis torneos" onPress={irATorneos} />
+        <Sutil>Elige un torneo en Jugar.</Sutil>
       </View>
     );
   }
@@ -64,7 +65,8 @@ export function PantallaHistorial({ irATorneos }: Props) {
         nombre={torneo.nombre}
         torneoId={torneo.id}
         detalle={`Jornada ${numeroJornada(hoy, torneo.fechaInicio)} · ${fechaCorta(hoy)}`}
-        volver={irATorneos}
+        volver={volver}
+        etiquetaVolver="Elegir otro torneo"
         color={colorDeTorneo(torneo.id)}
       />
       <ScrollView contentContainerStyle={estilos.contenido}>

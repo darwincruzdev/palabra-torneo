@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
@@ -48,6 +49,7 @@ export function PantallaPerfil({ irANormas, irATorneo }: Props) {
   const [borrando, setBorrando] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
   const hoy = fechaJuego();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => setBorradorNombre(nombre), [nombre]);
   useEffect(() => setBorradorAvatar(avatar), [avatar]);
@@ -101,7 +103,10 @@ export function PantallaPerfil({ irANormas, irATorneo }: Props) {
   const maximo = Math.max(1, ...stats.reparto);
 
   return (
-    <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={[estilos.contenido, { paddingTop: insets.top + espaciado.md }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={estilos.cabecera}>
         <Avatar avatar={avatar} lado={64} />
         <View style={{ flex: 1 }}>

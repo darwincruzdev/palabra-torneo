@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { Emblema } from '../components/Emblema';
 import { CasillasCodigo } from '../components/CasillasCodigo';
 import { EscanerQr } from '../components/EscanerQr';
 import { Boton, Sutil } from '../components/ui';
-import { Hoja } from '../components/Hoja';
 import { clasificacion } from '../game/clasificacion';
 import { fechaJuego } from '../game/fecha';
 import { colorDeTorneo } from '../game/emblema';
@@ -17,9 +17,7 @@ import { useApp } from '../estado/AppContext';
 import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
 type Props = {
-  /** Entra en el espacio del torneo (Inicio). */
-  entrar: (torneoId: string) => void;
-  /** Entra directo a la palabra de ese torneo. */
+  /** Abre la partida de hoy de ese torneo, o el resultado si ya está jugada. */
   jugar: (torneoId: string) => void;
   jugarDiaria: () => void;
   irADuelos: () => void;
@@ -30,7 +28,6 @@ type Props = {
 
 /** La lista de torneos. Es la única forma de cambiar el de la cabecera. */
 export function PantallaTorneos({
-  entrar,
   jugar,
   jugarDiaria,
   irADuelos,
@@ -48,9 +45,8 @@ export function PantallaTorneos({
   const [exito, setExito] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<'crear' | 'unirse' | null>(null);
   const [escaner, setEscaner] = useState(false);
-  const [eligiendo, setEligiendo] = useState(false);
+  const insets = useSafeAreaInsets();
   const hoy = fechaJuego();
-  const pendientes = torneos.filter((t) => faltaPorJugar(jornadas[t.id] ?? [], uid, hoy));
 
   useEffect(() => {
     if (codigoEntrante) {
@@ -103,35 +99,13 @@ export function PantallaTorneos({
     }
   }
 
-  function pulsarJugarGeneral() {
-    if (pendientes.length > 1) {
-      setEligiendo(true);
-      return;
-    }
-    if (pendientes.length === 1) {
-      jugar(pendientes[0].id);
-      return;
-    }
-    if (torneos.length === 0) {
-      jugarDiaria();
-      return;
-    }
-    setError('Hoy ya has jugado en todos tus torneos.');
-  }
-
-  const tituloJugar =
-    pendientes.length > 1
-      ? `Elegir torneo · ${pendientes.length} pendientes`
-      : pendientes.length === 1
-        ? `Jugar en ${pendientes[0].nombre}`
-        : torneos.length === 0
-          ? 'Jugar La diaria'
-          : 'Hoy ya está jugado';
-
   return (
     <>
-    <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
-      <Boton titulo={tituloJugar} onPress={pulsarJugarGeneral} />
+    <ScrollView
+      contentContainerStyle={[estilos.contenido, { paddingTop: insets.top + espaciado.md }]}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Texto style={estilos.tituloLista}>Mis torneos</Texto>
       {torneos.length === 0 && (
         <Sutil>
           {hayFirebase
@@ -157,9 +131,11 @@ export function PantallaTorneos({
         return (
           <Pressable
             key={torneo.id}
-            onPress={() => entrar(torneo.id)}
+            onPress={() => jugar(torneo.id)}
             accessibilityRole="button"
-            accessibilityLabel={`Entrar en ${torneo.nombre}`}
+            accessibilityLabel={
+              falta ? `Jugar la palabra de ${torneo.nombre}` : `Ver la partida de ${torneo.nombre}`
+            }
             style={[estilos.tarjeta, { borderColor: color }]}
           >
             <View style={estilos.fila}>
@@ -203,18 +179,7 @@ export function PantallaTorneos({
                   <Avatar key={fila.uid} avatar={fila.avatar} lado={18} />
                 ))}
               </View>
-              {falta ? (
-                <Pressable
-                  onPress={() => jugar(torneo.id)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Jugar en ${torneo.nombre}`}
-                >
-                  <Texto style={[estilos.accion, { color }]}>Jugar ›</Texto>
-                </Pressable>
-              ) : (
-                <Texto style={[estilos.accion, { color }]}>Entrar ›</Texto>
-              )}
+              <Texto style={[estilos.accion, { color }]}>{falta ? 'Jugar ›' : 'Ver ›'}</Texto>
             </View>
           </Pressable>
         );
@@ -308,25 +273,6 @@ export function PantallaTorneos({
       {exito && <Texto style={estilos.exito}>{exito}</Texto>}
     </ScrollView>
 
-      <Hoja visible={eligiendo} cerrar={() => setEligiendo(false)} titulo="¿En cuál juegas?">
-        <Sutil>Hay más de un torneo pendiente. Elige uno: no se entra en ninguno solo.</Sutil>
-        {pendientes.map((torneo) => (
-          <Pressable
-            key={torneo.id}
-            onPress={() => {
-              setEligiendo(false);
-              jugar(torneo.id);
-            }}
-            accessibilityRole="button"
-            style={estilos.opcion}
-          >
-            <Emblema nombre={torneo.nombre} id={torneo.id} lado={36} />
-            <Texto style={estilos.nombre}>{torneo.nombre}</Texto>
-            <Texto style={[estilos.accion, { color: colorDeTorneo(torneo.id) }]}>Jugar ›</Texto>
-          </Pressable>
-        ))}
-      </Hoja>
-
       <EscanerQr
         visible={escaner}
         cerrar={() => setEscaner(false)}
@@ -377,6 +323,13 @@ function mensajeDeError(e: unknown): string {
 
 const estilos = StyleSheet.create({
   contenido: { padding: espaciado.lg, gap: espaciado.sm, paddingBottom: espaciado.xl * 2 },
+  tituloLista: {
+    color: colores.texto,
+    fontFamily: fuentes.titularNegro,
+    fontSize: escala.titulo,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
   tarjeta: {
     backgroundColor: colores.superficie,
     borderRadius: 16,

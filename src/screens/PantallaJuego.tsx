@@ -122,6 +122,7 @@ export function PantallaJuego({ irATorneos, irATabla }: Props) {
             : `Jornada ${jornada} · ${fechaCorta(juego.fecha)}`
         }
         volver={irATorneos}
+        etiquetaVolver="Volver a mis torneos"
         color={activo.tipo === 'torneo' ? colorDeTorneo(activo.id) : undefined}
         derecha={
           !esLibre ? (

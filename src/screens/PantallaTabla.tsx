@@ -9,6 +9,7 @@ import { IconoCompartir } from '../components/Iconos';
 import { FichaArcade } from '../components/FichaArcade';
 import { Boton, Sutil, Tarjeta } from '../components/ui';
 import { HojaInvitar } from './HojaInvitar';
+import { HojaArsenal } from './HojaArsenal';
 import { normalizarAvatar } from '../game/avatares';
 import {
   campeonDelAno,
@@ -35,10 +36,13 @@ import { useApp } from '../estado/AppContext';
 import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
 type Props = {
-  irATorneos: () => void;
+  torneoId: string;
+  /** Vuelve al selector. Sin ella, sólo hay un torneo y no hay a dónde volver. */
+  volver?: () => void;
   irAAjustes: (torneoId: string) => void;
   /** Abre la hoja de invitar al entrar. Sólo capturas. */
   invitarInicial?: boolean;
+  arsenalInicial?: boolean;
 };
 
 type Vista = 'mes' | 'hoy' | 'palmares';
@@ -46,9 +50,9 @@ type Vista = 'mes' | 'hoy' | 'palmares';
 const COLOR_PUESTO = [colores.oro, colores.presente, colores.bronce];
 
 /** La clasificación, y nada más: mes, hoy y palmarés. */
-export function PantallaTabla({ irATorneos, irAAjustes, invitarInicial }: Props) {
+export function PantallaTabla({ torneoId, volver, irAAjustes, invitarInicial, arsenalInicial }: Props) {
   const {
-    torneoCabecera,
+    torneos,
     jornadas,
     uid,
     reglasDe,
@@ -58,9 +62,10 @@ export function PantallaTabla({ irATorneos, irAAjustes, invitarInicial }: Props)
   } = useApp();
   const [vista, setVista] = useState<Vista>('mes');
   const [invitar, setInvitar] = useState(Boolean(invitarInicial));
+  const [arsenal, setArsenal] = useState(Boolean(arsenalInicial));
   const [mirando, setMirando] = useState<string | null>(null);
   const hoy = fechaJuego();
-  const torneo = torneoCabecera;
+  const torneo = torneos.find((t) => t.id === torneoId) ?? null;
   const dias = torneo ? (jornadas[torneo.id] ?? []) : [];
 
   useEffect(() => {
@@ -93,7 +98,7 @@ export function PantallaTabla({ irATorneos, irAAjustes, invitarInicial }: Props)
       <View style={estilos.vacio}>
         <Texto style={estilos.tituloVacio}>Todavía no hay tabla</Texto>
         <Sutil>Crea un torneo o únete a uno y aquí verás cómo vais.</Sutil>
-        <Boton titulo="Mis torneos" onPress={irATorneos} />
+        <Sutil>Elige un torneo en Jugar.</Sutil>
       </View>
     );
   }
@@ -107,7 +112,8 @@ export function PantallaTabla({ irATorneos, irAAjustes, invitarInicial }: Props)
         nombre={torneo.nombre}
         torneoId={torneo.id}
         detalle={detalle}
-        volver={irATorneos}
+        volver={volver}
+        etiquetaVolver="Elegir otro torneo"
         color={colorDeTorneo(torneo.id)}
         derecha={
           <>
@@ -208,6 +214,16 @@ export function PantallaTabla({ irATorneos, irAAjustes, invitarInicial }: Props)
               <Texto style={estilos.leyendaItem}>👑 abre con palabra impuesta</Texto>
               <Texto style={estilos.leyendaItem}>🛡 escudo usado</Texto>
             </View>
+
+            <Pressable
+              onPress={() => setArsenal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir tu arsenal"
+              style={estilos.arsenal}
+            >
+              <Texto style={estilos.arsenalTexto}>🛡 Tu arsenal</Texto>
+              <Texto style={estilos.arsenalIr}>Abrir ›</Texto>
+            </Pressable>
 
             {anterior && anterior.ganadores.length > 0 && (
               <Tarjeta>
@@ -319,6 +335,7 @@ export function PantallaTabla({ irATorneos, irAAjustes, invitarInicial }: Props)
       </ScrollView>
 
       <HojaInvitar torneoId={torneo.id} visible={invitar} cerrar={() => setInvitar(false)} />
+      <HojaArsenal torneoId={torneo.id} visible={arsenal} cerrar={() => setArsenal(false)} />
       <FichaArcade
         uid={mirando}
         nombre={mirando ? nombreDe(mirando) : ''}
@@ -423,6 +440,19 @@ const estilos = StyleSheet.create({
     fontSize: escala.micro,
   },
   leyenda: { flexDirection: 'row', flexWrap: 'wrap', gap: espaciado.sm, marginTop: espaciado.sm },
+  arsenal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colores.superficie,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colores.borde,
+    paddingHorizontal: espaciado.md,
+    paddingVertical: 12,
+  },
+  arsenalTexto: { color: colores.texto, fontFamily: fuentes.cuerpoFuerte, fontSize: escala.medio },
+  arsenalIr: { color: colores.acento, fontFamily: fuentes.cuerpoFuerte, fontSize: escala.pequeno },
   leyendaItem: {
     color: colores.textoSuave,
     fontFamily: fuentes.cuerpo,
