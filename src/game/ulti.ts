@@ -1,5 +1,5 @@
 import type { DiaTorneo, Ulti } from '../tipos';
-import { esSolucion } from './palabras';
+import { esAceptada } from './palabras';
 import { mesDe } from './temporada';
 
 /** Una al mes. Si fueran más dejaría de ser un acontecimiento. */
@@ -35,16 +35,17 @@ export function ultisDe(dia: DiaTorneo | undefined): UltiLanzada[] {
  * casilla por persona y cada cual sólo escribe la suya. Si pasa, vale la
  * primera, y la segunda se queda sin efecto.
  *
- * Se ignoran las palabras que no sean soluciones posibles. Es la misma defensa
+ * Se ignoran las palabras que no estén en el diccionario. Es la misma defensa
  * que con las balas: el servidor no tiene el diccionario, así que la comprueba
- * quien la recibe.
+ * quien la recibe. Vale cualquier palabra que el juego acepte como intento,
+ * que es justo lo que se puede teclear al ponerla.
  */
 export function ultiDe(
   dia: DiaTorneo | undefined,
   reglas: { ulti: boolean }
 ): UltiLanzada | null {
   if (!reglas.ulti) return null;
-  return ultisDe(dia).find((u) => esSolucion(u.palabra)) ?? null;
+  return ultisDe(dia).find((u) => esAceptada(u.palabra)) ?? null;
 }
 
 /**
@@ -115,15 +116,19 @@ export function impedimentoParaUlti(datos: {
 /**
  * Qué le pasa a una palabra que se quiere poner de ulti, si es que le pasa algo.
  *
- * Se exige que sea una de las soluciones posibles y no cualquier palabra del
- * diccionario. Las soluciones son de uso corriente; el diccionario largo tiene
- * rarezas con las que el torneo entero sacaría cero, y eso no es picante, es
- * reventar la jornada.
+ * Vale cualquier palabra del diccionario, la misma lista que se admite como
+ * intento. Antes sólo valían las 2.500 soluciones, y eso rechazaba palabras
+ * perfectamente corrientes: quien ponía la ulti no tenía forma de saber por
+ * qué su palabra no entraba, porque esa lista no se enseña en ninguna parte.
+ *
+ * El precio es que ahora se puede imponer una rareza del diccionario largo y
+ * dejar al torneo a cero. Es un riesgo aceptado: la ulti se gasta una vez al
+ * mes y se sabe quién la ha puesto.
  */
 export function problemaConLaPalabra(palabra: string): string | null {
   if (palabra.length === 0) return 'Escribe una palabra.';
-  if (!esSolucion(palabra)) {
-    return 'Tiene que ser una palabra de las que el juego usa como solución. Prueba con una más corriente.';
+  if (!esAceptada(palabra)) {
+    return 'Esa palabra no está en el diccionario del juego. Revisa cómo se escribe.';
   }
   return null;
 }

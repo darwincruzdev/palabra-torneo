@@ -11,7 +11,7 @@ import {
   ultisGastadas,
   ultisQueLeQuedan,
 } from '../src/game/ulti';
-import { esSolucion, solucionDe } from '../src/game/palabras';
+import { esAceptada, esSolucion, solucionDe } from '../src/game/palabras';
 import type { DiaTorneo, Ulti } from '../src/tipos';
 
 const CON = { ulti: true };
@@ -21,6 +21,9 @@ const INICIO = '2026-01-01';
 /** Dos palabras que seguro están en la lista de soluciones. */
 const BUENA = solucionDe('2026-01-10');
 const OTRA = solucionDe('2026-02-10');
+
+/** Del diccionario pero fuera de las soluciones: antes se rechazaba. */
+const CORRIENTE = 'mecer';
 
 function dia(fecha: string, ultis?: Record<string, Ulti>): DiaTorneo {
   return { fecha, resultados: {}, ...(ultis ? { ultis } : {}) };
@@ -60,10 +63,19 @@ describe('la ulti de una jornada', () => {
     );
   });
 
-  it('una palabra que no es solución posible no obliga a nadie', () => {
+  it('una palabra que no está en el diccionario no obliga a nadie', () => {
     // El servidor no tiene el diccionario, así que la comprueba quien la recibe.
     const jornada = dia('2026-01-10', { ana: { palabra: 'zzzzz', lanzada: '2026-01-09' } });
     assert.equal(ultiDe(jornada, CON), null);
+  });
+
+  it('una del diccionario que no es solución sí manda', () => {
+    // El filtro de quien la recibe tiene que admitir lo mismo que el de quien
+    // la pone: si no, la ulti se guarda y luego no la juega nadie.
+    assert.equal(esSolucion(CORRIENTE), false);
+    const jornada = dia('2026-01-10', { ana: { palabra: CORRIENTE, lanzada: '2026-01-09' } });
+    assert.equal(ultiDe(jornada, CON)?.palabra, CORRIENTE);
+    assert.equal(solucionParaMi(BUENA, ultiDe(jornada, CON), 'zoe'), CORRIENTE);
   });
 
   it('y si la mala llegó antes, manda la buena que venga detrás', () => {
@@ -161,16 +173,21 @@ describe('qué palabra vale', () => {
     assert.match(problemaConLaPalabra('') ?? '', /Escribe/);
   });
 
-  it('una rareza del diccionario largo, tampoco', () => {
-    // Vale como intento pero no como solución: imponerla sería reventar la
-    // jornada de todo el torneo, no picarles.
-    const rara = 'abaña';
-    assert.equal(esSolucion(rara), false);
-    assert.match(problemaConLaPalabra(rara) ?? '', /solución/);
+  it('una del diccionario que no es solución, también', () => {
+    // El caso de la queja: palabras corrientes que el juego acepta como
+    // intento pero que no están entre las 2.500 soluciones.
+    assert.equal(esAceptada(CORRIENTE), true);
+    assert.equal(esSolucion(CORRIENTE), false);
+    assert.equal(problemaConLaPalabra(CORRIENTE), null);
   });
 
-  it('un invento tampoco', () => {
-    assert.match(problemaConLaPalabra('zzzzz') ?? '', /solución/);
+  it('hasta una rareza del diccionario largo', () => {
+    assert.equal(problemaConLaPalabra('abaña'), null);
+  });
+
+  it('un invento, no', () => {
+    assert.equal(esAceptada('zzzzz'), false);
+    assert.match(problemaConLaPalabra('zzzzz') ?? '', /diccionario/);
   });
 });
 

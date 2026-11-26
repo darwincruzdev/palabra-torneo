@@ -120,8 +120,9 @@ export function PantallaNormas() {
 
       <Desplegable titulo="La ulti" resumen="Una al mes: tú eliges la palabra de los demás.">
         <Sutil>
-          Mañana la juega todo el torneo menos tú, que juegas la normal. Tiene que ser una palabra
-          de las que el juego usa como solución. Sólo cabe una por jornada: vale la primera.
+          Mañana la juega todo el torneo menos tú, que juegas la normal. Vale cualquier palabra del
+          diccionario, las mismas que se admiten como intento. Sólo cabe una por jornada: vale la
+          primera.
         </Sutil>
       </Desplegable>
 
