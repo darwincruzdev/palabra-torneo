@@ -5,8 +5,6 @@ import {
   MAX_VOCALES_AL_ABRIR,
   PROTECCIONES_POR_MES,
   balasQueLeQuedan,
-  blueshellsContra,
-  blueshellsEfectivas,
   blueshellsGastadas,
   cuentaVocales,
   cumple,
@@ -60,44 +58,6 @@ describe('normalizarReglas', () => {
   });
 });
 
-describe('blueshells recibidas', () => {
-  const jornada = dia('2026-01-10', {
-    blueshells: {
-      caj: bala('ana', 'sosos', '2026-01-09'),
-      bea: bala('ana', 'vivir', '2026-01-08'),
-      dan: bala('bea', 'tutus', '2026-01-09'),
-    },
-  });
-
-  it('sólo devuelve las que van contra esa persona', () => {
-    assert.deepEqual(
-      blueshellsContra(jornada, 'ana').map((b) => b.autor),
-      ['bea', 'caj']
-    );
-    assert.deepEqual(
-      blueshellsContra(jornada, 'bea').map((b) => b.autor),
-      ['dan']
-    );
-  });
-
-  it('las ordena igual en todos los móviles: por día y luego por uid', () => {
-    const empatadas = dia('2026-01-10', {
-      blueshells: {
-        caj: bala('ana', 'cocos', '2026-01-09'),
-        bea: bala('ana', 'sosos', '2026-01-09'),
-      },
-    });
-    assert.deepEqual(
-      blueshellsContra(empatadas, 'ana').map((b) => b.palabra),
-      ['sosos', 'cocos']
-    );
-  });
-
-  it('no se cae si la jornada no existe todavía', () => {
-    assert.deepEqual(blueshellsContra(undefined, 'ana'), []);
-  });
-});
-
 describe('protección', () => {
   const jornada = dia('2026-01-10', {
     blueshells: {
@@ -105,11 +65,6 @@ describe('protección', () => {
       caj: bala('ana', 'vivir', '2026-01-09'),
     },
     protecciones: { ana: true },
-  });
-
-  it('anula todas las balas de esa jornada, no sólo una', () => {
-    assert.equal(blueshellsContra(jornada, 'ana').length, 2);
-    assert.deepEqual(blueshellsEfectivas(jornada, 'ana'), []);
   });
 
   it('sólo protege a quien la gastó', () => {
@@ -292,17 +247,17 @@ describe('lo que ve el grupo', () => {
     assert.deepEqual(todasLasBlueshells(dia('2026-01-11')), []);
   });
 
-  it('el mensaje dice quién, a quién y con qué palabra', () => {
+  it('el mensaje dice quién dispara y con qué, sin nombrar víctima', () => {
+    // Cuando se manda, la jornada sigue abierta: la víctima no existe todavía.
     const texto = mensajeDeBlueshell({
       torneo: 'Torneazo',
       autor: 'Bea',
-      objetivo: 'Darwin',
       palabra: 'sosos',
     });
     assert.match(texto, /Torneazo/);
     assert.match(texto, /Bea/);
-    assert.match(texto, /Darwin/);
     assert.match(texto, /SOSOS/);
+    assert.match(texto, /termine primero hoy/);
   });
 
   it('mete el enlace de la web sólo si lo hay', () => {
