@@ -279,11 +279,6 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     cargarPerfilLocal().then((guardado) => {
       if (MAQUETA_ACTIVA) return;
-      // TEMPORAL: si el móvil no guarda, aquí sale null y lo demás se explica solo.
-      console.info('[perfil] leído del móvil', {
-        existe: guardado !== null,
-        configurado: guardado?.configurado,
-      });
       if (!guardado) return;
       setNombre(guardado.nombre);
       setAvatar(normalizarAvatar(guardado.avatar));
@@ -304,13 +299,6 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     datos
       .leerPerfil(uid)
       .then((perfil) => {
-        // TEMPORAL: para dar con por qué vuelve a salir la bienvenida.
-        console.info('[perfil] leído del servidor', {
-          existe: perfil !== null,
-          configurado: perfil?.configurado,
-          tieneNombre: !!perfil?.nombre,
-          copas: perfil?.copas,
-        });
         // La del servidor y la del móvil pueden no coincidir: se juega sin
         // cuenta, o desde dos aparatos. Manda la mejor, no la última en llegar.
         if (perfil?.arcade) {
@@ -828,10 +816,7 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
        * dejaba a la persona dando vueltas por la bienvenida sin una sola pista
        * de por qué. Quien llama decide qué enseñar.
        */
-      // TEMPORAL: junto al de la lectura, dice si el perfil llega a escribirse.
-      console.info('[perfil] guardando en el servidor', { uid, nombre: limpio });
       await datos.guardarPerfil(uid, limpio, seguro, suTitulo);
-      console.info('[perfil] guardado en el servidor');
       // Que la clasificación de cada torneo se entere del cambio.
       await datos.propagarPerfil(
         uid,
