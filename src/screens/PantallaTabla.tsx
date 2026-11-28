@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
+import { Copas } from '../components/Copas';
+import { IconoTrofeo } from '../components/Iconos';
 import { Ficha } from '../components/Ficha';
 import { RejillaMini } from '../components/RejillaMini';
 import { BotonCabecera, CabeceraTorneo } from '../components/CabeceraTorneo';
@@ -179,9 +181,7 @@ export function PantallaTabla({ torneoId, volver, irAAjustes, invitarInicial, ar
                         {fila.nombre}
                       </Texto>
                       {fila.uid === uid && <Texto style={estilos.tu}>TÚ</Texto>}
-                      {(trofeosDe[fila.uid] ?? 0) > 0 && (
-                        <Texto style={estilos.distintivo}>🏆×{trofeosDe[fila.uid]}</Texto>
-                      )}
+                      <Copas copas={trofeosDe[fila.uid] ?? 0} />
                       {fila.uid === lider && reglas.penalizacionLider && (
                         <Texto style={estilos.distintivo}>👑</Texto>
                       )}
@@ -213,7 +213,12 @@ export function PantallaTabla({ torneoId, volver, irAAjustes, invitarInicial, ar
             })}
 
             <View style={estilos.leyenda}>
-              <Texto style={estilos.leyendaItem}>🏆 trofeos del año</Texto>
+              <View style={estilos.leyendaCopas}>
+                <IconoTrofeo color={colores.oro} tamano={13} />
+                {/* El recuento es de todo el torneo, no del año: sale del
+                    palmarés entero, que es de donde lo coge la fila. */}
+                <Texto style={estilos.leyendaItem}>copas ganadas</Texto>
+              </View>
               <Texto style={estilos.leyendaItem}>👑 abre con palabra impuesta</Texto>
               <Texto style={estilos.leyendaItem}>🛡 escudo usado</Texto>
             </View>
@@ -442,6 +447,7 @@ const estilos = StyleSheet.create({
     fontFamily: fuentes.cuerpo,
     fontSize: escala.micro,
   },
+  leyendaCopas: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   leyenda: { flexDirection: 'row', flexWrap: 'wrap', gap: espaciado.sm, marginTop: espaciado.sm },
   arsenal: {
     flexDirection: 'row',

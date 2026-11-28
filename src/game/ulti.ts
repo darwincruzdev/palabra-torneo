@@ -144,3 +144,38 @@ export function mensajeDeUlti(datos: {
     `juega la palabra que ha elegido. Menos él, que juega la normal.`;
   return datos.enlace ? `${base}\n${datos.enlace}` : base;
 }
+
+/* ------------------------------------------------------- cómo se anuncia */
+
+/**
+ * El autor no hay que guardarlo: ya se guarda.
+ *
+ * En el documento del día, `ultis` es un mapa indexado por uid, así que quien
+ * la puso **es la clave**. `ultisDe` la saca de ahí y la deja en `autor`. Las
+ * ultis de antes de este parche lo traen igual, porque nunca dejaron de
+ * traerlo: lo que faltaba era decirlo en la pantalla de juego, que era la
+ * única que anunciaba la ulti sin nombre.
+ *
+ * Lo que sí puede faltar es el **nombre**: al salir de un torneo se borra el
+ * perfil, y la ulti sigue viva en una jornada ya jugada. En ese caso se dice
+ * sin nombre, que es más honrado que inventarle un "alguien".
+ */
+export function etiquetaDeUlti(datos: { esMia: boolean; autor: string | null }): string {
+  if (datos.esMia) return 'Tu ulti';
+  return datos.autor ? `Ulti de ${datos.autor}` : 'Ulti';
+}
+
+/** Lo que se cuenta al tocar la etiqueta de la ulti en el tablero. */
+export function avisoDeUlti(datos: {
+  esMia: boolean;
+  palabra: string;
+  autor: string | null;
+}): string {
+  if (datos.esMia) {
+    return `Hoy el torneo juega tu ${datos.palabra.toUpperCase()}. A ti te toca la normal.`;
+  }
+  const quien = datos.autor
+    ? `Palabra elegida por ${datos.autor}`
+    : 'Palabra elegida por otro jugador';
+  return `${quien}: hoy no juegas la palabra del día, sino la suya.`;
+}

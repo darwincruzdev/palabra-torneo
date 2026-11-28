@@ -6,6 +6,7 @@ import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { Emblema } from '../components/Emblema';
 import { SelectorAvatar } from '../components/SelectorAvatar';
+import { Copas } from '../components/Copas';
 import { Boton, Sutil, Tarjeta } from '../components/ui';
 import { Confirmacion } from '../components/Confirmacion';
 import { IconoLapiz } from '../components/Iconos';
@@ -205,7 +206,7 @@ export function PantallaPerfil({ irANormas, irATorneo }: Props) {
                 <Texto style={estilos.nombreTorneo} numberOfLines={1}>
                   {torneo.nombre}
                 </Texto>
-                {trofeos > 0 && <Texto style={estilos.trofeo}>🏆×{trofeos}</Texto>}
+                <Copas copas={trofeos} />
                 <Texto style={estilos.puesto}>
                   {puesto > 0 ? `${puesto}.º · ${puntos} pts` : `${puntos} pts`}
                 </Texto>
@@ -354,7 +355,6 @@ const estilos = StyleSheet.create({
     padding: espaciado.sm,
   },
   nombreTorneo: { flex: 1, color: colores.texto, fontFamily: fuentes.cuerpoFuerte, fontSize: escala.normal },
-  trofeo: { fontSize: 12 },
   puesto: { color: colores.textoSuave, fontFamily: fuentes.cuerpo, fontSize: escala.pequeno },
   entrada: {
     flexDirection: 'row',

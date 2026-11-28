@@ -16,6 +16,7 @@ import { clasificacion, liderDestacado } from '../game/clasificacion';
 import { fechaCorta, fechaJuego } from '../game/fecha';
 import { numeroJornada } from '../game/palabras';
 import { patronCompartible } from '../game/evaluar';
+import { avisoDeUlti, etiquetaDeUlti } from '../game/ulti';
 import { colorDeTorneo } from '../game/emblema';
 import { faltaPorJugar } from '../game/pendientes';
 import { TORNEO_LIBRE, useApp } from '../estado/AppContext';
@@ -203,14 +204,19 @@ export function PantallaJuego({ irATorneos, irATabla }: Props) {
             )}
             {juego.ulti && (
               <Chip
-                etiqueta={juego.ulti.autor === uid ? 'Tu ulti' : 'Ulti'}
+                etiqueta={etiquetaDeUlti({
+                  esMia: juego.ulti.autor === uid,
+                  autor: juego.autorUlti,
+                })}
                 color={colores.peligro}
                 onPress={() =>
                   alternar(
                     'ulti',
-                    juego.ulti!.autor === uid
-                      ? `Hoy el torneo juega tu ${juego.ulti!.palabra.toUpperCase()}. A ti te toca la normal.`
-                      : 'Alguien ha gastado su ulti: hoy no juegas la palabra del día, sino la que ha elegido.'
+                    avisoDeUlti({
+                      esMia: juego.ulti!.autor === uid,
+                      palabra: juego.ulti!.palabra,
+                      autor: juego.autorUlti,
+                    })
                   )
                 }
               />

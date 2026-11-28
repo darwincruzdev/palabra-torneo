@@ -207,6 +207,24 @@ describe('trofeos y campeón del año', () => {
     assert.deepEqual(trofeosPorJugador(trofeos), { bea: 1, ana: 1 });
   });
 
+  /**
+   * De aquí salen las copas que la tabla pinta junto a cada nombre. No hay
+   * contador aparte: es este mismo recuento, el del palmarés.
+   */
+  it('quien no ha ganado ningún mes no aparece en el recuento', () => {
+    // El distintivo se pinta con `?? 0` y sólo si pasa de cero: no estar en el
+    // mapa es lo que hace que a un torneo nuevo no le salgan ceros por todas
+    // partes.
+    const cuenta = trofeosPorJugador(trofeos);
+    assert.equal(cuenta['caj'], undefined);
+    assert.equal(cuenta['caj'] ?? 0, 0);
+  });
+
+  it('un mes compartido da copa a los dos', () => {
+    const compartido = [{ mes: '2026-07', uids: ['ana', 'bea'] }];
+    assert.deepEqual(trofeosPorJugador(compartido), { ana: 1, bea: 1 });
+  });
+
   it('el campeón del año es quien más lleva', () => {
     const conTercero = [...trofeos, { mes: '2026-06', uids: ['ana'] }];
     assert.deepEqual(campeonDelAno(torneo, dias, conTercero, '2026'), {

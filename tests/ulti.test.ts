@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   ULTIS_POR_MES,
+  avisoDeUlti,
+  etiquetaDeUlti,
   impedimentoParaUlti,
   mensajeDeUlti,
   problemaConLaPalabra,
@@ -204,5 +206,46 @@ describe('el mensaje para el grupo', () => {
   it('mete el enlace sólo si lo hay', () => {
     assert.ok(!mensajeDeUlti(datos).includes('http'));
     assert.match(mensajeDeUlti({ ...datos, enlace: 'https://x.web.app' }), /https:\/\/x/);
+  });
+});
+
+describe('quién puso la ulti', () => {
+  it('el autor sale del documento, no de un campo nuevo', () => {
+    // La clave del mapa es el uid: por eso las ultis viejas ya traen autor.
+    const dia = {
+      fecha: '2026-08-11',
+      resultados: {},
+      ultis: { bea: { palabra: BUENA, lanzada: '2026-08-10' } },
+    };
+    assert.equal(ultisDe(dia)[0].autor, 'bea');
+  });
+
+  it('se anuncia con el nombre de quien la puso', () => {
+    assert.equal(etiquetaDeUlti({ esMia: false, autor: 'Bea' }), 'Ulti de Bea');
+    assert.match(
+      avisoDeUlti({ esMia: false, palabra: BUENA, autor: 'Bea' }),
+      /elegida por Bea/
+    );
+  });
+
+  it('sin nombre si quien la puso ya no está en el torneo', () => {
+    // Al salir se le borra el perfil, pero su ulti sigue en la jornada.
+    assert.equal(etiquetaDeUlti({ esMia: false, autor: null }), 'Ulti');
+    const texto = avisoDeUlti({ esMia: false, palabra: BUENA, autor: null });
+    assert.match(texto, /elegida por otro jugador/);
+    assert.ok(!texto.includes('null'));
+    assert.ok(!texto.includes('alguien'));
+  });
+
+  it('a quien la puso se le dice que juega la normal', () => {
+    assert.equal(etiquetaDeUlti({ esMia: true, autor: 'Bea' }), 'Tu ulti');
+    const texto = avisoDeUlti({ esMia: true, palabra: BUENA, autor: 'Bea' });
+    assert.match(texto, new RegExp(BUENA.toUpperCase()));
+    assert.match(texto, /la normal/);
+  });
+
+  it('a los demás no se les chiva la palabra en el aviso', () => {
+    const texto = avisoDeUlti({ esMia: false, palabra: BUENA, autor: 'Bea' });
+    assert.ok(!texto.includes(BUENA.toUpperCase()));
   });
 });

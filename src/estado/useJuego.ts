@@ -142,6 +142,16 @@ export function useJuego() {
   const publicada = miResultado(torneoId, fecha);
   const relojAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * El nombre de quien puso la ulti de hoy, o null si no se puede saber.
+   *
+   * Null no es "no hay autor": el autor es la clave del mapa `ultis` y siempre
+   * está. Es que al salir de un torneo se borra el perfil, y la ulti sigue
+   * viva en la jornada a la que afectó. Ahí se anuncia sin nombre.
+   */
+  const autorUlti =
+    (ulti && activo.tipo === 'torneo' && activo.torneo.perfiles?.[ulti.autor]?.nombre) || null;
+
   /** El nombre con el que se conoce a alguien dentro de este torneo. */
   const nombreDe = useCallback(
     (uid: string | undefined) =>
@@ -419,6 +429,7 @@ export function useJuego() {
     publicada,
     /** La ulti que manda hoy, para poder anunciarla en el tablero. */
     ulti,
+    autorUlti,
     obligaciones,
     /** La que toca en el intento en curso, para poder anunciarla. */
     obligacion,
