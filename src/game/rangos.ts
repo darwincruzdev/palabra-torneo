@@ -159,6 +159,48 @@ export const ELECCION_POR_DEFECTO: EleccionValida = {
   titulo: null,
 };
 
+/* ------------------------------------------------------- cuándo fiarse */
+
+/**
+ * ¿Se puede dar por bueno el recuento de copas?
+ *
+ * El `every` sobre la lista de torneos es cierto cuando la lista está vacía, y
+ * al arrancar lo está siempre: aún no ha contestado Firestore. Sin
+ * `torneosCargados`, la app daba por fiable un recuento de cero durante el
+ * primer instante de cada arranque, y con eso llegó a escribir perfiles que
+ * sólo tenían `{copas: 0}` a gente que todavía no tenía perfil.
+ *
+ * Quien de verdad no tiene torneos también sale fiable: lo que hace falta es
+ * que la lista haya contestado, no que traiga algo.
+ */
+export function copasSonFiables(datos: {
+  hayUsuario: boolean;
+  torneosCargados: boolean;
+  torneoIds: string[];
+  /** Los torneos cuyo historial ya está resumido. */
+  conHistorial: string[];
+}): boolean {
+  if (!datos.hayUsuario || !datos.torneosCargados) return false;
+  return datos.torneoIds.every((id) => datos.conHistorial.includes(id));
+}
+
+/**
+ * ¿Toca apuntar las copas en el perfil?
+ *
+ * `perfilGuardado` es lo que impide crear un documento de usuario que sólo
+ * tenga las copas. Es una caché de algo que ya existe, no un sitio donde
+ * empezar: un documento nacido así no trae nombre ni `configurado`, y la app
+ * lo lee como "esta persona no ha pasado por la bienvenida".
+ */
+export function hayQueApuntarCopas(datos: {
+  fiables: boolean;
+  perfilGuardado: boolean;
+  copas: number;
+  apuntadas: number | null;
+}): boolean {
+  return datos.fiables && datos.perfilGuardado && datos.copas !== datos.apuntadas;
+}
+
 /* --------------------------------------------------------------- avisos */
 
 export type Desbloqueo = {

@@ -4,6 +4,8 @@ import {
   TITULOS,
   avataresDesbloqueados,
   avisadasTrasVer,
+  copasSonFiables,
+  hayQueApuntarCopas,
   desbloqueosEntre,
   eleccionValida,
   marcoDe,
@@ -106,6 +108,70 @@ describe('el marco de los demás, deducido de su título', () => {
     for (const titulo of TITULOS) {
       assert.equal(marcoDeTitulo(titulo.id), marcoDe(titulo.copas));
     }
+  });
+});
+
+describe('cuándo fiarse del recuento de copas', () => {
+  const base = {
+    hayUsuario: true,
+    torneosCargados: true,
+    torneoIds: ['t1', 't2'],
+    conHistorial: ['t1', 't2'],
+  };
+
+  it('con todos los historiales cargados, sí', () => {
+    assert.equal(copasSonFiables(base), true);
+  });
+
+  it('si falta el historial de uno, no', () => {
+    assert.equal(copasSonFiables({ ...base, conHistorial: ['t1'] }), false);
+  });
+
+  it('una lista de torneos vacía que aún no ha contestado, no', () => {
+    // Este era el fallo: `[].every(...)` es cierto, así que al arrancar se daba
+    // por fiable un cero que sólo significaba "Firestore todavía no ha dicho
+    // nada", y con él se escribían perfiles que sólo tenían las copas.
+    assert.equal(
+      copasSonFiables({ ...base, torneosCargados: false, torneoIds: [], conHistorial: [] }),
+      false
+    );
+  });
+
+  it('quien de verdad no tiene torneos sí es fiable, en cuanto se sabe', () => {
+    assert.equal(
+      copasSonFiables({ ...base, torneosCargados: true, torneoIds: [], conHistorial: [] }),
+      true
+    );
+  });
+
+  it('sin sesión, nunca', () => {
+    assert.equal(copasSonFiables({ ...base, hayUsuario: false }), false);
+  });
+});
+
+describe('cuándo apuntar las copas en el perfil', () => {
+  const base = { fiables: true, perfilGuardado: true, copas: 3, apuntadas: null };
+
+  it('con el recuento fiable y algo que cambiar, sí', () => {
+    assert.equal(hayQueApuntarCopas(base), true);
+  });
+
+  it('sin perfil guardado, no: crearía un documento con sólo las copas', () => {
+    assert.equal(hayQueApuntarCopas({ ...base, perfilGuardado: false }), false);
+    // Y el caso que lo destapó: cero copas, nadie configurado todavía.
+    assert.equal(
+      hayQueApuntarCopas({ fiables: true, perfilGuardado: false, copas: 0, apuntadas: null }),
+      false
+    );
+  });
+
+  it('si el recuento no es fiable, no', () => {
+    assert.equal(hayQueApuntarCopas({ ...base, fiables: false }), false);
+  });
+
+  it('si ya está apuntado lo mismo, no se reescribe', () => {
+    assert.equal(hayQueApuntarCopas({ ...base, apuntadas: 3 }), false);
+    assert.equal(hayQueApuntarCopas({ ...base, copas: 0, apuntadas: 0 }), false);
   });
 });
 

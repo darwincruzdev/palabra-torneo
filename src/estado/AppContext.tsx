@@ -62,7 +62,7 @@ import {
   ultimoDiaDelMes,
 } from '../game/temporada';
 import { avatarInicial, normalizarAvatar } from '../game/avatares';
-import { avisadasTrasVer } from '../game/rangos';
+import { avisadasTrasVer, copasSonFiables, hayQueApuntarCopas } from '../game/rangos';
 import {
   borrarTodoLoLocal,
   cargarPerfilLocal,
@@ -242,6 +242,8 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   const [titulo, setTitulo] = useState<string | null>(null);
   const [rangosAvisados, setRangosAvisados] = useState<number | null>(null);
   const [copasCache, setCopasCache] = useState<number | null>(null);
+  /** ¿Ha contestado ya la lista de torneos? Vacía y sin contestar no es lo mismo. */
+  const [torneosCargados, setTorneosCargados] = useState(false);
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [jornadas, setJornadas] = useState<Record<string, DiaTorneo[]>>({});
   /**
@@ -277,6 +279,11 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     cargarPerfilLocal().then((guardado) => {
       if (MAQUETA_ACTIVA) return;
+      // TEMPORAL: si el móvil no guarda, aquí sale null y lo demás se explica solo.
+      console.info('[perfil] leído del móvil', {
+        existe: guardado !== null,
+        configurado: guardado?.configurado,
+      });
       if (!guardado) return;
       setNombre(guardado.nombre);
       setAvatar(normalizarAvatar(guardado.avatar));
@@ -297,6 +304,13 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     datos
       .leerPerfil(uid)
       .then((perfil) => {
+        // TEMPORAL: para dar con por qué vuelve a salir la bienvenida.
+        console.info('[perfil] leído del servidor', {
+          existe: perfil !== null,
+          configurado: perfil?.configurado,
+          tieneNombre: !!perfil?.nombre,
+          copas: perfil?.copas,
+        });
         // La del servidor y la del móvil pueden no coincidir: se juega sin
         // cuenta, o desde dos aparatos. Manda la mejor, no la última en llegar.
         if (perfil?.arcade) {
@@ -362,7 +376,10 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       setTorneos([]);
       return;
     }
-    return datos.observarMisTorneos(uid, setTorneos);
+    return datos.observarMisTorneos(uid, (mios) => {
+      setTorneos(mios);
+      setTorneosCargados(true);
+    });
   }, [uid, sesion.usuario]);
 
   const hoy = fechaJuego();
@@ -746,8 +763,14 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
    * uno ni lo otro: se enseña lo que eligió y se calla.
    */
   const copasFiables = useMemo(
-    () => !!uid && torneos.every((torneo) => resumenes[torneo.id] !== undefined),
-    [torneos, resumenes, uid]
+    () =>
+      copasSonFiables({
+        hayUsuario: !!uid,
+        torneosCargados,
+        torneoIds: torneos.map((t) => t.id),
+        conHistorial: Object.keys(resumenes),
+      }),
+    [torneos, resumenes, uid, torneosCargados]
   );
 
   /**
@@ -762,11 +785,24 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
 
   /** En cuanto se cuentan de verdad, se deja apuntado para el próximo arranque. */
   useEffect(() => {
-    if (!uid || !datos.hayFirebase || !copasFiables) return;
-    if (copasCache === copasCalculadas) return;
+    if (!uid || !datos.hayFirebase) return;
+    if (
+      !hayQueApuntarCopas({
+        fiables: copasFiables,
+        // Sin perfil guardado no se escribe nada: esto es una caché de algo que
+        // ya existe, no un sitio donde crear el documento de alguien.
+        perfilGuardado: configurado === true,
+        copas: copasCalculadas,
+        apuntadas: copasCache,
+      })
+    ) {
+      return;
+    }
     setCopasCache(copasCalculadas);
-    datos.guardarCopas(uid, copasCalculadas).catch(() => {});
-  }, [uid, copasFiables, copasCalculadas, copasCache]);
+    datos.guardarCopas(uid, copasCalculadas).catch((fallo) => {
+      console.warn('No se han podido apuntar las copas', fallo);
+    });
+  }, [uid, copasFiables, copasCalculadas, copasCache, configurado]);
 
   const cambiarPerfil = useCallback(
     async (nuevoNombre: string, nuevoAvatar: Avatar, nuevoTitulo?: string | null) => {
@@ -792,7 +828,10 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
        * dejaba a la persona dando vueltas por la bienvenida sin una sola pista
        * de por qué. Quien llama decide qué enseñar.
        */
+      // TEMPORAL: junto al de la lectura, dice si el perfil llega a escribirse.
+      console.info('[perfil] guardando en el servidor', { uid, nombre: limpio });
       await datos.guardarPerfil(uid, limpio, seguro, suTitulo);
+      console.info('[perfil] guardado en el servidor');
       // Que la clasificación de cada torneo se entere del cambio.
       await datos.propagarPerfil(
         uid,
