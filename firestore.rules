@@ -37,11 +37,18 @@ service cloud.firestore {
     // que existen y que el avatar especial sea un índice y no un objeto. Que le
     // corresponda lo comprueba la app al pintarlo, en `rangos.ts`, y lo que no
     // le toque se le cae al avatar normal y sin título.
+    //
+    // El `is string` no es adorno: sin él, la última comparación se ejecuta con
+    // un valor nulo —que es lo que lleva todo el que aún no ha ganado ningún
+    // título, o sea casi todos— y en estas reglas un `in` sobre algo que no es
+    // una cadena no da falso: da error, y un error aquí deniega. Se quedó medio
+    // torneo sin poder guardar el perfil por esto.
     function tituloCreible() {
       return !('titulo' in request.resource.data)
         || request.resource.data.titulo == null
-        || request.resource.data.titulo in
-             ['leyenda', 'senor', 'azote', 'emperador', 'indiscutible'];
+        || (request.resource.data.titulo is string
+            && request.resource.data.titulo in
+                 ['leyenda', 'senor', 'azote', 'emperador', 'indiscutible']);
     }
 
     // El índice no se acota por arriba a propósito: la lista de avatares crece
@@ -49,8 +56,11 @@ service cloud.firestore {
     // que se añade uno o los perfiles nuevos dejarían de guardarse. Pasarse de
     // largo no hace daño —`normalizarAvatar` quita el que no existe—; dejar de
     // poder guardar sí lo haría.
+    // Lo mismo con el `is map`: preguntar `'especial' in algo` que no sea un
+    // mapa también es un error, no un falso.
     function avatarCreible() {
       return !('avatar' in request.resource.data)
+        || !(request.resource.data.avatar is map)
         || !('especial' in request.resource.data.avatar)
         || (request.resource.data.avatar.especial is int
             && request.resource.data.avatar.especial >= 0);

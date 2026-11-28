@@ -326,7 +326,19 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         setAvatar(perfil?.avatar ?? avatarInicial(uid));
         setConfigurado(false);
       })
-      .catch(() => setConfigurado(false));
+      /**
+       * Si la lectura falla, no se decide nada.
+       *
+       * Antes aquí se ponía `false`, que es "eres nuevo": un corte de red o un
+       * permiso denegado te mandaban a la bienvenida a elegir nombre y avatar
+       * otra vez, y encima en cada recarga. Un fallo no es una respuesta. Se
+       * deja como estaba —si el móvil ya sabía que tienes perfil, sigue
+       * sabiéndolo— y sólo se manda a la bienvenida cuando el servidor contesta
+       * de verdad que no hay perfil.
+       */
+      .catch((fallo) => {
+        console.warn('No se ha podido leer el perfil', fallo);
+      });
   }, [uid, sesion.usuario]);
 
   // Datos inventados para las capturas. No tocan Firebase ni salen en una build normal.
@@ -773,7 +785,14 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         rangosAvisados,
       });
       if (!uid || !datos.hayFirebase) return;
-      await datos.guardarPerfil(uid, limpio, seguro, suTitulo).catch(() => {});
+      /**
+       * Sin `catch`: si esto falla hay que enterarse.
+       *
+       * Se tragaba el error, así que un perfil que no llegaba a guardarse
+       * dejaba a la persona dando vueltas por la bienvenida sin una sola pista
+       * de por qué. Quien llama decide qué enseñar.
+       */
+      await datos.guardarPerfil(uid, limpio, seguro, suTitulo);
       // Que la clasificación de cada torneo se entere del cambio.
       await datos.propagarPerfil(
         uid,

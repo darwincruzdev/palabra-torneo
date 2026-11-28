@@ -25,6 +25,7 @@ export function PantallaBienvenida() {
   const [borradorNombre, setBorradorNombre] = useState(nombre);
   const [borradorAvatar, setBorradorAvatar] = useState(avatar);
   const [guardando, setGuardando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
   const nombreValido = borradorNombre.trim().length >= 2;
@@ -32,8 +33,19 @@ export function PantallaBienvenida() {
   async function continuar() {
     if (!nombreValido) return;
     setGuardando(true);
+    setFallo(null);
     try {
       await cambiarPerfil(borradorNombre, borradorAvatar);
+    } catch (e) {
+      // Sin esto, un guardado que falla deja el botón como si no hiciera nada
+      // y la bienvenida vuelve a salir en la siguiente recarga sin explicar
+      // por qué. Es lo que pasó al añadir los títulos.
+      console.warn('No se ha podido guardar el perfil', e);
+      setFallo(
+        e instanceof Error && e.message
+          ? `No se ha podido guardar: ${e.message}`
+          : 'No se ha podido guardar el perfil. Inténtalo otra vez.'
+      );
     } finally {
       setGuardando(false);
     }
@@ -78,6 +90,7 @@ export function PantallaBienvenida() {
           deshabilitado={!nombreValido}
         />
         {!nombreValido && <Sutil>Escribe al menos dos letras.</Sutil>}
+        {fallo && <Sutil>{fallo}</Sutil>}
       </View>
     </ScrollView>
   );
