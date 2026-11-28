@@ -38,12 +38,50 @@ export { hayFirebase };
 
 /* ----------------------------------------------------------------- perfiles */
 
-export async function guardarPerfil(uid: string, nombre: string, avatar: Avatar) {
+export async function guardarPerfil(
+  uid: string,
+  nombre: string,
+  avatar: Avatar,
+  titulo: string | null = null
+) {
   await setDoc(
     doc(baseDatos(), 'usuarios', uid),
-    { nombre, avatar, configurado: true, actualizado: serverTimestamp() },
+    { nombre, avatar, titulo, configurado: true, actualizado: serverTimestamp() },
     { merge: true }
   );
+}
+
+/**
+ * Hasta cuántas copas se le ha avisado ya de lo que desbloqueaba.
+ *
+ * Va en su documento y no sólo en el móvil para que el aviso no se repita al
+ * entrar desde otro aparato. Es un número y no una lista: lo que se compara es
+ * lo que se desbloquea entre dos cifras, así que la octava copa, que no
+ * desbloquea nada, no saca ningún aviso.
+ */
+export async function guardarRangosAvisados(uid: string, copas: number) {
+  await setDoc(
+    doc(baseDatos(), 'usuarios', uid),
+    { rangosAvisados: copas },
+    { merge: true }
+  );
+}
+
+/**
+ * Las copas que se le contaron la última vez, guardadas para el arranque.
+ *
+ * Es una **caché**, no la verdad: la verdad es el palmarés, y se recalcula en
+ * cuanto hay historial cargado. Existe porque contar copas de verdad pide
+ * todos los días de todos sus torneos, y eso no se puede hacer en cada arranque
+ * sólo para saber si toca enseñar un aviso.
+ *
+ * Que sea su propio documento el que la guarda no la hace falseable de más: ya
+ * decide él qué título guarda. Lo que no puede hacer es concederse nada que no
+ * tenga, porque en cuanto la app carga el historial manda el recuento de
+ * verdad, y lo que no le corresponda se le cae.
+ */
+export async function guardarCopas(uid: string, copas: number) {
+  await setDoc(doc(baseDatos(), 'usuarios', uid), { copas }, { merge: true });
 }
 
 /**
@@ -64,18 +102,27 @@ export async function leerPerfil(
       configurado: boolean;
       letraGrande: boolean;
       arcade: RecordArcade | null;
+      /** Hasta cuántas copas se le avisó. Null si nunca. */
+      rangosAvisados: number | null;
+      /** Las copas que se le contaron la última vez. Caché, no verdad. */
+      copas: number | null;
     })
   | null
 > {
   const documento = await getDoc(doc(baseDatos(), 'usuarios', uid));
   if (!documento.exists()) return null;
   const datos = documento.data();
+  const avisadas = Number(datos.rangosAvisados);
+  const copas = Number(datos.copas);
   return {
     nombre: String(datos.nombre ?? ''),
     avatar: normalizarAvatar(datos.avatar),
+    titulo: typeof datos.titulo === 'string' ? datos.titulo : null,
     configurado: datos.configurado === true,
     letraGrande: datos.letraGrande === true,
     arcade: comoRecordArcade(datos.arcade),
+    rangosAvisados: Number.isFinite(avisadas) && avisadas >= 0 ? avisadas : null,
+    copas: Number.isFinite(copas) && copas >= 0 ? copas : null,
   };
 }
 
@@ -133,12 +180,13 @@ export async function propagarPerfil(
   uid: string,
   torneoIds: string[],
   nombre: string,
-  avatar: Avatar
+  avatar: Avatar,
+  titulo: string | null = null
 ) {
   await Promise.all(
     torneoIds.map((id) =>
       updateDoc(doc(baseDatos(), 'torneos', id), {
-        [`perfiles.${uid}`]: { nombre, avatar },
+        [`perfiles.${uid}`]: { nombre, avatar, titulo },
       }).catch(() => {})
     )
   );

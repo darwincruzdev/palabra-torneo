@@ -25,6 +25,8 @@ import {
   colistaDestacado,
   liderDestacado,
   resumirMeses,
+  trofeosDeResumenes,
+  trofeosPorJugador,
 } from '../game/clasificacion';
 import { misPartidas } from '../game/estadisticas';
 import {
@@ -60,6 +62,7 @@ import {
   ultimoDiaDelMes,
 } from '../game/temporada';
 import { avatarInicial, normalizarAvatar } from '../game/avatares';
+import { avisadasTrasVer } from '../game/rangos';
 import {
   borrarTodoLoLocal,
   cargarPerfilLocal,
@@ -142,7 +145,20 @@ type Estado = {
   ultisDe: (torneoId: string) => EstadoUlti;
   /** Gasta la ulti poniéndole esa palabra al resto del torneo para mañana. */
   lanzarUlti: (torneoId: string, palabra: string) => Promise<void>;
-  cambiarPerfil: (nombre: string, avatar: Avatar) => Promise<void>;
+  cambiarPerfil: (
+    nombre: string,
+    avatar: Avatar,
+    titulo?: string | null
+  ) => Promise<void>;
+  /** El id del título que lleva puesto. Puede no corresponderle: se comprueba al pintarlo. */
+  titulo: string | null;
+  /** Copas de todos sus torneos juntas. */
+  copas: number;
+  /** ¿Están todos los historiales cargados? Si no, `copas` se queda corto. */
+  copasFiables: boolean;
+  /** Hasta cuántas copas se le avisó de lo que desbloqueaba. */
+  rangosAvisados: number | null;
+  marcarRangosAvisados: () => Promise<void>;
   /** Modo de letra grande: agranda todo el texto de la app. */
   letraGrande: boolean;
   cambiarLetraGrande: (valor: boolean) => Promise<void>;
@@ -223,6 +239,9 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
 
   const [nombre, setNombre] = useState('');
   const [avatar, setAvatar] = useState<Avatar>(() => normalizarAvatar(null));
+  const [titulo, setTitulo] = useState<string | null>(null);
+  const [rangosAvisados, setRangosAvisados] = useState<number | null>(null);
+  const [copasCache, setCopasCache] = useState<number | null>(null);
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [jornadas, setJornadas] = useState<Record<string, DiaTorneo[]>>({});
   /**
@@ -261,6 +280,8 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
       if (!guardado) return;
       setNombre(guardado.nombre);
       setAvatar(normalizarAvatar(guardado.avatar));
+      setTitulo(guardado.titulo ?? null);
+      setRangosAvisados(guardado.rangosAvisados ?? null);
       setLetraGrande(guardado.letraGrande === true);
       if (guardado.configurado) setConfigurado(true);
     });
@@ -285,6 +306,11 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
         if (perfil?.configurado) {
           setNombre(perfil.nombre);
           setAvatar(perfil.avatar);
+          setTitulo(perfil.titulo ?? null);
+          // El del servidor manda: es el que sabe si ya se le avisó desde otro
+          // aparato. Sin él, lo que hubiera en el móvil.
+          setRangosAvisados((previo) => perfil.rangosAvisados ?? previo);
+          setCopasCache(perfil.copas);
           setLetraGrande(perfil.letraGrande);
           setConfigurado(true);
           guardarPerfilLocal({ ...perfil, configurado: true });
@@ -682,26 +708,105 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     return torneos.find((t) => t.id === cabeceraId) ?? null;
   }, [torneos, cabeceraId]);
 
+  /**
+   * Las copas de todos los torneos juntas, que es de lo que salen los rangos.
+   *
+   * Sale del palmarés, no de un contador aparte: es el mismo recuento que pinta
+   * la tabla, sumado por torneos. Lo que no esté cargado no cuenta, y por eso
+   * va acompañado de `copasFiables`.
+   */
+  const copasCalculadas = useMemo(() => {
+    if (!uid) return 0;
+    return torneos.reduce(
+      (suma, torneo) =>
+        suma +
+        (trofeosPorJugador(trofeosDeResumenes(resumenes[torneo.id] ?? []))[uid] ?? 0),
+      0
+    );
+  }, [torneos, resumenes, uid]);
+
+  /**
+   * ¿Está el historial de todos sus torneos, o faltan por cargar?
+   *
+   * Importa más de lo que parece. Mientras falte alguno, `copas` se queda corto,
+   * y con un número corto habría que quitarle el título a quien sí lo ha ganado
+   * y sacarle un aviso de algo que ya sabía. Con esto en false no se hace ni lo
+   * uno ni lo otro: se enseña lo que eligió y se calla.
+   */
+  const copasFiables = useMemo(
+    () => !!uid && torneos.every((torneo) => resumenes[torneo.id] !== undefined),
+    [torneos, resumenes, uid]
+  );
+
+  /**
+   * Las copas que se dan por buenas ahora mismo.
+   *
+   * Con el historial cargado, el recuento de verdad. Sin él, lo último que se
+   * contó, que viaja en su propio documento y llega en la misma lectura que el
+   * nombre: así el aviso puede salir nada más abrir sin pedir un solo
+   * documento más, que es lo que costaría contar las copas de verdad.
+   */
+  const copas = copasFiables ? copasCalculadas : copasCache ?? copasCalculadas;
+
+  /** En cuanto se cuentan de verdad, se deja apuntado para el próximo arranque. */
+  useEffect(() => {
+    if (!uid || !datos.hayFirebase || !copasFiables) return;
+    if (copasCache === copasCalculadas) return;
+    setCopasCache(copasCalculadas);
+    datos.guardarCopas(uid, copasCalculadas).catch(() => {});
+  }, [uid, copasFiables, copasCalculadas, copasCache]);
+
   const cambiarPerfil = useCallback(
-    async (nuevoNombre: string, nuevoAvatar: Avatar) => {
+    async (nuevoNombre: string, nuevoAvatar: Avatar, nuevoTitulo?: string | null) => {
       const limpio = nuevoNombre.trim().slice(0, 20);
       const seguro = normalizarAvatar(nuevoAvatar);
+      const suTitulo = nuevoTitulo === undefined ? titulo : nuevoTitulo;
       setNombre(limpio);
       setAvatar(seguro);
+      setTitulo(suTitulo);
       setConfigurado(true);
-      await guardarPerfilLocal({ nombre: limpio, avatar: seguro, configurado: true });
+      await guardarPerfilLocal({
+        nombre: limpio,
+        avatar: seguro,
+        titulo: suTitulo,
+        configurado: true,
+        rangosAvisados,
+      });
       if (!uid || !datos.hayFirebase) return;
-      await datos.guardarPerfil(uid, limpio, seguro).catch(() => {});
+      await datos.guardarPerfil(uid, limpio, seguro, suTitulo).catch(() => {});
       // Que la clasificación de cada torneo se entere del cambio.
       await datos.propagarPerfil(
         uid,
         torneos.map((t) => t.id),
         limpio,
-        seguro
+        seguro,
+        suTitulo
       );
     },
-    [uid, torneos]
+    [uid, torneos, titulo, rangosAvisados]
   );
+
+  /**
+   * Da por avisado lo que lleva ganado, para no repetirle el mismo aviso.
+   *
+   * Nunca baja: las copas pueden bajar si un mes empatado se decide al revés, y
+   * si esto bajara con ellas volvería a avisar de lo mismo al recuperarlas.
+   */
+  const marcarRangosAvisados = useCallback(async () => {
+    const hasta = avisadasTrasVer(rangosAvisados ?? 0, copas);
+    setRangosAvisados(hasta);
+    const perfilLocal = await cargarPerfilLocal();
+    await guardarPerfilLocal({
+      nombre: perfilLocal?.nombre ?? nombre,
+      avatar: perfilLocal?.avatar ?? avatar,
+      titulo: perfilLocal?.titulo ?? titulo,
+      configurado: perfilLocal?.configurado,
+      letraGrande: perfilLocal?.letraGrande,
+      rangosAvisados: hasta,
+    });
+    if (!uid || !datos.hayFirebase) return;
+    await datos.guardarRangosAvisados(uid, hasta).catch(() => {});
+  }, [uid, copas, rangosAvisados, nombre, avatar, titulo]);
 
   const cambiarLetraGrande = useCallback(
     async (valor: boolean) => {
@@ -845,6 +950,11 @@ export function ProveedorApp({ children }: { children: React.ReactNode }) {
     uid,
     nombre,
     avatar,
+    titulo,
+    copas,
+    copasFiables,
+    rangosAvisados,
+    marcarRangosAvisados,
     perfilConfigurado: configurado,
     torneos,
     jornadas,

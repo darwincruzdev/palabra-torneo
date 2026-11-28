@@ -62,6 +62,16 @@ export type PerfilLocal = {
   configurado?: boolean;
   /** Modo de letra grande, para quien no ve bien los tamaños normales. */
   letraGrande?: boolean;
+  /** El id del título que lleva puesto, si lleva alguno. */
+  titulo?: string | null;
+  /**
+   * Hasta cuántas copas se le avisó ya de lo que desbloqueaba.
+   *
+   * El bueno es el de su documento, para que no se repita al entrar desde otro
+   * aparato. Aquí queda el respaldo de quien juega sin cuenta, y para no
+   * enseñar el aviso otra vez mientras el servidor contesta.
+   */
+  rangosAvisados?: number | null;
 };
 
 export function cargarPerfilLocal(): Promise<PerfilLocal | null> {

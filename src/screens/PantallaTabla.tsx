@@ -3,6 +3,9 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Texto } from '../components/Texto';
 import { Avatar } from '../components/Avatar';
 import { Copas } from '../components/Copas';
+import { EtiquetaTitulo } from '../components/EtiquetaTitulo';
+import { eleccionValida, marcoDe, marcoDeTitulo, tituloPorId } from '../game/rangos';
+import type { FilaClasificacion } from '../tipos';
 import { IconoTrofeo } from '../components/Iconos';
 import { Ficha } from '../components/Ficha';
 import { RejillaMini } from '../components/RejillaMini';
@@ -62,6 +65,8 @@ export function PantallaTabla({ torneoId, volver, irAAjustes, invitarInicial, ar
     resumenes,
     cargarResumenes,
     decidirDesempate,
+    copas,
+    titulo: mioTitulo,
   } = useApp();
   const [vista, setVista] = useState<Vista>('mes');
   const [invitar, setInvitar] = useState(Boolean(invitarInicial));
@@ -107,6 +112,23 @@ export function PantallaTabla({ torneoId, volver, irAAjustes, invitarInicial, ar
   }
 
   const nombreDe = (id: string) => torneo.perfiles?.[id]?.nombre ?? 'Jugador';
+
+  /**
+   * El título que se le pinta a una fila.
+   *
+   * El mío sale de mi perfil y no de la copia que guarda el torneo. La copia la
+   * escribe `propagarPerfil`, que se traga los fallos a propósito para que
+   * cambiarse el nombre no reviente si un torneo no responde: si fallara, me
+   * vería sin título en mi propia tabla y pensaría que no funciona. Encima el
+   * mío sí se puede comprobar, porque mis copas sí las sé.
+   *
+   * El de los demás es el que ellos guardaron: sus copas salen de torneos en
+   * los que puedo no estar, y las reglas no me dejan leerlos.
+   */
+  const tituloDeLaFila = (fila: FilaClasificacion) =>
+    fila.uid === uid
+      ? eleccionValida(copas, { avatar: fila.avatar, titulo: mioTitulo }).titulo
+      : tituloPorId(fila.titulo);
   const detalle = `Temporada ${mesLargo(mes).split(' de ')[0]} · quedan ${diasQueQuedan(hoy)} jornadas`;
 
   return (
@@ -174,7 +196,15 @@ export function PantallaTabla({ torneoId, volver, irAAjustes, invitarInicial, ar
                     color={i < 3 && fila.puntos > 0 ? COLOR_PUESTO[i] : colores.elevado}
                     tinta={i < 3 ? colores.fondo : colores.texto}
                   />
-                  <Avatar avatar={fila.avatar} lado={36} />
+                  <Avatar
+                    avatar={fila.avatar}
+                    lado={36}
+                    marco={
+                      fila.uid === uid
+                        ? marcoDe(copas)
+                        : marcoDeTitulo(fila.titulo)
+                    }
+                  />
                   <View style={{ flex: 1 }}>
                     <View style={estilos.lineaNombre}>
                       <Texto style={estilos.nombre} numberOfLines={1}>
@@ -190,6 +220,7 @@ export function PantallaTabla({ torneoId, volver, irAAjustes, invitarInicial, ar
                         <Texto style={estilos.distintivo}>🔵×{recibidas}</Texto>
                       )}
                     </View>
+                    <EtiquetaTitulo titulo={tituloDeLaFila(fila)} compacta />
                     <Texto style={estilos.detalle} numberOfLines={1}>
                       {fila.jugadas} jugadas
                       {fila.mediaIntentos !== null &&

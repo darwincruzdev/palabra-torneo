@@ -3,11 +3,19 @@ import type { Avatar } from './game/avatares';
 
 export type { Marca, Avatar };
 
-/** Cómo se ve un jugador para los demás: nombre y avatar. */
+/** Cómo se ve un jugador para los demás: nombre, avatar y título. */
 export type Perfil = {
   uid: string;
   nombre: string;
   avatar: Avatar;
+  /**
+   * El id del título que lleva puesto, de `TITULOS`.
+   *
+   * Opcional: los perfiles de antes de las copas no lo traen, y quien no haya
+   * ganado ninguna no tiene ninguno. Que le corresponda se comprueba al
+   * pintarlo, no al guardarlo.
+   */
+  titulo?: string | null;
 };
 
 /** Resultado de un jugador en una jornada de un torneo. */
@@ -147,7 +155,7 @@ export type Torneo = {
   propietario: string;
   miembros: string[];
   /** uid -> cómo se ve ese jugador dentro de este torneo. */
-  perfiles: Record<string, { nombre: string; avatar: Avatar }>;
+  perfiles: Record<string, { nombre: string; avatar: Avatar; titulo?: string | null }>;
   /**
    * Las normas de la casa. Opcional: los torneos creados antes de que
    * existieran no lo traen y se quedan con las de siempre.
@@ -211,6 +219,8 @@ export type FilaClasificacion = {
   uid: string;
   nombre: string;
   avatar: Avatar;
+  /** El título que lleva puesto, tal y como lo guardó. Puede no tocarle. */
+  titulo?: string | null;
   puntos: number;
   jugadas: number;
   /** Jornadas cerradas que se saltó, desde la primera que jugó. */

@@ -26,10 +26,53 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
-    // Perfil público: nombre y avatar que se ven en las clasificaciones.
+    // Perfil público: nombre, avatar y título que se ven en las clasificaciones.
+    //
+    // El título y los avatares especiales se ganan con copas, y **eso el
+    // servidor no lo puede comprobar**: contar copas pide todos los días de
+    // todos sus torneos —cientos de documentos— y aquí caben diez lecturas por
+    // evaluación. No es una decisión de diseño, es que no entra.
+    //
+    // Así que lo que se cierra aquí es la forma: que el título sea uno de los
+    // que existen y que el avatar especial sea un índice y no un objeto. Que le
+    // corresponda lo comprueba la app al pintarlo, en `rangos.ts`, y lo que no
+    // le toque se le cae al avatar normal y sin título.
+    function tituloCreible() {
+      return !('titulo' in request.resource.data)
+        || request.resource.data.titulo == null
+        || request.resource.data.titulo in
+             ['leyenda', 'senor', 'azote', 'emperador', 'indiscutible'];
+    }
+
+    // El índice no se acota por arriba a propósito: la lista de avatares crece
+    // con el tiempo, y una cota aquí obligaría a desplegar las reglas cada vez
+    // que se añade uno o los perfiles nuevos dejarían de guardarse. Pasarse de
+    // largo no hace daño —`normalizarAvatar` quita el que no existe—; dejar de
+    // poder guardar sí lo haría.
+    function avatarCreible() {
+      return !('avatar' in request.resource.data)
+        || !('especial' in request.resource.data.avatar)
+        || (request.resource.data.avatar.especial is int
+            && request.resource.data.avatar.especial >= 0);
+    }
+
+    // Las copas guardadas son una caché para el arranque, no la verdad: la
+    // verdad es el palmarés y se recalcula en cuanto hay historial. Aquí sólo
+    // se cierra que sea un número, para que no llegue cualquier cosa.
+    function cuentasCreibles() {
+      return (!('copas' in request.resource.data)
+          || (request.resource.data.copas is int && request.resource.data.copas >= 0))
+        && (!('rangosAvisados' in request.resource.data)
+          || (request.resource.data.rangosAvisados is int
+              && request.resource.data.rangosAvisados >= 0));
+    }
+
     match /usuarios/{uid} {
       allow read: if conSesion();
-      allow write: if conSesion() && request.auth.uid == uid;
+      allow write: if conSesion() && request.auth.uid == uid
+        && tituloCreible()
+        && avatarCreible()
+        && cuentasCreibles();
     }
 
     // Invitaciones. Cualquiera con sesión puede resolver un código, que es lo

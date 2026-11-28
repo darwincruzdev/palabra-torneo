@@ -73,6 +73,8 @@ export function clasificacion(
       uid,
       nombre: perfil?.nombre ?? 'Jugador',
       avatar: normalizarAvatar(perfil?.avatar),
+      // Tal y como lo guardó: si le corresponde se comprueba al pintarlo.
+      titulo: perfil?.titulo ?? null,
       puntos: 0,
       jugadas: 0,
       faltas: 0,

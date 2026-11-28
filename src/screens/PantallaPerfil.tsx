@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -7,6 +7,8 @@ import { Avatar } from '../components/Avatar';
 import { Emblema } from '../components/Emblema';
 import { SelectorAvatar } from '../components/SelectorAvatar';
 import { Copas } from '../components/Copas';
+import { SelectorRangos } from '../components/SelectorRangos';
+import { EtiquetaTitulo } from '../components/EtiquetaTitulo';
 import { Boton, Sutil, Tarjeta } from '../components/ui';
 import { Confirmacion } from '../components/Confirmacion';
 import { IconoLapiz } from '../components/Iconos';
@@ -16,16 +18,19 @@ import { fusionarHistorial, resumenPersonal } from '../game/estadisticas';
 import { fechaJuego } from '../game/fecha';
 import { cargarHistorial } from '../almacen/local';
 import { type Avatar as DatosAvatar } from '../game/avatares';
+import { eleccionValida, marcoDe } from '../game/rangos';
 import { useApp } from '../estado/AppContext';
 import { colores, espaciado, fuentes, texto as escala } from '../tema';
 
 type Props = {
   irANormas: () => void;
   irATorneo: (torneoId: string) => void;
+  /** Llega a true cuando se entra desde el aviso de rangos: hay que bajar hasta ahí. */
+  abrirRangos?: boolean;
 };
 
 /** Tus números, tus torneos y la cuenta. Las normas viven en su propia pantalla. */
-export function PantallaPerfil({ irANormas, irATorneo }: Props) {
+export function PantallaPerfil({ irANormas, irATorneo, abrirRangos }: Props) {
   const {
     nombre,
     avatar,
@@ -41,6 +46,8 @@ export function PantallaPerfil({ irANormas, irATorneo }: Props) {
     cargarResumenes,
     uid,
     borrarCuenta,
+    titulo,
+    copas,
   } = useApp();
   const [editando, setEditando] = useState(false);
   const [borradorNombre, setBorradorNombre] = useState(nombre);
@@ -51,6 +58,26 @@ export function PantallaPerfil({ irANormas, irATorneo }: Props) {
   const [fallo, setFallo] = useState<string | null>(null);
   const hoy = fechaJuego();
   const insets = useSafeAreaInsets();
+  const scroll = useRef<ScrollView>(null);
+  const [altoRangos, setAltoRangos] = useState(0);
+
+  /**
+   * Al llegar desde el aviso, se baja solo hasta las recompensas.
+   *
+   * Si no, el botón del aviso dejaría a la persona arriba del todo del perfil
+   * buscando dónde se cambia el avatar, que es justo lo que promete evitar.
+   */
+  useEffect(() => {
+    if (!abrirRangos || altoRangos === 0) return;
+    const reloj = setTimeout(
+      () => scroll.current?.scrollTo({ y: altoRangos, animated: true }),
+      250
+    );
+    return () => clearTimeout(reloj);
+  }, [abrirRangos, altoRangos]);
+
+  /** Lo que de verdad lleva puesto, por si guardó algo que ya no le toca. */
+  const mio = eleccionValida(copas, { avatar, titulo });
 
   useEffect(() => setBorradorNombre(nombre), [nombre]);
   useEffect(() => setBorradorAvatar(avatar), [avatar]);
@@ -109,9 +136,10 @@ export function PantallaPerfil({ irANormas, irATorneo }: Props) {
       keyboardShouldPersistTaps="handled"
     >
       <View style={estilos.cabecera}>
-        <Avatar avatar={avatar} lado={64} />
+        <Avatar avatar={mio.avatar} lado={64} marco={marcoDe(copas)} />
         <View style={{ flex: 1 }}>
           <Texto style={estilos.nombre}>{nombre || 'Sin nombre'}</Texto>
+          <EtiquetaTitulo titulo={mio.titulo} />
           <Texto style={estilos.meta}>
             {torneos.length} {torneos.length === 1 ? 'torneo' : 'torneos'}
             {desde ? ` · desde ${desde}` : ''}
@@ -186,6 +214,20 @@ export function PantallaPerfil({ irANormas, irATorneo }: Props) {
           </View>
         </View>
       </Tarjeta>
+
+      <View onLayout={(e) => setAltoRangos(e.nativeEvent.layout.y)}>
+        <Texto style={estilos.rotulo}>Recompensas</Texto>
+        <Tarjeta>
+          <SelectorRangos
+            copas={copas}
+            avatar={mio.avatar}
+            titulo={mio.titulo?.id ?? null}
+            onElegirAvatar={(nuevo) => cambiarPerfil(nombre, nuevo)}
+            onElegirTitulo={(id) => cambiarPerfil(nombre, mio.avatar, id)}
+          />
+          {!hayFirebase && <Sutil>Sin Firebase, esto sólo se guarda en el móvil.</Sutil>}
+        </Tarjeta>
+      </View>
 
       {torneos.length > 0 && (
         <>

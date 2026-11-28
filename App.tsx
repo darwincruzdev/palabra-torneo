@@ -25,6 +25,7 @@ import { PantallaTabla } from './src/screens/PantallaTabla';
 import { PantallaJuego } from './src/screens/PantallaJuego';
 import { PantallaHistorial } from './src/screens/PantallaHistorial';
 import { PantallaPerfil } from './src/screens/PantallaPerfil';
+import { AvisoRangos } from './src/components/AvisoRangos';
 import { PantallaArcade } from './src/screens/PantallaArcade';
 import { PantallaTorneos } from './src/screens/PantallaTorneos';
 import { PantallaAjustesTorneo } from './src/screens/PantallaAjustesTorneo';
@@ -42,7 +43,8 @@ export type RutasPestanas = {
   Jugar: NavigatorScreenParams<RutasJugar> | undefined;
   Tabla: undefined;
   Jornadas: undefined;
-  Perfil: undefined;
+  /** `abrirRangos` llega del aviso de copas: baja solo hasta las recompensas. */
+  Perfil: { abrirRangos?: boolean } | undefined;
 };
 
 export type RutasApp = {
@@ -274,8 +276,9 @@ function Raiz() {
               </Pestanas.Screen>
 
               <Pestanas.Screen name="Perfil">
-                {({ navigation }) => (
+                {({ navigation, route }) => (
                   <PantallaPerfil
+                    abrirRangos={route.params?.abrirRangos === true}
                     irANormas={() => navigation.navigate('Normas')}
                     irATorneo={(torneoId) => {
                       elegirTorneo(torneoId);
@@ -323,6 +326,16 @@ function Raiz() {
           )}
         </Pila.Screen>
       </Pila.Navigator>
+
+      {/* Sobre toda la app: el aviso tiene que salir se abra donde se abra. */}
+      <AvisoRangos
+        irAElegir={() =>
+          navegacion.navigate('Principal', {
+            screen: 'Perfil',
+            params: { abrirRangos: true },
+          })
+        }
+      />
     </NavigationContainer>
   );
 }
